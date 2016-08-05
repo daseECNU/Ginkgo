@@ -1,0 +1,21 @@
+	编译：
+1)	./build.sh init
+2)	cd build/ (若无build文件夹，则新建一个)
+3)	../configure
+4)	make -j 4（四核的机器为4，同理双核为2
+
+	运行:
+1)	编译完之后会在build文件下生产可执行文件server
+此时在终端输入./server即可启动服务器
+2)	服务器启动之后，打开一个新终端（客户端），输入：
+mysql -h 127.0.0.1 -P 2345
+生成一个客户端和服务器之间的一个会话。（127.0.0.1为本机地址，2345为我们规定的默认端口）
+
+	
+	
+cleanup steps:
+
+1. make distclean
+1. build.sh clean
+
+Claims info:
