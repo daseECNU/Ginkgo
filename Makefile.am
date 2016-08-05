@@ -3,6 +3,7 @@ AM_CPPFLAGS=-fPIC  -DTHERON_XS\
 -I${JAVA_HOME}/include\
 -I${JAVA_HOME}/include/linux \
 -I${BOOST_HOME} \
+-I${BOOST_HOME}/boost/asio \
 -I${BOOST_HOME}/boost/serialization \
 -I${GTEST_HOME}/include \
 -I${CAF_HOME}/libcaf_io	\
@@ -10,7 +11,7 @@ AM_CPPFLAGS=-fPIC  -DTHERON_XS\
 #-L/usr/local/lib \
 #-I/usr/local/include
 AM_LDFLAGS=  -lc -lm -lrt -lcaf_core -lcaf_io -lpthread -lboost_serialization -lboost_date_time -lboost_system  \
-	-lconfig++ -lxs -lnuma -lreadline -lhistory -lz -ltinfo -Wl,--no-as-needed -ldl -rdynamic -lglog 
+	-lconfig++ -lxs -lnuma -lreadline -lhistory -lz -ltinfo -Wl,--no-as-needed -ldl -rdynamic -lglog -lboost_thread-mt -pthread 
 	
 
 if OPT_TCMALLOC
@@ -58,6 +59,9 @@ LDADD =  \
 	common/types/Test/libtest.a \
 	common/types/ttmath/libttmath.a \
 	utility/libutility.a \
+	httpserver/libhttpserver.a\
+	mysql/libmysql.a\
+   mysql/packet/libpacket.a \
 	${CAF_HOME}/build/lib/libcaf_core.so \
 	${CAF_HOME}/build/lib/libcaf_io.so \
 	${BOOST_HOME}/stage/lib/libboost_serialization.a \
@@ -103,9 +107,9 @@ test_SOURCES = Test/gtest_main.cpp\
 				
 SUBDIRS=  catalog Client common Daemon Executor IndexManager\
 loader physical_operator logical_operator  Resource \
-storage Test utility codegen sql_parser stmt_handler  node_manager exec_tracker
+storage Test utility codegen sql_parser stmt_handler  node_manager exec_tracker httpserver mysql
 
 DIST_SUBDIRS =  catalog Client common Daemon Executor IndexManager\
 loader physical_operator logical_operator  Resource \
-storage Test utility codegen sql_parser stmt_handler node_manager exec_tracker
+storage Test utility codegen sql_parser stmt_handler node_manager exec_tracker httpserver mysql
 

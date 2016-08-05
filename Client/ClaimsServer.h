@@ -49,7 +49,7 @@ private:
 
 	static void sendJsonPacket(ClientResponse &cr, ExecutedResult &res);
 	static void generateSqlStmt(int type, char *&buf);
-
+	//int check_sock_fd(int fd_);
 	bool isFull() const {
 		return !(m_num < MAXCONN);
 	}

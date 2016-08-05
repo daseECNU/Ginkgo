@@ -177,6 +177,7 @@ RetCode StmtHandler::Execute(ExecutedResult* exec_result) {
   if (NULL != exec_result->result_) {
     exec_result->result_->query_time_ = exec_time_ms / 1000.0;
   }
+  exec_result->result_time_ = exec_time_ms / 1000.0;
   cout << "execute time: " << exec_time_ms / 1000.0 << " sec" << endl;
   return rSuccess;
 }

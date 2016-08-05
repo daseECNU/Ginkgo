@@ -75,6 +75,8 @@ class Environment {
   void destoryClientListener();
   bool initializeThreadPool();
   void InitMembership();
+  static void *InitMysqlListener(void * null_);
+  //void httpserver_run(int argc,std::string argv[]);
 
  private:
   static Environment* _instance;

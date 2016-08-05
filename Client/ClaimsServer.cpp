@@ -20,6 +20,7 @@
 #include "../catalog/catalog.h"
 #include "../Daemon/Daemon.h"
 #include "../common/Logging.h"
+#include "../httpserver/connection.hpp"
 
 // ClientListener::standard_input = dup(STD)
 int ClientListener::standard_input = dup(STDIN_FILENO);
@@ -36,6 +37,16 @@ ClientListener::ClientListener(int port) {
   m_port = port;
 }
 
+int check_sock_fd(int fd_){
+	if (fd_ < 0)
+		return -fd_;
+	httpserver::ResultString& rs = httpserver::GetResultString();
+	for (int i = 0; i < rs.connection_max_number_; i++){
+		if(rs.sock_fd_[i] == fd_)
+			return i;
+	}
+	return -1;
+}
 ClientListener::~ClientListener() { delete[] m_clientFds; }
 
 int ClientListener::addClient(const int fd) {
@@ -739,8 +750,25 @@ void *ClientListener::sendHandler(void *para) {
     printf("-SendHandler: get ExecutedResult for %d\n", result.fd_);
     ClientListenerLogging::log("-SendHandler: get ExecutedResult for %d\n",
                                result.fd_);
-
     checkFdValid(result.fd_);
+    /* check the result .
+     *
+     */
+    int temp = check_sock_fd(result.fd_);
+    if (temp != -1) {
+    			cout<<"server get the result!"<<endl;
+    			httpserver::ResultString& rs = httpserver::GetResultString();
+
+    			httpserver::mutex_.lock();
+    			rs.result_got_[temp] = true;
+    			rs.result_[temp] = result;
+
+    			httpserver::mutex_.unlock();
+    			continue;
+    		}
+
+
+
 
     if (result.status_ == true) {
       // OK
@@ -1085,3 +1113,4 @@ int ClientListener::write(const int fd, const ClientResponse &res) const {
   free(buffer);
   return ret;
 }
+
