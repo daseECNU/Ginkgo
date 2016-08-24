@@ -21,8 +21,6 @@ namespace claims {
 namespace mysql {
 int MysqlSQLPacket::encode(char* buffer, int64_t length, int64_t& pos)
 {
-	//std::cout<<"enter the encode"<<std::endl;
-	//std::cout<<"packet number_ is: "<<(int)header_.seq_<<std::endl;
 
 	int ret = C_SUCCESS;
 	int64_t start_pos = pos;
@@ -40,9 +38,7 @@ int MysqlSQLPacket::encode(char* buffer, int64_t length, int64_t& pos)
 		if (C_SUCCESS == ret)
 		{
 			uint32_t pkt_len = static_cast<uint32_t>(pos - start_pos - C_MYSQL_PACKET_HEADER_SIZE);
-			//std::cout<<"pkt_len is: "<<pkt_len<<std::endl;
-			//std::cout<<claims::mysql::bytestohexstring(buffer,50)<<std::endl;
-			//std::cout<<"now the start_pos is :"<<start_pos<<std::endl;
+
 			if (C_SUCCESS != (ret = CMysqlUtil::store_int3(buffer, length, pkt_len, start_pos)))
 			{
 				//Logs::elog
@@ -50,7 +46,7 @@ int MysqlSQLPacket::encode(char* buffer, int64_t length, int64_t& pos)
 						buffer, length, pkt_len, start_pos);
 			}
 			else{
-				//std::cout<<"before store_int1, packet number_ is: "<<(int)header_.seq_<<claims::mysql::bytestohexstring(buffer,50)<<std::endl;;
+
 			}
 				if (C_SUCCESS != (ret = CMysqlUtil::store_int1(buffer, length, header_.seq_, start_pos)))
 			{
@@ -59,8 +55,7 @@ int MysqlSQLPacket::encode(char* buffer, int64_t length, int64_t& pos)
 						buffer, length, header_.seq_, start_pos);
 			}
 				else{
-					//std::cout<<"after store_int1, packet number_ is: "<<(int)header_.seq_<<std::endl;
-					//std::cout<<claims::mysql::bytestohexstring(buffer,50)<<std::endl;
+
 				}
 		}
 		else

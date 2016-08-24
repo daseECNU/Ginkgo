@@ -125,14 +125,15 @@ int CMysqlLoginer::receive_authority(const CMysqlConnection& session) {
     if (ret != C_SUCCESS) {
       MySqlElog("read authority data from client fails.");
     }
-    {
-      cout << "received authority data: ";
-      for (int i = 0; i < 40; ++i) {
-        bitset<8> a(static_cast<int>(buffer[i]));
-        cout << a << "-";
-      }
-      cout << endl;
-    }
+    cout << "received authority data: "<<bytestohexstring(buffer,50)<<endl;
+//    {
+//      cout << "received authority data: ";
+//      for (int i = 0; i < 40; ++i) {
+//        bitset<8> a(static_cast<int>(buffer[i]));
+//        cout << a << "-";
+//      }
+//      cout << endl;
+//    }
 
     /*
      * 解析登录认证报文，客户端至服务器
@@ -225,19 +226,21 @@ int CMysqlLoginer::send_authority_res(const CMysqlConnection& session) {
   // encode packet and write
   int64_t pos = 0;  // record the real size of packet
   int64_t len = MAX_PACKET_SIZE;
+  cout<<"mysql_loginer.cpp:228 buffer is :"<<*buffer<<endl;
   ret = packet->encode(buffer, len, pos);
   if (ret != C_SUCCESS) {
     MySqlElog("when send authority result, encode packet fails");
   } else {
     buffer = get_buffer();
-    {
-      cout << "send authority data: ";
-      for (int i = 0; i < 40; ++i) {
-        bitset<8> a(static_cast<int>(buffer[i]));
-        cout << a << "-";
-      }
-      cout << endl;
-    }
+    cout << "send authority data: "<<bytestohexstring(buffer,50)<<endl;
+//    {
+//      cout << "send authority data: ";
+//      for (int i = 0; i < 40; ++i) {
+//        bitset<8> a(static_cast<int>(buffer[i]));
+//        cout << a << "-";
+//      }
+//      cout << endl;
+//    }
     ret = write_data(session.get_fd(), buffer, pos);
     if (ret == C_ERROR) {
       MySqlElog("write check authority result to client fails. "

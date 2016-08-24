@@ -82,7 +82,7 @@ int ClientListener::receiveRequest(const int fd, const char *cmd) {
   remote_command rcmd;
   rcmd.socket_fd = fd;
   //	rcmd.cmd.append(cmd);
-  cout << cmd << endl;
+  //cout << cmd << endl;
   rcmd.cmd = std::string(cmd);
 
   Daemon::getInstance()->addRemoteCommand(rcmd);
@@ -252,7 +252,7 @@ void *ClientListener::receiveHandler(void *para) {
               checkFdValid(clientSockFd);
 
               printf("open communication with client, %d\n", clientSockFd);
-
+              printf("wait 10 seconds");
               //						server->m_clientFds[server->m_num++]
               //= clientSockFd;
               server->addClient(clientSockFd);

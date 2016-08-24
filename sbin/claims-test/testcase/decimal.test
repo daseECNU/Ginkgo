@@ -1,6 +1,6 @@
 drop table t1;
 create table t1(a decimal(10, 5));
-create projection on t1(a) number = 1 partitioned on a;
+create projection on t1(row_id, a) number = 1 partitioned on a;
 insert into t1 values(12345.12345);
 insert into t1 values(00012345.12345000);
 insert into t1 values(  12345.12345   );
@@ -46,7 +46,7 @@ select a from t1 where a = 0;
 
 drop table t2;
 create table t2(a decimal(10, 5));
-create projection on t2(a) number = 1 partitioned on a;
+create projection on t2(row_id,a) number = 1 partitioned on a;
 insert into t2 values(12345.12345);
 insert into t2 values(00012345.12345000);
 insert into t2 values(  12345.12345   );  

@@ -31,7 +31,6 @@ int init(int iargc, std::string iargv[]){
 		httpserver::server s(iargv[1], iargv[2], iargv[4], num_threaders);
 		std::cout<<"The httplistener is running!\r\nThe master ip is: "<<hargv[1]<<"\r\nThe master port is:"<<hargv[2]<<"\r\nThe doc_root is "<<hargv[4]<<std::endl;
 		s.run();
-	//std::cout<<"the main support multithreaded.\n";
 	}
 	catch (std::exception& e)
 	{

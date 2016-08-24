@@ -22,6 +22,7 @@
 #include "request_handler.hpp"
 #include "request_parser.hpp"
 #include "../Daemon/Daemon.h"
+#include "../mysql/packet/mysql_command_packet.h"
 #include <boost/thread/mutex.hpp>
 
 namespace httpserver {
@@ -33,6 +34,7 @@ public:
 	vector<bool> connection_lock_;
 	vector<bool> result_got_;
 	vector<ExecutedResult> result_;
+	vector<claims::mysql::MysqlCommandPacket> command_packet_;
 	const int connection_max_number_ = 100;
 };
 

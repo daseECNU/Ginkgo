@@ -171,7 +171,8 @@ int CMysqlUtil::store_str_v(char *buf, int64_t len, const char *str,
 	int64_t pos_bk = pos;
 
 	if (C_SUCCESS != (ret = store_length(buf, len, length, pos))){
-		std::cout<<"TBSYS_LOG(WARN, Store length fail!len: [%ld], pos: [%ld], length: [%ld], ret: [%d],len, pos, length, ret";
+		LOG(INFO)<<"TBSYS_LOG(WARN, Store length fail!len: [%ld], pos: [%ld], length: [%ld], ret: [%d],len, pos, length, ret";
+
 	}
 	else if (len >= pos && length <= static_cast<uint64_t>(len - pos)){
 		memcpy(buf + pos, str, length);
@@ -212,14 +213,9 @@ int CMysqlUtil::get_mysql_type(EMySQLFieldType &field_type, uint8_t &num_decimal
 }
 int CMysqlUtil::get_statement(char *buffer,char *statement)
 {
-	std::cout<<"enter the get_statement function."<<std::endl;
   int ret=C_SUCCESS;
-  //std::cout<<"yes"<<std::endl;
-  //std::cout<<buffer<<std::endl;
   strcpy(statement,buffer);
-  //std::cout<<"yes2"<<std::endl;
   strcat(statement,";");
-  std::cout<<statement<<std::endl;
   return ret;
 }
 // transform first three char of pos to v

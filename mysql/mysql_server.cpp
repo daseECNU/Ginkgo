@@ -69,12 +69,18 @@ int CMysqlServer::Start() {
 	int result;
 
 	Initialize();
-
-	threadpool_ = new ThreadPool();
-	if (threadpool_->Init(work_threads_count_) == false) {
-		MySqlElog("thread pool init failed.");
-		return C_ERROR;
+	pthread_t t_sendhandler;
+	const int error1 = pthread_create(&t_sendhandler, NULL, SendHandler, this);
+	if (error1 != 0) {
+	std::cout << "cannot create receive thread!" << strerror(errno)
+			  << std::endl;
 	}
+
+//	threadpool_ = new ThreadPool();
+//	if (threadpool_->Init(work_threads_count_) == false) {
+//		MySqlElog("thread pool init failed.");
+//		return C_ERROR;
+//	}
 	if (ListenPort(port_) == C_ERROR) {
 		return C_ERROR;
 	}
@@ -124,7 +130,7 @@ int CMysqlServer::Start() {
 					fd_to_session_.erase(ready_fd);
 					continue;
 				}
-				LOG(INFO) << "listen fd is:"<< listening_fd_ << endl;
+//				LOG(INFO) << "listen fd is:"<< listening_fd_ << endl;
 				if (ready_fd == listening_fd_) {
 					AcceptConnection(listening_fd_, connected_fd_);
 					ret = loginer_.login(*(fd_to_session_.at(connected_fd_)));
@@ -142,8 +148,8 @@ int CMysqlServer::Start() {
 }
 
 int CMysqlServer::Initialize() {
-	LOG(INFO) << "初始化服务器！" <<endl;
-	cout<<"初始化服务器！"<<endl;
+	LOG(INFO) << "Initialize the JDBC server！" <<endl;
+	//cout<<"初始化服务器！"<<endl;
 	/*
 	 set_work_threads_count();
 	 set_port();
@@ -266,26 +272,26 @@ void CMysqlServer::HandlePacket(int fd, MysqlCommandPacket* packet) {
 		uint8_t type = packet->getType();
 		switch (type) {
 			case COM_QUIT:
-			ret = DoComQuit(fd, packet);
+			ret = DoComQuit(fd, packet);//have completed it;
 			break;
 			case COM_QUERY:
 			ret = DoComQuery(fd, packet);
 			break;
-			case COM_STMT_PREPARE:
-			ret = DoComPrepare(fd, packet);
-			break;
-			case COM_STMT_EXECUTE:
-			ret = DoComExcute(fd, packet);
-			break;
-			case COM_STMT_CLOSE:
-			ret = DoComCloseStmt(fd, packet);
-			break;
+//			case COM_STMT_PREPARE://Claims don't support it.
+//			ret = DoComPrepare(fd, packet);
+//			break;
+//			case COM_STMT_EXECUTE://Claims don't support it.
+//			ret = DoComExcute(fd, packet);
+//			break;
+//			case COM_STMT_CLOSE://Claims don't support it.
+//			ret = DoComCloseStmt(fd, packet);
+//			break;
 			case COM_PING:
 			ret = DoComPing(fd, packet);
 			break;
-			case COM_DELETE_SESSION:
-			ret = DoComDeleteSession(fd, packet);
-			break;
+//			case COM_DELETE_SESSION://claims don't have it;
+//			ret = DoComDeleteSession(fd, packet);
+//			break;
 			default:
 			LOG(WARNING) << "unsupport command " << type << endl;
 			ret = DoComUnsupported(fd, packet);
@@ -323,6 +329,7 @@ int CMysqlServer::DoComPing(int fd, MysqlCommandPacket* packet) {
 	int ret = C_SUCCESS;
 	sockaddr_in temp = fd_to_session_.at(fd)->get_addr();
 	number_ = packet->getPacketHeader().seq_;
+	//there are mistakes;
 	MysqlResultSet result(*(Daemon::getInstance()->getExecutedResult().result_));
 	result.setMessage("server is ok");
 	LOG(INFO)<< "start to ping " << inet_ntoa(temp.sin_addr) << endl;
@@ -349,6 +356,7 @@ int CMysqlServer::DoComQuery(int fd, MysqlCommandPacket* packet) {
 				rs.connection_lock_[i] = true;
 				rs.sock_fd_[i] = command.socket_fd;
 				//rcmd.socket_fd = -rs.fd_[i];
+				rs.command_packet_[i] = *packet;
 				break;
 			}
 		}
@@ -358,7 +366,8 @@ int CMysqlServer::DoComQuery(int fd, MysqlCommandPacket* packet) {
 
 		//number_ = packet->getPacketHeader().seq_;
 		//number_++;
-		cout<<"after getPacketHeader, the number_ is: "<<(int)number_<<endl;
+		//cout<<"after getPacketHeader, the number_ is: "<<(int)number_<<endl;
+		/*
 		while(true){
 			usleep(100);
 			if(rs.result_got_[i] == true){
@@ -366,7 +375,7 @@ int CMysqlServer::DoComQuery(int fd, MysqlCommandPacket* packet) {
 				httpserver::mutex_.lock();
 				string buff_to_send;
 				httpserver::result_manage(buff_to_send,rs.result_[i]);
-				cout<<"mysql_server.cpp:379 now result is :"<<buff_to_send<<endl;
+				//cout<<"mysql_server.cpp:379 now result is :"<<buff_to_send<<endl;
 				ExecutedResult result_ = rs.result_[i];
 				ResultSet* result_set = result_.result_;
 
@@ -376,36 +385,11 @@ int CMysqlServer::DoComQuery(int fd, MysqlCommandPacket* packet) {
 
 				if(result_set != NULL){
 					MysqlResultSet result (*result_set);
-					cout<<"after define the result_set."<<endl;
+					//cout<<"after define the result_set."<<endl;
 					httpserver::result_manage(buff_to_send,result_);
-					cout<<"mysql_server.cpp:381 now result is :"<<buff_to_send<<endl;
-					cout<<"fd is:"<<i<<"command.socket_fd is:"<<command.socket_fd<<endl;
-					//MysqlResultSet result;
-//					result.schema_ = rs.result_[i].result_->schema_->duplicateSchema();
-//					result.column_header_list_ = rs.result_[i].result_->column_header_list_;
-//					result.query_time_ = rs.result_[i].result_->query_time_;
-////					DynamicBlockBuffer::Iterator it = result.createIterator();
-////					BlockStreamBase * block;
+					//cout<<"mysql_server.cpp:381 now result is :"<<buff_to_send<<endl;
+					//cout<<"fd is:"<<i<<"command.socket_fd is:"<<command.socket_fd<<endl;
 
-//					for(int i = 0; i< rs->schema_->getncolumns(); i++){
-//						result_item[resutls_json[0]].append(col_name_list[i]);
-//					}
-//					cout<<rs->schema_->getncolumns()<<endl;
-
-//					while(block = it.nextBlock()){
-//						BlockStreamBase::BlockStreamTraverseIterator *block_it = block->createIterator();
-//						void *tuple;
-//						while(tuple = block_it->nextTuple()){
-//							for(int i = 0; i< result.schema_->getncolumns();i++){
-//								cout << result.schema_->getColumnValue(tuple,i)<<" ";
-//							}
-//							cout<<endl;
-//						}
-//					}
-//					cout<<"after define the result_set"<<endl;
-//					httpserver::result_manage(buff_to_send,rs.result_[i]);
-//					cout<<"mysql_server.cpp:379 now result is :"<<buff_to_send<<endl;
-//					//以上，将结果从全局变量中获取到result中。
 					ret = SendResponse(fd, packet, result);
 					ExecutedResult resulttemp;
 					rs.result_[i] = resulttemp;
@@ -421,30 +405,17 @@ int CMysqlServer::DoComQuery(int fd, MysqlCommandPacket* packet) {
 				rs.connection_lock_[i] = false;
 				rs.sock_fd_[i] = -1;
 				httpserver::mutex_.unlock();
+
+
 //				else{
 //					LOG(WARNING)<< "direct_execute failed, ret is " << ret << endl;
 //				}
 
 			}
-		}
-		cout<<"mysql_server.cpp:375 now ret is :"<<ret<<endl;
+
+		}*/
 		return ret;
-/*
-		while(1){
-			usleep(1);
-			ExecutedResult result_ = Daemon::getInstance()->getExecutedResult();
-			printf("-SendHandler: get ExecutedResult for %d\n", result_.fd_);
-			ResultSet* result_set = result_.result_;
-			if(result_set != NULL) {
-				MysqlResultSet result(*result_set);
-				cout<<"result :"<<result_set->query_time_<<endl;
-				ret = SendResponse(fd, packet, result);
-				break;
-			} else {
-				LOG(WARNING)<< "direct_execute failed, ret is " << ret << endl;
-			}
-		}
-		*/
+
 
 	}
 }
@@ -476,7 +447,7 @@ int CMysqlServer::SendServerVersion(int fd) {
 	MysqlSQLPacket *packet = NULL;
 	packet = &res_header_packet;
 	ret = packet->encode(buffer, len, pos);
-	cout << "header buffer: "<<bytestohexstring(buffer,50)<<endl;
+	//cout << "header buffer: "<<bytestohexstring(buffer,50)<<endl;
 	ret = ProcessSinglePacket(fd, buffer, pos);
 	if (ret != C_SUCCESS) {
 		LOG(ERROR)<< "process response header packet failed,ret is " << ret
@@ -490,7 +461,7 @@ int CMysqlServer::SendServerVersion(int fd) {
 	field_packet.set_seq(2);
 	packet = &field_packet;
 	ret = packet->encode(buffer, len, pos);
-	cout << "field buffer: "<<bytestohexstring(buffer,50)<<endl;
+	//cout << "field buffer: "<<bytestohexstring(buffer,50)<<endl;
 
 	ret = ProcessSinglePacket(fd, buffer, pos);
 	if (ret != C_SUCCESS) {
@@ -504,7 +475,7 @@ int CMysqlServer::SendServerVersion(int fd) {
 	pos = 0;
 	packet = &eof_packet;
 	ret = packet->encode(buffer, len, pos);
-	cout << "eof buffer: "<<bytestohexstring(buffer,50)<<endl;
+	//cout << "eof buffer: "<<bytestohexstring(buffer,50)<<endl;
 	ret = ProcessSinglePacket(fd, buffer, pos);
 	if (ret != C_SUCCESS) {
 		LOG(ERROR)<< "process eof packet failed,ret is " << ret
@@ -528,7 +499,7 @@ int CMysqlServer::SendServerVersion(int fd) {
 	uint32_t pkt_len = 0x000012;
 	CMysqlUtil::store_int3(buffer, length, pkt_len, start_pos);
 	CMysqlUtil::store_int1(buffer, length, 4, start_pos);
-	cout << "row buffer: "<<bytestohexstring(buffer,50)<<endl;
+	//cout << "row buffer: "<<bytestohexstring(buffer,50)<<endl;
 	ret = ProcessSinglePacket(fd, buffer, pos);
 	if (ret != C_SUCCESS) {
 		LOG(ERROR)<< "process row packet failed,ret is " << ret
@@ -540,7 +511,7 @@ int CMysqlServer::SendServerVersion(int fd) {
 	pos = 0;
 	packet = &eof_packet;
 	ret = packet->encode(buffer, len, pos);
-	cout << "eof buffer: "<<bytestohexstring(buffer,50)<<endl;
+	//cout << "eof buffer: "<<bytestohexstring(buffer,50)<<endl;
 	ret = ProcessSinglePacket(fd, buffer, pos);
 	if (ret != C_SUCCESS) {
 		LOG(ERROR)<< "process eof packet failed,ret is " << ret
@@ -577,7 +548,6 @@ int CMysqlServer::SendResponse(int fd, MysqlCommandPacket* packet,
 	uint16_t server_status = 0;
 	ret = SendResultSet(fd, result, server_status);
 //	ret = SendOkPacket(fd, result, server_status);
-	ret = SendOkPacket(fd, result, server_status);
 	return ret;
 
 }
@@ -597,8 +567,8 @@ int CMysqlServer::SendErrorPacket(int fd, MysqlCommandPacket* packet,
 	return ret;
 }
 int CMysqlServer::SendOkPacket(int fd,
-		const MysqlResultSet& result, uint16_t server_status) {
-	LOG(ERROR)<< "enter SendOkPacket" << endl;
+		const MysqlResultSet& result, uint16_t server_status, MysqlCommandPacket *packet) {
+	LOG(INFO)<< "enter SendOkPacket" << endl;
 	int ret = C_SUCCESS;
 	sockaddr_in temp = fd_to_session_.at(fd)->get_addr();
 	MysqlOKPacket ok;
@@ -606,17 +576,19 @@ int CMysqlServer::SendOkPacket(int fd,
 	ok.set_warning_count(static_cast<uint16_t>(result.getWarningCount()));
 	ok.set_server_status(server_status);
 	ok.set_message(result.getMessage());
+	number_ = packet->getPacketHeader().seq_;
 	number_++;
 	ret = PostPacket(fd, &ok, number_);
+	cout<<"send ok_packet to fd:"<<fd<<endl;
 	return ret;
 }
 int CMysqlServer::ProcessResHeaderPacket(int fd, char* buffer, int64_t& pos,
 		MysqlResultSet &result) {
-	LOG(INFO)<<"enter ResHeaderPacket"<<endl;
+	//LOG(INFO)<<"enter ResHeaderPacket"<<endl;
 	int ret = C_SUCCESS;
 	MysqlResHeaderPacket res_header_packet;
+
 	res_header_packet.set_field_count(result.getFieldCount());
-	cout<<"before header_packet.set_seq the number_ is:"<<(int)number_<<endl;
 	res_header_packet.set_seq(number_++);
 	memset(buffer, 0, sizeof(char) * MAX_PACKET_SIZE);
 	int64_t len = MAX_PACKET_SIZE;
@@ -624,7 +596,7 @@ int CMysqlServer::ProcessResHeaderPacket(int fd, char* buffer, int64_t& pos,
 	//packet = &res_header_packet;
 	ret = res_header_packet.encode(buffer, len, pos);
 
-	LOG(INFO)<<"before SinglePacket"<<endl;
+	//LOG(INFO)<<"before SinglePacket"<<endl;
 	ret = ProcessSinglePacket(fd, buffer, pos);
 	if (ret != C_SUCCESS) {
 		LOG(ERROR)<< "process response header packet failed,ret is " << ret
@@ -632,7 +604,7 @@ int CMysqlServer::ProcessResHeaderPacket(int fd, char* buffer, int64_t& pos,
 	}
 	memset(buffer, 0, sizeof(char) * MAX_PACKET_SIZE);
 	pos = 0;
-	LOG(INFO)<<"exit ResHeaderPacket"<<endl;
+	//LOG(INFO)<<"exit ResHeaderPacket"<<endl;
 	return ret;
 }
 int CMysqlServer::ProcessFieldPacket(int fd, char* buffer, int64_t& pos,
@@ -693,7 +665,7 @@ int CMysqlServer::ProcessRowPackets(int fd, char* buffer, int64_t& pos,
 	/*
 	 * get the resutl from resultstring global.
 	 */
-	cout<<"enter ProcessRowPacket"<<endl;
+	//cout<<"enter ProcessRowPacket"<<endl;
 
 	httpserver::ResultString& rs = httpserver::GetResultString();
 	int temp;
@@ -702,33 +674,33 @@ int CMysqlServer::ProcessRowPackets(int fd, char* buffer, int64_t& pos,
 		if(rs.sock_fd_[temp] == fd)
 			break;
 	}
-	cout<<"yes1,and temp is:"<<temp<<endl;
+	//cout<<"yes1,and temp is:"<<temp<<endl;
 	string buff_to_send;
 	httpserver::result_manage(buff_to_send,rs.result_[temp]);
-						cout<<"mysql_server.cpp:706 now result is :"<<buff_to_send<<endl;
+						//cout<<"mysql_server.cpp:706 now result is :"<<buff_to_send<<endl;
 	ResultSet* result_set = rs.result_[temp].result_;
-	cout<<"yes2"<<endl;
+	//cout<<"yes2"<<endl;
 	MysqlRow mysql_row;
 	int64_t len = MAX_PACKET_SIZE;
 	//MysqlSQLPacket *packet = NULL;
 	int row_number = 0;
-	cout<<"yes3"<<endl;
+	//cout<<"yes3"<<endl;
 
 	DynamicBlockBuffer::Iterator it = result_set->createIterator();
-	cout<<"yes4"<<endl;
-	cout<<result_set->schema_->getncolumns()<<endl;
+	//cout<<"yes4"<<endl;
+	//cout<<result_set->schema_->getncolumns()<<endl;
 	mysql_row.column_num_ = (int64_t)result_set->schema_->getncolumns();
-	cout<<"yes5"<<endl;
+	//cout<<"yes5"<<endl;
 	mysql_row.schema_ = result_set->schema_->duplicateSchema();
 	BlockStreamBase * block;
-	cout<<"before block"<<endl;
+	//cout<<"before block"<<endl;
 	while (block = it.nextBlock()){
 		/*
 		 *
 		 * test log
 		 *
 		 */
-		cout<<"enter the nextblock"<<endl;
+		//cout<<"enter the nextblock"<<endl;
 		BlockStreamBase::BlockStreamTraverseIterator *block_it = block->createIterator();
 		while(mysql_row.tuple_ = block_it->nextTuple()){
 			/*
@@ -736,7 +708,7 @@ int CMysqlServer::ProcessRowPackets(int fd, char* buffer, int64_t& pos,
 			 * test log;
 			 *
 			 */
-			cout<<"enter the nexttuple"<<endl;
+			//cout<<"enter the nexttuple"<<endl;
 			MysqlRowPacket row_packet(&mysql_row);
 			row_packet.set_seq(number_++);
 			pos = 0;
@@ -837,12 +809,16 @@ int CMysqlServer::PostPacket(int fd, MysqlSQLPacket* packet, uint8_t seq) {
 	// 写入包的长度
 	pkt_len = static_cast<int32_t>(pos - C_MYSQL_PACKET_HEADER_SIZE);
 	CMysqlUtil::store_int3(buffer, size, pkt_len, len_pos);
+	cout<<"mysql_server.cpp:812: buffer is:"<<bytestohexstring(buffer,50)<<"and the pkt_len is:"<<pkt_len<<endl;
+
+	ret = ProcessSinglePacket(fd, buffer, pos);
+
 	return ret;
 }
 int CMysqlServer::ProcessSinglePacket(int fd, char *buffer, int len) {
 	int ret = C_SUCCESS;
-	cout<<"buffer is :"<<bytestohexstring(buffer,50)<<"len is :"<<endl;
-	LOG(INFO)<<"enter ProcessSinglePacket"<<endl;
+	//cout<<"buffer is :"<<bytestohexstring(buffer,50)<<"len is :"<<endl;
+	//LOG(INFO)<<"enter ProcessSinglePacket"<<endl;
 	if (len <= 0 || fd < 0 || buffer == NULL) {
 		MySqlElog("invalid argument fd=%d, buffer=%p, length=%d", fd, buffer,
 				len);
@@ -851,9 +827,9 @@ int CMysqlServer::ProcessSinglePacket(int fd, char *buffer, int len) {
 		int count;
 		// make sure write all data
 
-		LOG(INFO)<<"before write"<<endl;
+//		LOG(INFO)<<"before write"<<endl;
 		while (len > 0 && (count = write(fd, buffer, len)) != 0) {
-			LOG(INFO)<<"this time send "<<count<<" size"<<endl;
+//			LOG(INFO)<<"this time send "<<count<<" size"<<endl;
 			if (count == -1) {
 				if (errno == EINTR) {  // if call is interrupted by signal
 					continue;
@@ -878,5 +854,81 @@ CMysqlServer* CMysqlServer::GetInstance() {
 	return mysql_server_instance;
 }
 
+void *CMysqlServer::SendHandler(void * para){
+	//todu（此函数未做ret信号处理）
+	int fd = 0;
+	sleep(2);
+	CMysqlServer *server = (CMysqlServer*) para;
+	while(true){
+		usleep(100);
+		httpserver::ResultString& rs = httpserver::GetResultString();
+		int i;
+		for( i = 2; i < rs.connection_max_number_; i++){
+			if(rs.result_got_[i] == true && rs.sock_fd_[i] > 0){
+
+				httpserver::mutex_.lock();
+				string buff_to_send;
+				httpserver::result_manage(buff_to_send,rs.result_[i]);
+//				cout<<"mysql_server.cpp:865 now result is :"<<buff_to_send<<endl;
+				ExecutedResult result_ = rs.result_[i];
+				ResultSet* result_set = result_.result_;
+
+				httpserver::result_manage(buff_to_send,result_);
+
+				cout<<"mysql_server.cpp:871 now result is :"<<buff_to_send<<endl;
+
+
+				if(rs.result_[i].status_ != NULL){
+					if(result_set != NULL){
+						MysqlResultSet result (*result_set);
+						//cout<<"after define the result_set."<<endl;
+						//cout<<"fd is:"<<i<<"command.socket_fd is:"<<command.socket_fd<<endl;
+
+						server->SendResponse(rs.sock_fd_[i], &rs.command_packet_[i], result);
+					}
+					else{
+						if("" == rs.result_[i].warning_){
+							MysqlResultSet result (rs.result_[i]);
+							string info = rs.result_[i].info_ + "\n\nWARNINGS:\n" + rs.result_[i].warning_ + "\n";
+							result.setMessage(info);
+							uint16_t server_status = 0;
+							server->SendOkPacket(rs.sock_fd_[i],result,server_status, &rs.command_packet_[i]);
+
+						}
+						else{
+
+							MysqlResultSet result (rs.result_[i]);
+							result.setMessage(rs.result_[i].info_);
+							uint16_t server_status = 0;
+							server->SendOkPacket(rs.sock_fd_[i],result,server_status, &rs.command_packet_[i]);
+						}
+					}
+				}
+				else{
+					MysqlResultSet result (rs.result_[i]);
+					result.setMessage(rs.result_[i].error_info_);
+					uint16_t server_status = 0;
+					server->SendOkPacket(rs.sock_fd_[i],result,server_status, &rs.command_packet_[i]);
+				}
+				ExecutedResult resulttemp;
+				delete rs.result_[i].result_;
+				rs.result_[i].result_ = NULL;
+				rs.result_[i] = resulttemp;
+				rs.result_got_[i] = false;
+				rs.connection_lock_[i] = false;
+				rs.sock_fd_[i] = -1;
+				httpserver::mutex_.unlock();
+				break;
+		//				else{
+		//					LOG(WARNING)<< "direct_execute failed, ret is " << ret << endl;
+		//				}
+
+			}
+
+
+		}
+	}
+	//server->SendResponse(fd, &command_packet, result);
+}
 }  // namespace mysql
 }  // namespace claims

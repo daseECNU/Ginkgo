@@ -34,6 +34,7 @@
 #include "../common/Block/ResultSet.h"
 #include "../common/Schema/Schema.h"
 #include "mysql_field.h"
+#include "../Daemon/Daemon.h"
 
 namespace claims {
 namespace mysql {
@@ -41,8 +42,11 @@ class MysqlResultSet: public ResultSet {
 public:
 
 public:
+	~MysqlResultSet();
 	MysqlResultSet(ResultSet &res);
 	int getFieldCount() const;
+
+	MysqlResultSet(ExecutedResult &res);
 
 	int64_t getAffectedRows() const {
 		return affected_rows_;

@@ -14,7 +14,7 @@
 #include "../Daemon/Daemon.h"
 namespace httpserver{
 
-static void result_manage(std::string &str, ExecutedResult &res){
+static void result_manage(std::string &str, ExecutedResult& res){
 	Json::Value root;
 	Json::Value reply_item;
 	Json::Value result_item;
@@ -34,7 +34,7 @@ static void result_manage(std::string &str, ExecutedResult &res){
 			for(int i = 0; i< rs->schema_->getncolumns(); i++){
 				result_item[resutls_json[0]].append(col_name_list[i]);
 			}
-			cout<<rs->schema_->getncolumns()<<endl;
+			//cout<<rs->schema_->getncolumns()<<endl;
 			while(block = it.nextBlock()){
 				BlockStreamBase::BlockStreamTraverseIterator *block_it = block->createIterator();
 				void *tuple;
@@ -58,18 +58,15 @@ static void result_manage(std::string &str, ExecutedResult &res){
 		}
 		else{
 			if("" == res.warning_){
-				//std::cout<<"tu putaopi zhiqian\n";
 				reply_item["status"] = "ok";
 				reply_item["info"] = res.info_;
 				reply_item["error info"] = "";
 				reply_item["warning info"] = "";
 				reply_item["execute time"] = std::to_string(res.result_time_) + " sec";
 
-				//std::cout<<"tu putaopi zhizhong\n";
 				reply_item["result"]= "";
 				//reply_item = result_item;
 				root.append(reply_item);
-				//std::cout<<"tu putaopi zhihou\n";
 
 			}
 			else{
@@ -88,8 +85,6 @@ static void result_manage(std::string &str, ExecutedResult &res){
 				<< "  content:" << info.c_str()
 				<< " warnings: " << res.warning_.c_str() << std::endl;
 			}
-			std::cout<<"resulttojson is catch the show tables;\n";
-			std::cout<<res.info_<<std::endl;
 		}
 	}
 	else{
@@ -123,7 +118,6 @@ static void result_manage(std::string &str, ExecutedResult &res){
 	Json::FastWriter fastwriter;
 	str = fastwriter.write(reply_item);
 	str += '\n';
-	//cout<< str <<endl;
 
 }
 

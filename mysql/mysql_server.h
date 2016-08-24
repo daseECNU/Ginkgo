@@ -119,7 +119,7 @@ public:
 	int SendErrorPacket(int fd, MysqlCommandPacket* packet,
 			MysqlResultSet &result);
 	int SendOkPacket(int fd,
-			const MysqlResultSet& result, uint16_t server_status);
+			const MysqlResultSet& result, uint16_t server_status,MysqlCommandPacket* packet);
 	int SendResultSet(int fd, MysqlResultSet &result, uint16_t server_status);
 	int ProcessResHeaderPacket(int fd, char* buffer, int64_t& pos,
 			MysqlResultSet &result);
@@ -131,8 +131,10 @@ public:
 			MysqlResultSet &result);
 	int ProcessSinglePacket(int fd, char *buffer, int len);
 
+	static void *SendHandler(void * null_);
+
 public:
-	ThreadPool *threadpool_;
+//	ThreadPool *threadpool_;
 	queue<MysqlSQLPacket*> in_queue_;
 	queue<MysqlSQLPacket*> out_queue_;
 	map<int, CMysqlConnection*> fd_to_session_;

@@ -40,12 +40,20 @@ MysqlResultSet::MysqlResultSet(ResultSet &res){
 	this->query_time_ = res.query_time_;
 	this->column_header_list_ = res.column_header_list_;
 }
+MysqlResultSet::~MysqlResultSet(){
+	delete schema_;
+	schema_ = NULL;
+}
+
+MysqlResultSet::MysqlResultSet(ExecutedResult &res){
+	this->schema_ = NULL;
+	this->query_time_ = res.result_time_;
+}
 int MysqlResultSet::next_field(MySQLField& field) {
 	int ret = C_SUCCESS;
 	if(field_index_ >= this->column_header_list_.size()) return C_ERROR;
 	field.column_name_ = this->column_header_list_[field_index_];
 
-	std::cout<<schema_->getncolumns()<<endl;
 	field.type_ = this->schema_->getcolumn(field_index_);
 	field.length_ = this->column_header_list_[field_index_].size();
 	field_index_++;

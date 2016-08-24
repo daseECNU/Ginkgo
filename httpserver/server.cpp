@@ -14,6 +14,7 @@
 #include <signal.h>
 #include <resolv.h>
 #include "../Daemon/Daemon.h"
+#include "../mysql/packet/mysql_command_packet.h"
 
 
 namespace httpserver {
@@ -53,12 +54,14 @@ server::server(const std::string& address, const std::string& port,
 void server::InitResultString(){
 	ResultString& rs = GetResultString();
 	ExecutedResult resulttemp;
+	claims::mysql::MysqlCommandPacket command_temp_;
 	for(int i = 0; i < rs.connection_max_number_; i++){
 		rs.fd_.push_back(i);
 		rs.sock_fd_.push_back(-1);
 		rs.connection_lock_.push_back(false);
 		rs.result_got_.push_back(false);
 		rs.result_.push_back(resulttemp);
+		rs.command_packet_.push_back(command_temp_);
 	}
 }
 

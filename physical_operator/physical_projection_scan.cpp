@@ -193,6 +193,8 @@ bool PhysicalProjectionScan::Next(SegmentExecStatus* const exec_status,
   //  perf_info_->processed_one_block();
   // case(2)
   RETURN_IF_CANCELLED(exec_status);
+  if (partition_reader_iterator_ == NULL)
+	  return NULL;
   return partition_reader_iterator_->NextBlock(block);
 
 #endif

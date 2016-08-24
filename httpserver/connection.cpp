@@ -18,6 +18,7 @@
 #include "../Daemon/Daemon.h"
 #include "../httpserver/json/json.h"
 #include "ResultManage.hpp"
+#include "../common/Logging.h"
 
 namespace httpserver {
 
@@ -75,7 +76,11 @@ void connection::handle_read(const boost::system::error_code& e,
 							reqint = reqint * 16 + request_.uri[j] - '0';
 						}
 						if (request_.uri[j] >= 'A' && request_.uri[j] <= 'F') {
+
 							reqint = reqint * 16 + request_.uri[j] - 'A' + 10;
+						}
+						if (request_.uri[j] >= 'a' && request_.uri[j] <= 'f'){
+							reqint = reqint * 16 + request_.uri[j] - 'a' + 10;
 						}
 					}
 					i = i + 2;
@@ -187,7 +192,10 @@ void connection::handle_read(const boost::system::error_code& e,
 					else {
 
 						rcmd.cmd = scmd;
+						LOG(INFO) << scmd << endl <<"!"<< endl <<"!"<< endl;
+						//sleep(10);
 						Daemon::getInstance()->addRemoteCommand(rcmd);
+						//sleep(10);
 						while (true) {
 							usleep(100);
 							if (rs.result_got_[i] == true) {
@@ -195,6 +203,12 @@ void connection::handle_read(const boost::system::error_code& e,
 								string buff_to_send;
 								result_manage(buff_to_send,
 										rs.result_[i]);
+								if (NULL != rs.result_[i].result_) {
+								            delete rs.result_[i].result_;
+								            rs.result_[i].result_ = NULL;
+//            cout << "delete result in memory" << endl;
+								}
+
 								ExecutedResult resulttemp;
 								mutex_.lock();
 								rs.result_[i] = resulttemp;
