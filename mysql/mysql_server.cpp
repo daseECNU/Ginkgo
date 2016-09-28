@@ -45,6 +45,7 @@
 #include "../mysql/mysql_result_set.h"
 #include "../httpserver/connection.hpp"
 #include "../httpserver/ResultManage.hpp"
+#include "../Config.h"
 
 
 
@@ -54,7 +55,7 @@ namespace mysql {
 CMysqlServer* CMysqlServer::mysql_server_instance = NULL;
 
 CMysqlServer::CMysqlServer() :
-		port_(3306), work_threads_count_(4) {
+		port_(Config::mysql_port), work_threads_count_(4) {
 	temp_buffer_ = reinterpret_cast<char*>(malloc(
 			MAX_PACKET_SIZE * sizeof(char)));
 	memset(temp_buffer_, 0, sizeof(temp_buffer_));
@@ -64,7 +65,7 @@ CMysqlServer::~CMysqlServer() {
 }
 
 int CMysqlServer::Start() {
-	LOG(INFO) << "启动cliams mysql server..." << endl;
+	LOG(INFO) << "start cliams mysql server..." << endl;
 	int ret = C_SUCCESS;
 	int result;
 
@@ -82,7 +83,9 @@ int CMysqlServer::Start() {
 //		return C_ERROR;
 //	}
 	if (ListenPort(port_) == C_ERROR) {
-		return C_ERROR;
+//		return C_ERROR;
+		cout<<"The port of JDBC server is illegal.Please collect the port of JDBC in .../CLAIMS/conf/config"<<endl;
+		MySqlElog("The port %d of JDBC server is illegal.", port_);
 	}
 
 	if ((epoll_fd_ = epoll_create(kConnectionMaxCount)) == -1) {
@@ -335,12 +338,90 @@ int CMysqlServer::DoComPing(int fd, MysqlCommandPacket* packet) {
 	LOG(INFO)<< "start to ping " << inet_ntoa(temp.sin_addr) << endl;
 	//ret = send_ok_packet();
 }
+int CMysqlServer::CheckCommand(char* command){
+	std::string request_ = command;
+	std::string reqstr = "";
+	int reqint;
+				for (int i = 0; i < request_.length(); i++) {
+					if (request_[i] == '%') {
+						reqint = 0;
+						for (int j = i + 1; j <= i + 2; j++) {
+							if (request_[j] >= '0' && request_[j] <= '9') {
+								reqint = reqint * 16 + request_[j] - '0';
+							}
+							if (request_[j] >= 'A' && request_[j] <= 'F') {
+
+								reqint = reqint * 16 + request_[j] - 'A' + 10;
+							}
+							if (request_[j] >= 'a' && request_[j] <= 'f'){
+								reqint = reqint * 16 + request_[j] - 'a' + 10;
+							}
+						}
+						i = i + 2;
+						reqstr.push_back(reqint);
+					} else
+						reqstr.push_back(request_[i]);
+				}
+	cout<<"mysql_server.cpp:343 command is:"<<command<<endl;
+	if(request_.find("SHOW VARIABLES",0) != -1){
+		cout<<"mysql_server.cpp:344 SHOW VARIABLES."<<endl;
+		return 1;
+	}
+	if(request_.find("SELECT @@session.auto",0) != -1){
+		cout<<"mysql_server.cpp:348 SELECT @@session.auto"<<endl;
+		return 2;
+	}
+	if(request_.find("SHOW COLLATION",0) != -1){
+		cout<<"mysql_server.cpp:352 SHOW COLLATION."<<endl;
+		return 3;
+	}
+	if(request_.find("SET",0) != -1){
+		return 4;
+	}
+	return -1;
+}
 int CMysqlServer::DoComQuery(int fd, MysqlCommandPacket* packet) {
 	int ret = C_SUCCESS;
 	int err = C_SUCCESS;
 	LOG(INFO)<<"enter the DoComQuery"<<endl;
 	char* q = packet->getSqlCommand();
 	char* version_query = "select @@version_comment limit 1;";
+	int temp = CheckCommand(q);
+	if (temp>0){
+		remote_command command;
+		command.socket_fd = fd;
+		switch (temp){
+		case 1:
+			command.cmd = "select Variable_name, Valve from variables;";
+			break;
+		case 2:
+			command.cmd = "select increment from session;";
+			break;
+		case 3:
+			command.cmd = "select Collation,Charset,I_d,D_efault,Compiled,Sortlen from collation;";
+			break;
+		case 4:
+			command.cmd = "show tables;";
+			break;
+		}
+
+		httpserver::ResultString& rs = httpserver::GetResultString();
+		httpserver::mutex_.lock();
+		int i;
+		for (i = 2; i < rs.connection_max_number_; i++) {
+			if (rs.connection_lock_[i] == false) {
+				rs.connection_lock_[i] = true;
+				rs.sock_fd_[i] = command.socket_fd;
+				//rcmd.socket_fd = -rs.fd_[i];
+				rs.command_packet_[i] = *packet;
+				break;
+			}
+		}
+		httpserver::mutex_.unlock();
+
+		Daemon::getInstance()->addRemoteCommand(command);
+		return ret;
+	}
 	if (strcmp(q, version_query) == 0) {
 		SendServerVersion(fd);
 		cout<<"version sent successfully"<<endl;
@@ -554,10 +635,10 @@ int CMysqlServer::SendResponse(int fd, MysqlCommandPacket* packet,
 int CMysqlServer::SendErrorPacket(int fd, MysqlCommandPacket* packet,
 		MysqlResultSet &result) {
 	int ret = C_SUCCESS;
-	MysqlErrorPacket* error_packet;
-	error_packet->set_message(result.getMessage());
+	MysqlErrorPacket error_packet;
+	error_packet.set_message(result.getMessage());
 	++number_;
-	ret = PostPacket(fd, error_packet, number_);
+	ret = PostPacket(fd, &error_packet, number_);
 	if (ret != C_SUCCESS) {
 		LOG(ERROR)<< "failed to send error packet to mysql client, "
 		"ret is " << ret << endl;
@@ -889,8 +970,7 @@ void *CMysqlServer::SendHandler(void * para){
 					else{
 						if("" == rs.result_[i].warning_){
 							MysqlResultSet result (rs.result_[i]);
-							string info = rs.result_[i].info_ + "\n\nWARNINGS:\n" + rs.result_[i].warning_ + "\n";
-							result.setMessage(info);
+							result.setMessage(rs.result_[i].info_);
 							uint16_t server_status = 0;
 							server->SendOkPacket(rs.sock_fd_[i],result,server_status, &rs.command_packet_[i]);
 
@@ -898,9 +978,10 @@ void *CMysqlServer::SendHandler(void * para){
 						else{
 
 							MysqlResultSet result (rs.result_[i]);
-							result.setMessage(rs.result_[i].info_);
+							string info = rs.result_[i].info_ + "\n\nWARNINGS:\n" + rs.result_[i].warning_ + "\n";
+							result.setMessage(info);
 							uint16_t server_status = 0;
-							server->SendOkPacket(rs.sock_fd_[i],result,server_status, &rs.command_packet_[i]);
+							server->SendOkPacket(rs.sock_fd_[i], result, server_status, &rs.command_packet_[i]);
 						}
 					}
 				}
@@ -908,7 +989,7 @@ void *CMysqlServer::SendHandler(void * para){
 					MysqlResultSet result (rs.result_[i]);
 					result.setMessage(rs.result_[i].error_info_);
 					uint16_t server_status = 0;
-					server->SendOkPacket(rs.sock_fd_[i],result,server_status, &rs.command_packet_[i]);
+					server->SendErrorPacket(rs.sock_fd_[i], &rs.command_packet_[i], result);
 				}
 				ExecutedResult resulttemp;
 				delete rs.result_[i].result_;

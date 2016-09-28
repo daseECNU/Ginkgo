@@ -81,3 +81,5 @@ httpserver_master_port="8097"
 httpserver_thread_num="10"
 #
 httpserver_doc_root="/home/imdb/local/test/"
+
+mysql_port = 3306

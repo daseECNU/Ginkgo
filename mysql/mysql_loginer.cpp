@@ -75,13 +75,14 @@ int CMysqlLoginer::shake_hand(const CMysqlConnection& session) {
   MySqlLog("in shake_hand function------");
   int ret;
   MysqlHandshakePacket shakehand_packet;
-  shakehand_packet.set_thread_id(pthread_self());
+  //shakehand_packet.set_thread_id(pthread_self());
 
   int64_t len = MAX_PACKET_SIZE;
   int64_t pos = 0;
   memset(buffer_, 0, MAX_PACKET_SIZE * sizeof(char));
   char *buffer = get_buffer();
   ret = shakehand_packet.serialize(buffer, len, pos);
+  cout<<"mysql_loginer.cpp:85 "<<bytestohexstring(buffer,50)<<endl;
   if (ret != C_SUCCESS) {
     MySqlElog(
         "shake hand packet serialize fails. "

@@ -54,8 +54,6 @@ if __name__ == '__main__':
 	#f0 = open ('out','w+')
 	#file_name = raw_input('input the testcase pls: ')
 	#file_name = '/home/imdb/git/CLAIMS/sbin/claims-test/python/' + file_name + '.test'
-	#doc_root = raw_input('input pwd pls: ')
-	#file_name = doc_root + file_name + '.test'
 	file_name = '/home/imdb/git/CLAIMS/sbin/claims-test/python/sql1.test'
 	#repeat_turns = raw_input('input the turns of: ')
 	#repeat_turns = int(repeat_turns) - int('0')

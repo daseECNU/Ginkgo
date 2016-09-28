@@ -82,6 +82,7 @@ class Config {
   static std::string httpserver_master_port;
   static std::string httpserver_thread_num;
   static std::string httpserver_doc_root;
+  static int mysql_port;
 
   static int load_thread_num;
 

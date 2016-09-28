@@ -5309,11 +5309,11 @@ static inline int yyfill(yyGLRStackItem *yyvsp, int *yylow, int yylow1,
 /* Line 868 of glr.c  */
 #line 1114 "sql.ypp"
     {
-      ((*yyvalp).ast_node) = (((yyGLRStackItem const *)yyvsp)[YYFILL((1) - (1))]
-                                  .yystate.yysemantics.yysval
-                                  .ast_node); /*output($$, 1); puts("SQL
-                                                 parser： This is a show
-                                                 statement");*/
+      ((*yyvalp).ast_node) =
+          (((yyGLRStackItem const *)yyvsp)[YYFILL((1) - (1))]
+               .yystate.yysemantics.yysval.ast_node); /*output($$, 1); puts("SQL
+                                                         parser： This is a show
+                                                         statement");*/
     } break;
 
     case 322:
@@ -7096,10 +7096,8 @@ void yyerror(struct ParseResult *pp, const char *s, ...) {
   int column_num = 1;
   for (int i = 0; i < words_in_clause.size(); i++) {
     if (i == (yyget_col_no - 1)) {
-      cout << "In clause \'"
-           << "\e[1m" << tokens[lineno - 1] << "\e[0m\'" << endl;
-      ostr << "In clause \'"
-           << "\e[1m" << tokens[lineno - 1] << "\e[0m\'" << endl;
+      cout << "In clause \'" << tokens[lineno - 1] << "\'" << endl;
+      ostr << "In clause \'" << tokens[lineno - 1] << "\'" << endl;
       for (int j = 0; j < (column_num + 10); j++) {
         ostr << ".";
         cout << ".";
@@ -7112,18 +7110,18 @@ void yyerror(struct ParseResult *pp, const char *s, ...) {
       column_num = column_num + words_in_clause[i].size() + 1;
     }
   }
-  ostr << "SQL syntax error at \e[1mline: " << lineno << ","
-       << "\e[0m near \'\e[1m";
+  ostr << "SQL syntax error at line: " << lineno << ","
+       << " near \'";
   ostr << yyget_text(pp->yyscan_info_);
   // ostr << "\e[1mLINE: " << lineno << "," << columnno << "\e[0m error: ";
   // ostr << "near \'\e[1m";
   // ostr << yyget_text(pp->yyscan_info_);
-  ostr << "\e[0m\'." << endl;
+  ostr << "\'." << endl;
   pp->error_info_ = ostr.str();
-  cout << "SQL syntax error at \e[1mline: " << lineno << ","
-       << "\e[0m near \'\e[1m";
+  cout << "SQL syntax error at line: " << lineno << ","
+       << " near \'";
   cout << yyget_text(pp->yyscan_info_);
-  cout << "\e[0m\'." << endl;
+  cout << "\'." << endl;
   /*
   cout << "\e[1mLINE: " << lineno << "\e[0m error: ";
   cout << "near \'\e[1m";

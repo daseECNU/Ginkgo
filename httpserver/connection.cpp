@@ -67,6 +67,7 @@ void connection::handle_read(const boost::system::error_code& e,
 
 		if (result) {
 			std::string reqstr;
+			std::string reqstr2;
 			int reqint;
 			for (int i = 0; i < request_.uri.length(); i++) {
 				if (request_.uri[i] == '%') {
@@ -88,15 +89,36 @@ void connection::handle_read(const boost::system::error_code& e,
 				} else
 					reqstr.push_back(request_.uri[i]);
 			}
+			//double decode for jave only
+			for (int i = 0; i < reqstr.length(); i++) {
+				if (reqstr[i] == '%') {
+					reqint = 0;
+					for (int j = i + 1; j <= i + 2; j++) {
+						if (reqstr[j] >= '0' && reqstr[j] <= '9') {
+							reqint = reqint * 16 + reqstr[j] - '0';
+						}
+						if (reqstr[j] >= 'A' && reqstr[j] <= 'F') {
+
+							reqint = reqint * 16 + reqstr[j] - 'A' + 10;
+						}
+						if (reqstr[j] >= 'a' && reqstr[j] <= 'f'){
+							reqint = reqint * 16 + reqstr[j] - 'a' + 10;
+						}
+					}
+					i = i + 2;
+					reqstr2.push_back(reqint);
+				} else
+					reqstr2.push_back(reqstr[i]);
+			}
 
 			std::string reqstrl = "";
 			for (int i = 0; i < 8; i++)
-				reqstrl.push_back(reqstr[i]);
+				reqstrl.push_back(reqstr2[i]);
 			if (reqstrl == "/CLAIMS/") {
 				std::string scmd = "";
 
-				for (int i = 8; i < reqstr.length(); i++)
-					scmd.push_back(reqstr[i]);
+				for (int i = 8; i < reqstr2.length(); i++)
+					scmd.push_back(reqstr2[i]);
 
 				remote_command rcmd;
 				ResultString& rs = GetResultString();

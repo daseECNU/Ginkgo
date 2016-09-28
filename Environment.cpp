@@ -259,7 +259,6 @@ IteratorExecutorSlave* Environment::getIteratorExecutorSlave() const {
 }
 
 void *Environment::InitMysqlListener(void * null_) {
-
 	//claims::mysql::CMysqlServer::GetInstance()->Initialize();
 	claims::mysql::CMysqlServer::GetInstance()->Start();
 }

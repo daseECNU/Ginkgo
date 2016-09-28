@@ -27,21 +27,21 @@
  */
 #include <string>
 #include "./mysql_handshake_packet.h"
-
+#include "../mysql_server.h"
 #include "../../common/Logging.h"
 using std::string;
 namespace claims {
 namespace mysql {
 MysqlHandshakePacket::MysqlHandshakePacket() {
-  const char* str = "5.";
+  const char* str = "5.5.47-MariaDB";
   protocol_version_ = 10;  // Protocol::HandshakeV10
   string server_version(str);
   server_version_ = server_version;
-  thread_id_ = 100;  //
+  thread_id_ = 2;  //
   memset(scramble_buff_, 'a', 9);
   server_capabilities_ = 63487;
   server_language_ = 8;  // latin1_swedish_ci
-  server_status_ = 0;  // no this value in mysql protocol document
+  server_status_ = 2;  // no this value in mysql protocol document
   memset(plugin_, 0, sizeof(plugin_));
   memset(plugin2_, 'b', 12);
   terminated_ = '\0';
@@ -137,26 +137,38 @@ int MysqlHandshakePacket::serialize(char *buffer, int64_t len, int64_t &pos) {
       MySqlLog("serialize packet protocol_version failed, buffer=%p, length=%ld,"
           "protocol_version=%d, pos=%ld",
           buffer, len, protocol_version_, pos);
-    } else if (C_SUCCESS
+    } else{
+
+    	  std::cout<<"mysql_handsharke.cpp:142 "<<bytestohexstring(buffer,50)<<std::endl;
+    }
+    if (C_SUCCESS
         != (ret = CMysqlUtil::store_str_vzt(buffer, len,
                                             server_version_.c_str(),
                                             server_version_.length(), pos))) {
       MySqlLog("serialize packet server_version failed, buffer=%p, length=%ld,"
           "server_version length=%d, pos=%ld",
           buffer, len, server_version_.length(), pos);
-    } else if (C_SUCCESS
+    } else{
+
+  	  std::cout<<"mysql_handsharke.cpp:153 "<<bytestohexstring(buffer,50)<<std::endl;
+  	  std::cout<<"mysql_handsharke.cpp:154 "<<thread_id_<<std::endl;
+  } if (C_SUCCESS
         != (ret = CMysqlUtil::store_int4(buffer, len, thread_id_, pos))) {
       MySqlLog("serialize packet thread_id failed, buffer=%p, length=%ld,"
           "thread_id=%d, pos=%ld",
           buffer, len, thread_id_, pos);
-    }
+    }{
+
+  	  std::cout<<"mysql_handsharke.cpp:161 "<<bytestohexstring(buffer,50)<<" pos is: "<<pos<<std::endl;
+  }
 
     // make sure buffer + pos + SCRAMBLE_SIZE < buffer + length
     // serialize SCRAMBLE && filler_
     if (C_SUCCESS == ret) {
       if ((buffer + pos + SCRAMBLE_SIZE < buffer + len)) {
-        memcpy(buffer + pos, scramble_buff_, SCRAMBLE_SIZE + 1);
-        pos += SCRAMBLE_SIZE + 1;
+        memcpy(buffer + pos, scramble_buff_, SCRAMBLE_SIZE);
+        pos += SCRAMBLE_SIZE;
+        buffer[pos++] = '\0';
       } else {
         MySqlLog("not enough buffer to serialize scramble_buff && filler, "
             "buffer=%p, len=%ld,"
@@ -166,6 +178,8 @@ int MysqlHandshakePacket::serialize(char *buffer, int64_t len, int64_t &pos) {
       }
     }
 
+
+	  std::cout<<"mysql_handsharke.cpp:181 "<<bytestohexstring(buffer,50)<<" pos is: "<<pos<<std::endl;
     if (C_SUCCESS == ret) {
       if (C_SUCCESS
           != (ret = CMysqlUtil::store_int2(buffer, len, server_capabilities_,
@@ -174,7 +188,11 @@ int MysqlHandshakePacket::serialize(char *buffer, int64_t len, int64_t &pos) {
             "buffer=%p, length=%ld,"
             "server_capabilities=%d, pos=%ld",
             buffer, len, server_capabilities_, pos);
-      } else if (C_SUCCESS
+      } else{
+
+      	  std::cout<<"mysql_handsharke.cpp:192 "<<bytestohexstring(buffer,50)<<" pos is: "<<pos<<std::endl;
+      }
+      if (C_SUCCESS
           != (ret = CMysqlUtil::
               store_int1(buffer, len, server_language_, pos))) {
         MySqlLog("serialize packet server_language failed, buffer=%p, length=%ld,"

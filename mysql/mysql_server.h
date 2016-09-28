@@ -106,6 +106,8 @@ private:
 
 	int DoComPing(int fd, MysqlCommandPacket* packet);
 
+	int CheckCommand(char* command);
+
 	int DoComDeleteSession(int fd, MysqlCommandPacket* packet);
 
 	int DoComUnsupported(int fd, MysqlCommandPacket* packet);
