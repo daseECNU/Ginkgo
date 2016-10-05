@@ -39,7 +39,9 @@ libphysicalqueryplan_a_SOURCES = \
 	expander.cpp 							expander.h \
 	in_operator.cpp 						in_operator.h \
 	physical_project.cpp 					physical_project.h \
-	physical_hash_join.cpp 						physical_hash_join.h \
+	physical_hash_join.cpp 					physical_hash_join.h \
+	physical_hash_join_build.cpp 			physical_hash_join_build.h \
+	physical_hash_join_probe.cpp 			physical_hash_join_probe.h \
 	physical_sort.cpp 						physical_sort.h \
 	exchange_merger.cpp 					physical_exchange_merger.h \
 	exchange_sender_pipeline.cpp 			exchange_sender_pipeline.h \

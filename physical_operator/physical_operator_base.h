@@ -47,6 +47,8 @@ enum PhysicalOperatorType {
   kPhysicalFilter,
   kPhysicalAggregation,
   kPhysicalHashJoin,
+  kPhysicalHashJoinBuild,
+  kPhysicalHashJoinProbe,
   kPhysicalProject,
   kPhysicalSort,
   kPhysicalQueryPlanRoot,

@@ -39,6 +39,8 @@
 #include "../../physical_operator/physical_sort.h"
 #include "../../physical_operator/physical_delete_filter.h"
 #include "../../physical_operator/physical_outer_hash_join.h"
+#include "../../physical_operator/physical_hash_join_build.h"
+#include "../../physical_operator/physical_hash_join_probe.h"
 using claims::common::ExprBinary;
 using claims::common::ExprCaseWhen;
 using claims::common::ExprColumn;
@@ -66,6 +68,8 @@ using claims::physical_operator::PhysicalProjectionScan;
 using claims::physical_operator::ResultPrinter;
 using claims::physical_operator::PhysicalSort;
 using claims::physical_operator::PhysicalDeleteFilter;
+using claims::physical_operator::PhysicalHashJoinBuild;
+using claims::physical_operator::PhysicalHashJoinProbe;
 using claims::physical_operator::PhysicalOuterHashJoin;
 
 #pragma auto_inline
@@ -78,6 +82,8 @@ void Register_Block_Stream_Iterator(Archive& ar) {
   ar.register_type(static_cast<CombineTuple*>(NULL));
   ar.register_type(static_cast<PhysicalOuterHashJoin*>(NULL));
   ar.register_type(static_cast<PhysicalHashJoin*>(NULL));
+  ar.register_type(static_cast<PhysicalHashJoinBuild*>(NULL));
+  ar.register_type(static_cast<PhysicalHashJoinProbe*>(NULL));
   ar.register_type(static_cast<ExchangeSenderMaterialized*>(NULL));
   ar.register_type(static_cast<PhysicalProjectionScan*>(NULL));
   ar.register_type(static_cast<PerformanceMonitor*>(NULL));

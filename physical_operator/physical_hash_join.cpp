@@ -399,7 +399,7 @@ inline void PhysicalHashJoin::IsMatch(void* l_tuple_addr, void* r_tuple_addr,
                                       Schema* l_schema, Schema* r_schema,
                                       ExprFuncTwoTuples func) {
   bool key_exit = true;
-  for (unsigned i = 0; i < r_join_index.size(); i++) {
+  for (unsigned i = 0; i < r_join_index.size(); ++i) {
     void* key_in_input =
         r_schema->getColumnAddess(r_join_index[i], r_tuple_addr);
     void* key_in_hashtable =
@@ -434,10 +434,10 @@ inline bool PhysicalHashJoin::JoinCondiProcess(void* tuple_left,
   return true;
 }
 PhysicalHashJoin::JoinThreadContext::~JoinThreadContext() {
-  delete l_block_for_asking_;
-  delete l_block_stream_iterator_;
-  delete r_block_for_asking_;
-  delete r_block_stream_iterator_;
+  DELETE_PTR(l_block_for_asking_);
+  DELETE_PTR(l_block_stream_iterator_);
+  DELETE_PTR(r_block_for_asking_);
+  DELETE_PTR(r_block_stream_iterator_);
   for (int i = 0; i < join_condi_.size(); ++i) {
     DELETE_PTR(join_condi_[i]);
   }

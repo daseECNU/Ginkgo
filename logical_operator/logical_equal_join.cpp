@@ -42,16 +42,21 @@
 #include "../physical_operator/expander.h"
 #include "../physical_operator/physical_hash_join.h"
 #include "../physical_operator/physical_operator_base.h"
-
+#include "../physical_operator/physical_hash_join_build.h"
+#include "../physical_operator/physical_hash_join_probe.h"
 using claims::common::LogicInitCnxt;
 using claims::physical_operator::ExchangeMerger;
 using claims::physical_operator::Expander;
 using claims::physical_operator::PhysicalHashJoin;
+using claims::physical_operator::PhysicalHashJoinBuild;
+using claims::physical_operator::PhysicalHashJoinProbe;
 using claims::physical_operator::PhysicalOperatorBase;
 
 // using claims::physical_operator::PhysicalJoin;
 namespace claims {
 namespace logical_operator {
+std::atomic<int64_t> LogicalEqualJoin::join_id_(0);
+
 LogicalEqualJoin::LogicalEqualJoin(std::vector<JoinPair> joinpair_list,
                                    LogicalOperator* left_input,
                                    LogicalOperator* right_input)
@@ -336,7 +341,7 @@ LogicalEqualJoin::JoinPolicy LogicalEqualJoin::DecideLeftOrRightRepartition(
     return kLeftRepartition;
   }
 }
-
+#if 0
 PhysicalOperatorBase* LogicalEqualJoin::GetPhysicalPlan(
     const unsigned& block_size) {
   if (NULL == plan_context_) {
@@ -555,7 +560,253 @@ PhysicalOperatorBase* LogicalEqualJoin::GetPhysicalPlan(
   }
   return join_iterator;
 }
+#else
+PhysicalOperatorBase* LogicalEqualJoin::GetPhysicalPlan(
+    const unsigned& block_size) {
+  if (NULL == plan_context_) {
+    GetPlanContext();
+  }
+  int64_t join_id = ++join_id_;
+  PhysicalOperatorBase* child_iterator_left =
+      left_child_->GetPhysicalPlan(block_size);
+  PlanContext dataflow_left = left_child_->GetPlanContext();
+  PhysicalOperatorBase* child_iterator_right =
+      right_child_->GetPhysicalPlan(block_size);
+  PlanContext dataflow_right = right_child_->GetPlanContext();
 
+  // create PhysicalHashJoinProbe
+  PhysicalHashJoinProbe* join_probe;
+  PhysicalHashJoinProbe::State state_probe;
+  state_probe.join_id_ = join_id;
+  state_probe.block_size_ = block_size;
+  state_probe.hashtable_bucket_num_ = Config::hash_join_bucket_num;
+  // state.ht_nbuckets=1024;
+  state_probe.input_schema_left_ = GetSchema(dataflow_left.attribute_list_);
+  state_probe.input_schema_right_ = GetSchema(dataflow_right.attribute_list_);
+  state_probe.hashtable_schema_ = GetSchema(dataflow_left.attribute_list_);
+  // the bucket size is 64-byte-aligned
+  // state_.ht_bucketsize =
+  //  ((state_.input_schema_left->getTupleMaxSize()-1)/64+1)*64;
+  /**
+   * In the initial implementation, I set the bucket size to be up round to
+   * cache line size, e.g., 64Bytes. Finally, I realized that different from
+   * aggregation,the hash table bucket in the build phase of hash join is filled
+   * very quickly and hence a * a relatively large bucket size could reduce the
+   * number of overflowing buckets and avoid the random memory access caused by
+   * acceesing overflowing buckets.
+   */
+  state_probe.hashtable_bucket_size_ = Config::hash_join_bucket_size;
+  state_probe.output_schema_ = GetSchema(plan_context_->attribute_list_);
+
+  state_probe.join_index_left_ = GetLeftJoinKeyIds();
+  state_probe.join_index_right_ = GetRightJoinKeyIds();
+  state_probe.join_condi_ = join_condi_;
+  switch (join_policy_) {
+    case kNoRepartition: {
+      state_probe.child_left_ = child_iterator_left;
+      state_probe.child_right_ = child_iterator_right;
+      break;
+    }
+    case kLeftRepartition: {
+      //    state_.child_left
+      Expander::State expander_state;
+      expander_state.block_count_in_buffer_ = EXPANDER_BUFFER_SIZE;
+      expander_state.block_size_ = block_size;
+      expander_state.init_thread_count_ = Config::initial_degree_of_parallelism;
+      expander_state.child_ = child_iterator_left;
+      expander_state.schema_ = GetSchema(dataflow_left.attribute_list_);
+      PhysicalOperatorBase* expander = new Expander(expander_state);
+
+      NodeTracker* node_tracker = NodeTracker::GetInstance();
+      ExchangeMerger::State exchange_state;
+      exchange_state.block_size_ = block_size;
+      exchange_state.child_ = expander;  // child_iterator_left;
+      exchange_state.exchange_id_ =
+          IDsGenerator::getInstance()->generateUniqueExchangeID();
+
+      std::vector<NodeID> upper_id_list =
+          GetInvolvedNodeID(plan_context_->plan_partitioner_);
+      exchange_state.upper_id_list_ = upper_id_list;
+
+      std::vector<NodeID> lower_id_list =
+          GetInvolvedNodeID(dataflow_left.plan_partitioner_);
+      exchange_state.lower_id_list_ = lower_id_list;
+
+      const Attribute right_partition_key =
+          plan_context_->plan_partitioner_.get_partition_key();
+
+      /* get the left attribute that is corresponding to the partition key.*/
+      Attribute left_partition_key =
+          joinkey_pair_list_[GetIdInRightJoinKeys(right_partition_key)]
+              .left_join_attr_;
+
+      exchange_state.partition_schema_ =
+          partition_schema::set_hash_partition(GetIdInAttributeList(
+              dataflow_left.attribute_list_, left_partition_key));
+
+      // exchange_state.schema=getSchema(dataflow_left.attribute_list_,
+      //                                 dataflow_right.attribute_list_);
+      exchange_state.schema_ = GetSchema(dataflow_left.attribute_list_);
+      PhysicalOperatorBase* exchange = new ExchangeMerger(exchange_state);
+      state_probe.child_left_ = exchange;
+      state_probe.child_right_ = child_iterator_right;
+      break;
+    }
+    case kRightRepartition: {
+      Expander::State expander_state;
+      expander_state.block_count_in_buffer_ = EXPANDER_BUFFER_SIZE;
+      expander_state.block_size_ = block_size;
+      expander_state.init_thread_count_ = Config::initial_degree_of_parallelism;
+      expander_state.child_ = child_iterator_right;
+      expander_state.schema_ = GetSchema(dataflow_right.attribute_list_);
+      PhysicalOperatorBase* expander = new Expander(expander_state);
+
+      NodeTracker* node_tracker = NodeTracker::GetInstance();
+      ExchangeMerger::State exchange_state;
+      exchange_state.block_size_ = block_size;
+      exchange_state.child_ = expander;
+      exchange_state.exchange_id_ =
+          IDsGenerator::getInstance()->generateUniqueExchangeID();
+
+      std::vector<NodeID> upper_id_list =
+          GetInvolvedNodeID(plan_context_->plan_partitioner_);
+      exchange_state.upper_id_list_ = upper_id_list;
+
+      std::vector<NodeID> lower_id_list =
+          GetInvolvedNodeID(dataflow_right.plan_partitioner_);
+      exchange_state.lower_id_list_ = lower_id_list;
+
+      const Attribute output_partition_key =
+          plan_context_->plan_partitioner_.get_partition_key();
+
+      /* get the right attribute that is corresponding to the partition key.*/
+      Attribute right_repartition_key;
+      if (plan_context_->plan_partitioner_.HasShadowPartitionKey()) {
+        right_repartition_key =
+            joinkey_pair_list_[GetIdInLeftJoinKeys(
+                                   output_partition_key,
+                                   plan_context_->plan_partitioner_
+                                       .get_shadow_partition_keys())]
+                .right_join_attr_;
+      } else {
+        right_repartition_key =
+            joinkey_pair_list_[GetIdInLeftJoinKeys(output_partition_key)]
+                .right_join_attr_;
+      }
+
+      exchange_state.partition_schema_ =
+          partition_schema::set_hash_partition(GetIdInAttributeList(
+              dataflow_right.attribute_list_, right_repartition_key));
+
+      exchange_state.schema_ = GetSchema(dataflow_right.attribute_list_);
+      PhysicalOperatorBase* exchange = new ExchangeMerger(exchange_state);
+      state_probe.child_left_ = child_iterator_left;
+      state_probe.child_right_ = exchange;
+      break;
+    }
+    case kCompleteRepartition: {
+      /* build left input*/
+      Expander::State expander_state_l;
+      expander_state_l.block_count_in_buffer_ = EXPANDER_BUFFER_SIZE;
+      expander_state_l.block_size_ = block_size;
+      expander_state_l.init_thread_count_ =
+          Config::initial_degree_of_parallelism;
+      expander_state_l.child_ = child_iterator_left;
+      expander_state_l.schema_ = GetSchema(dataflow_left.attribute_list_);
+      PhysicalOperatorBase* expander_l = new Expander(expander_state_l);
+
+      ExchangeMerger::State l_exchange_state;
+      l_exchange_state.block_size_ = block_size;
+      l_exchange_state.child_ = expander_l;
+      l_exchange_state.exchange_id_ =
+          IDsGenerator::getInstance()->generateUniqueExchangeID();
+
+      std::vector<NodeID> lower_id_list =
+          GetInvolvedNodeID(dataflow_left.plan_partitioner_);
+      l_exchange_state.lower_id_list_ = lower_id_list;
+
+      std::vector<NodeID> upper_id_list =
+          GetInvolvedNodeID(plan_context_->plan_partitioner_);
+      l_exchange_state.upper_id_list_ = upper_id_list;
+
+      const Attribute left_partition_key =
+          plan_context_->plan_partitioner_.get_partition_key();
+      l_exchange_state.partition_schema_ =
+          partition_schema::set_hash_partition(GetIdInAttributeList(
+              dataflow_left.attribute_list_, left_partition_key));
+      l_exchange_state.schema_ = GetSchema(dataflow_left.attribute_list_);
+      PhysicalOperatorBase* l_exchange = new ExchangeMerger(l_exchange_state);
+
+      // build right input
+
+      Expander::State expander_state_r;
+      expander_state_r.block_count_in_buffer_ = EXPANDER_BUFFER_SIZE;
+      expander_state_r.block_size_ = block_size;
+      expander_state_r.init_thread_count_ =
+          Config::initial_degree_of_parallelism;
+      expander_state_r.child_ = child_iterator_right;
+      expander_state_r.schema_ = GetSchema(dataflow_right.attribute_list_);
+      PhysicalOperatorBase* expander_r = new Expander(expander_state_r);
+
+      ExchangeMerger::State r_exchange_state;
+      r_exchange_state.block_size_ = block_size;
+      r_exchange_state.child_ = expander_r;
+      r_exchange_state.exchange_id_ =
+          IDsGenerator::getInstance()->generateUniqueExchangeID();
+
+      lower_id_list = GetInvolvedNodeID(dataflow_right.plan_partitioner_);
+      r_exchange_state.lower_id_list_ = lower_id_list;
+
+      upper_id_list = GetInvolvedNodeID(plan_context_->plan_partitioner_);
+      r_exchange_state.upper_id_list_ = upper_id_list;
+
+      const Attribute right_partition_key =
+          joinkey_pair_list_[GetIdInLeftJoinKeys(left_partition_key)]
+              .right_join_attr_;
+      r_exchange_state.partition_schema_ =
+          partition_schema::set_hash_partition(GetIdInAttributeList(
+              dataflow_right.attribute_list_, right_partition_key));
+      r_exchange_state.schema_ = GetSchema(dataflow_right.attribute_list_);
+      PhysicalOperatorBase* r_exchange = new ExchangeMerger(r_exchange_state);
+
+      // finally  build the join iterator itself
+      state_probe.child_left_ = l_exchange;
+      state_probe.child_right_ = r_exchange;
+      break;
+    }
+    default: { break; }
+  }
+  // create PhysicalHashJoinBuild
+  PhysicalHashJoinBuild::State state_build;
+  state_build.block_size_ = block_size;
+  state_build.child_left_ = state_probe.child_left_;  // note
+  state_build.hashtable_bucket_num_ = Config::hash_join_bucket_num;
+  state_build.hashtable_bucket_size_ = Config::hash_join_bucket_size;
+  state_build.hashtable_schema_ = GetSchema(dataflow_left.attribute_list_);
+  state_build.input_schema_left_ = GetSchema(dataflow_left.attribute_list_);
+  state_build.join_id_ = join_id;
+  state_build.join_index_left_ = GetLeftJoinKeyIds();
+  PhysicalHashJoinBuild* join_build = new PhysicalHashJoinBuild(state_build);
+
+  // create Expander to control PhysicalHashJoinBuild
+  Expander::State expander_build_state;
+  expander_build_state.block_count_in_buffer_ = EXPANDER_BUFFER_SIZE;
+  expander_build_state.block_size_ = block_size;
+  expander_build_state.init_thread_count_ =
+      Config::initial_degree_of_parallelism;
+
+  // set join_build to the child of expander_build
+  expander_build_state.child_ = join_build;
+  expander_build_state.schema_ = GetSchema(dataflow_left.attribute_list_);
+  PhysicalOperatorBase* expander_build = new Expander(expander_build_state);
+
+  // create PhysicalHashJoinProbe
+  state_probe.child_left_ = expander_build;
+  join_probe = new PhysicalHashJoinProbe(state_probe);
+
+  return join_probe;
+}
+#endif
 bool LogicalEqualJoin::GetOptimalPhysicalPlan(
     Requirement requirement, PhysicalPlanDescriptor& physical_plan_descriptor,
     const unsigned& block_size) {}

@@ -28,6 +28,8 @@
  */
 #ifndef LOGICAL_OPERATOR_LOGICAL_EQUAL_JOIN_H_
 #define LOGICAL_OPERATOR_LOGICAL_EQUAL_JOIN_H_
+
+#include <atomic>
 #include <vector>
 #include "../common/expression/expr_node.h"
 #include "../catalog/attribute.h"
@@ -37,7 +39,6 @@
 
 namespace claims {
 namespace logical_operator {
-
 /**
  * @brief Generate equal join logical plan.
  * @details EqualJoin operator achieves the join statement tables.It requires
@@ -186,7 +187,11 @@ class LogicalEqualJoin : public LogicalOperator {
   LogicalOperator* right_child_;
   JoinPolicy join_policy_;
   PlanContext* plan_context_;
+
+ public:
+  static std::atomic<int64_t> join_id_;
 };
+
 }  // namespace logical_operator
 }  // namespace claims
 #endif  // LOGICAL_OPERATOR_LOGICAL_EQUAL_JOIN_H_
