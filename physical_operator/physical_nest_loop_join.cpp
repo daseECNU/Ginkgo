@@ -391,7 +391,7 @@ ThreadContext *PhysicalNestLoopJoin::CreateContext() {
   return jtc;
 }
 void PhysicalNestLoopJoin::Print() {
-  printf("NestLoopJoin\n");
+  std::cout << "-----------------NestLoopJoin-------------------" << std::endl;
   printf("------Join Left-------\n");
   state_.child_left_->Print();
   printf("------Join Right-------\n");

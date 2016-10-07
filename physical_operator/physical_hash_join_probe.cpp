@@ -34,8 +34,12 @@
 #include "../common/expression/data_type_oper.h"
 #include "../common/expression/expr_node.h"
 #include "../Environment.h"
+#include "../scheduler/pipeline_job.h"
+#include "../scheduler/stage_task.h"
 
 using claims::common::DataTypeOper;
+using claims::scheduler::PipelineJob;
+using claims::scheduler::StageTask;
 namespace claims {
 namespace physical_operator {
 
@@ -258,6 +262,8 @@ bool PhysicalHashJoinProbe::Close(SegmentExecStatus* const exec_status) {
 }
 
 void PhysicalHashJoinProbe::Print() {
+  std::cout << "-----------------HashJoinProbe------------------" << std::endl;
+  std::cout << "hash join id= " << state_.join_id_ << endl;
   if (NULL != state_.child_left_) {
     LOG(INFO) << "------Join probe Left-------" << endl;
     cout << "------Join probe Left-------" << endl;
@@ -278,7 +284,40 @@ RetCode PhysicalHashJoinProbe::GetAllSegments(stack<Segment*>* all_segments) {
   }
   return ret;
 }
-
+RetCode PhysicalHashJoinProbe::GetJobDAG(JobContext* const job_cnxt) {
+  RetCode ret = rSuccess;
+  PipelineJob* pjob = NULL;
+  if (NULL != state_.child_left_) {
+    ret = state_.child_left_->GetJobDAG(job_cnxt);
+    if (rSuccess != ret) {
+      return ret;
+    }
+    // create stage-task
+    job_cnxt->set_stage_tasks(
+        (new StageTask(state_.child_left_, job_cnxt->get_node_id(),
+                       job_cnxt->get_node_id(), 0)));
+    state_.child_left_ = NULL;
+    // create pipeline-job
+    pjob = new PipelineJob(job_cnxt->get_stage_tasks(), job_cnxt->get_parents(),
+                           job_cnxt->GenJobId());
+    job_cnxt->ClearParents();
+    job_cnxt->ClearStageTasks();
+  } else {
+    LOG(ERROR) << "the left child of join probe is NULL";
+    return rFailure;
+  }
+  if (NULL != state_.child_right_) {
+    ret = state_.child_right_->GetJobDAG(job_cnxt);
+    if (rSuccess != ret) {
+      return ret;
+    }
+    job_cnxt->set_parents(pjob);  // add left sub-tree
+  } else {
+    LOG(ERROR) << "the right child of join probe is NULL";
+    return rFailure;
+  }
+  return ret;
+}
 inline ThreadContext* PhysicalHashJoinProbe::CreateContext() {
   JoinThreadContext* jtc = new JoinThreadContext();
   jtc->l_block_for_asking_ = BlockStreamBase::createBlock(

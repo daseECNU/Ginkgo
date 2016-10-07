@@ -181,15 +181,14 @@ bool PhysicalHashJoinBuild::Close(SegmentExecStatus* const exec_status) {
 }
 
 void PhysicalHashJoinBuild::Print() {
+  std::cout << "-----------------HashJoinBuild------------------" << std::endl;
   LOG(INFO) << "Join: buckets: (num= " << state_.hashtable_bucket_num_
             << " , size= "
             << get_aligned_space(state_.input_schema_left_->getTupleMaxSize())
-            << ")" << endl;
+            << ") join_id= " << state_.join_id_ << endl;
   cout << "Join: buckets: (num= " << state_.hashtable_bucket_num_ << " , size= "
-       << get_aligned_space(state_.input_schema_left_->getTupleMaxSize()) << ")"
-       << endl;
-  LOG(INFO) << "------Join Build-------" << endl;
-  cout << "------Join Build-------" << endl;
+       << get_aligned_space(state_.input_schema_left_->getTupleMaxSize())
+       << ") join_id= " << state_.join_id_ << endl;
   state_.child_left_->Print();
 }
 
@@ -197,6 +196,16 @@ RetCode PhysicalHashJoinBuild::GetAllSegments(stack<Segment*>* all_segments) {
   RetCode ret = rSuccess;
   if (NULL != state_.child_left_) {
     ret = state_.child_left_->GetAllSegments(all_segments);
+  }
+  return ret;
+}
+RetCode PhysicalHashJoinBuild::GetJobDAG(JobContext* const job_cnxt) {
+  RetCode ret = rSuccess;
+  if (NULL != state_.child_left_) {
+    return state_.child_left_->GetJobDAG(job_cnxt);
+  } else {
+    LOG(ERROR) << "the child of PhysicalHashJoinBuild is NULL";
+    ret = rFailure;
   }
   return ret;
 }

@@ -510,6 +510,7 @@ bool PhysicalAggregation::Close(SegmentExecStatus *const exec_status) {
   return true;
 }
 void PhysicalAggregation::Print() {
+  std::cout << "-----------------Aggregation--------------------" << std::endl;
   cout << "Aggregation:  " << state_.num_of_buckets_ << " buckets in hash table"
        << std::endl;
   cout << "group by attributes:" << endl;
@@ -530,6 +531,15 @@ RetCode PhysicalAggregation::GetAllSegments(stack<Segment *> *all_segments) {
   }
   return ret;
 }
-
+RetCode PhysicalAggregation::GetJobDAG(JobContext *const job_cnxt) {
+  RetCode ret = rSuccess;
+  if (NULL != state_.child_) {
+    return state_.child_->GetJobDAG(job_cnxt);
+  } else {
+    LOG(ERROR) << "the child of PhysicalAggregation is NULL";
+    ret = rFailure;
+  }
+  return ret;
+}
 }  // namespace physical_operator
 }  // namespace claims

@@ -175,7 +175,7 @@ PhysicalOperatorBase* LogicalQueryPlanRoot::GetPhysicalPlan(
 
       physical_operator::ResultCollector::State result_state(
           GetSchema(child_plan_context.attribute_list_), expander, block_size,
-          column_header);
+          column_header, collecter_node);
       ret = new physical_operator::ResultCollector(result_state);
       break;
     }

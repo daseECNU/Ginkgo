@@ -19,6 +19,7 @@ LDADD = ../Executor/libexecutor.a \
 		../common/Block/libblock.a	\
 		../utility/libutility.a \
 		../codegen/codegen.a \
+		../scheduler/libscheduler.a	\
 		../stmt_handler/libstmthandler.a	\
 		${HADOOP_HOME}/lib/native/libhdfs.a\
 		${JAVA_HOME}/jre/lib/amd64/server/libjvm.so\

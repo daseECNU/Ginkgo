@@ -114,6 +114,7 @@ class ExchangeMerger : public PhysicalOperator {
   bool Close(SegmentExecStatus* const exec_status);
   void Print();
   RetCode GetAllSegments(stack<Segment*>* all_segments);
+  RetCode GetJobDAG(JobContext* const job_cnxt);
 
  private:
   /// prepare socket at this node, waiting senders connect it
@@ -160,8 +161,8 @@ class ExchangeMerger : public PhysicalOperator {
   int* socket_fd_lower_list_;
   std::vector<std::string> lower_ip_list_;
 #ifdef CONNECTION_VERIFY
-  std::map<int ,std::string> lower_fd_to_ip_;
-  std::map<int ,std::string> lower_fd_to_passwd_;
+  std::map<int, std::string> lower_fd_to_ip_;
+  std::map<int, std::string> lower_fd_to_passwd_;
 #endif
   pthread_t receiver_thread_id_;
   pthread_t debug_thread_id_;

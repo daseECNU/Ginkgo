@@ -33,7 +33,11 @@
 #include "../common/error_define.h"
 #include "../common/ids.h"
 #include "../exec_tracker/segment_exec_status.h"
+#include "../scheduler/job_context.h"
+#include "../scheduler/pipeline_job.h"
 using claims::common::rSuccess;
+using claims::common::rFailure;
+using claims::scheduler::JobContext;
 namespace claims {
 namespace physical_operator {
 class Segment;
@@ -74,8 +78,12 @@ class PhysicalOperatorBase {
   virtual bool Close(SegmentExecStatus* const exec_status) = 0;
   virtual void Print() { printf("??\n"); }
   virtual RetCode GetAllSegments(stack<Segment*>* all_segments) {
-    cout << "Get All Segments error!" << endl;
-    return rSuccess;
+    cout << "Get All Segments error in virtual function!" << endl;
+    return rFailure;
+  }
+  virtual RetCode GetJobDAG(JobContext* const job_cnxt) {
+    cout << "Get job DAG error in virtual function!" << endl;
+    return rFailure;
   }
   /*
    * Suggested by scdong, this method can be removed.

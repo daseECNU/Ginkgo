@@ -526,10 +526,32 @@ void ExchangeSenderPipeline::CancelSenderThread() {
     sender_thread_id_ = 0;
   }
 }
+void ExchangeSenderPipeline::Print() {
+  std::cout << "-----------------ExchangeSenderPipeline---------" << std::endl;
+  std::cout << "Total has " << state_.upper_id_list_.size()
+            << " upper nodes : ";
+  for (int i = 0; i < state_.upper_id_list_.size(); ++i) {
+    std::cout << state_.upper_id_list_[i] << " ";
+  }
+  std::cout << std::endl;
+  if (NULL != state_.child_) {
+    state_.child_->Print();
+  }
+}
 RetCode ExchangeSenderPipeline::GetAllSegments(stack<Segment*>* all_segments) {
   RetCode ret = rSuccess;
   if (NULL != state_.child_) {
     return state_.child_->GetAllSegments(all_segments);
+  }
+  return ret;
+}
+RetCode ExchangeSenderPipeline::GetJobDAG(JobContext* const job_cnxt) {
+  RetCode ret = rSuccess;
+  if (NULL != state_.child_) {
+    return state_.child_->GetJobDAG(job_cnxt);
+  } else {
+    LOG(ERROR) << "the child of ExchangeSenderPipeline is NULL";
+    ret = rFailure;
   }
   return ret;
 }

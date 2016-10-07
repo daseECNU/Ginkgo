@@ -49,6 +49,8 @@
 #include "../physical_operator/physical_operator_base.h"
 #include "../stmt_handler/stmt_handler.h"
 #include "caf/io/all.hpp"
+
+#include "../scheduler/job_context.h"
 using caf::io::remote_actor;
 using claims::logical_operator::LogicalQueryPlanRoot;
 using claims::physical_operator::ExchangeSender;
@@ -173,7 +175,9 @@ RetCode SelectExec::Execute() {
     delete logic_plan;
     return ret;
   }
-  logic_plan = new LogicalQueryPlanRoot(0, logic_plan, raw_sql_,
+  int collect_node_id =
+      Environment::getInstance()->get_slave_node()->get_node_id();
+  logic_plan = new LogicalQueryPlanRoot(collect_node_id, logic_plan, raw_sql_,
                                         LogicalQueryPlanRoot::kResultCollector);
   logic_plan->GetPlanContext();
 #ifndef PRINTCONTEXT
@@ -186,6 +190,7 @@ RetCode SelectExec::Execute() {
   physical_plan->Print();
   cout << "--------------begin output result -------------------" << endl;
 #endif
+#if 0
   // collect all plan segments
   physical_plan->GetAllSegments(&all_segments_);
   // create thread to send all segments
@@ -237,8 +242,13 @@ RetCode SelectExec::Execute() {
     //    }
     pthread_join(tid, NULL);
   }
-
   ret = rSuccess;
+#else
+  JobContext* job_cnxt = new JobContext();
+  physical_plan->GetJobDAG(job_cnxt);
+  job_cnxt->get_dag_root()->PrintJob();
+  ret = rFailure;
+#endif
   delete logic_plan;
   delete physical_plan;
   return ret;

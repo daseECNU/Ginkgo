@@ -104,5 +104,9 @@ RetCode ResultPrinter::GetAllSegments(stack<Segment*>* all_segments) {
   }
   return ret;
 }
+RetCode ResultPrinter::GetJobDAG(JobContext* const job_cnxt) {
+  assert(false && " todo!");
+  return rFailure;
+}
 }  // namespace physical_operator
 }  // namespace claims

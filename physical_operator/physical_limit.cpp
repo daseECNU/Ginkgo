@@ -132,6 +132,7 @@ bool PhysicalLimit::Close(SegmentExecStatus* const exec_status) {
 }
 
 void PhysicalLimit::Print() {
+  std::cout << "-----------------Limit--------------------------" << std::endl;
   printf("Limit:\n  offset: %ld, tuple_count: %ld\n", state_.start_position_,
          state_.limit_tuples_);
   state_.child_->Print();
@@ -140,6 +141,16 @@ RetCode PhysicalLimit::GetAllSegments(stack<Segment*>* all_segments) {
   RetCode ret = rSuccess;
   if (NULL != state_.child_) {
     ret = state_.child_->GetAllSegments(all_segments);
+  }
+  return ret;
+}
+RetCode PhysicalLimit::GetJobDAG(JobContext* const job_cnxt) {
+  RetCode ret = rSuccess;
+  if (NULL != state_.child_) {
+    return state_.child_->GetJobDAG(job_cnxt);
+  } else {
+    LOG(ERROR) << "the child of PhysicalLimit is NULL";
+    ret = rFailure;
   }
   return ret;
 }

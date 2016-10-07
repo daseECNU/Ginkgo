@@ -1,9 +1,3 @@
-#include <stack>
-
-#include "../common/error_define.h"
-#include "../common/Logging.h"
-#include "../exec_tracker/segment_exec_status.h"
-#include "../physical_operator/segment.h"
 /*
  * Copyright [2012-2015] DaSE@ECNU
  *
@@ -31,7 +25,6 @@
  * Description:
  */
 #define GLOG_NO_ABBREVIATED_SEVERITIES
-#include "../physical_operator/exchange_merger.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
@@ -51,7 +44,13 @@
 #include <sys/epoll.h>
 #include <iostream>
 #include <sstream>
+#include <stack>
 #include <vector>
+#include "../common/error_define.h"
+#include "../common/Logging.h"
+#include "../exec_tracker/segment_exec_status.h"
+#include "../physical_operator/segment.h"
+#include "../physical_operator/exchange_merger.h"
 #include "../common/ids.h"
 #include "../physical_operator/physical_operator.h"
 #include "../common/rename.h"
@@ -64,6 +63,9 @@
 #include "../utility/rdtsc.h"
 #include "../physical_operator/exchange_sender_pipeline.h"
 #include "../physical_operator/exchange_sender_materialized.h"
+#include "../scheduler/stage_task.h"
+using claims::scheduler::StageTask;
+
 namespace claims {
 namespace physical_operator {
 const int kBufferSizeInExchange = 1000;
@@ -281,14 +283,14 @@ bool ExchangeMerger::Close(SegmentExecStatus* const exec_status) {
   LOG(INFO) << "exchange merger id = " << state_.exchange_id_ << " is closed!"
 #ifdef CONNECTION_VERIFY
             << " CONFIRM frequence:" << frequence
-            << " CONFIRM TIME:" << confirm_sender_time
+            << " CONFIRM TIME:" << confirm_sender_time;
 #endif
-      ;
 
   return true;
 }
 
 void ExchangeMerger::Print() {
+  std::cout << "-----------------ExpanderMerger-----------------" << std::endl;
   printf("Exchange upper[%ld]:", state_.exchange_id_);
   for (unsigned i = 0; i < state_.upper_id_list_.size(); i++) {
     printf("%d ", state_.upper_id_list_[i]);
@@ -302,10 +304,11 @@ void ExchangeMerger::Print() {
   } else {
     printf("Broadcast partition. ");
   }
-  printf("Partition key index:%d",
+  printf("Partition key index:%d\n",
          state_.partition_schema_.partition_key_index);
-  printf("\n---------\n");
-  state_.child_->Print();
+  if (NULL != state_.child_) {
+    state_.child_->Print();
+  }
 }
 bool ExchangeMerger::PrepareSocket() {
   struct sockaddr_in my_addr;
@@ -1016,5 +1019,41 @@ RetCode ExchangeMerger::GetAllSegments(stack<Segment*>* all_segments) {
   }
   return ret;
 }
+RetCode ExchangeMerger::GetJobDAG(JobContext* const job_cnxt) {
+  RetCode ret = rSuccess;
+  PhysicalOperatorBase* ret_plan = NULL;
+  if (NULL != state_.child_) {
+    job_cnxt->StoreNodeId();
+    job_cnxt->ResetNodeId(state_.lower_id_list_);
+    ret = state_.child_->GetJobDAG(job_cnxt);
+    job_cnxt->BackupNodeId();
+    if (rSuccess != ret) {
+      return ret;
+    }
+    if (Config::pipelined_exchange) {
+      ExchangeSenderPipeline::State EIELstate(
+          state_.schema_->duplicateSchema(), state_.child_,
+          state_.upper_id_list_, state_.block_size_, state_.exchange_id_,
+          state_.partition_schema_);
+      ret_plan = new ExchangeSenderPipeline(EIELstate);
+    } else {
+      ExchangeSenderMaterialized::State EIELstate(
+          state_.schema_->duplicateSchema(), state_.child_,
+          state_.upper_id_list_, state_.block_size_, state_.exchange_id_,
+          state_.partition_schema_);
+      ret_plan = new ExchangeSenderMaterialized(EIELstate);
+    }
+    job_cnxt->set_stage_tasks(
+        (new StageTask(ret_plan, state_.lower_id_list_, state_.upper_id_list_,
+                       state_.exchange_id_)));
+    state_.child_ = NULL;
+  } else {
+    LOG(ERROR) << "the child of exchange_merger is NULL";
+    ret = rFailure;
+  }
+
+  return ret;
+}
+
 }  // namespace physical_operator
 }  // namespace claims

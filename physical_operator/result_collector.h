@@ -51,7 +51,7 @@ class ResultCollector : public PhysicalOperatorBase {
    public:
     State(Schema* input, PhysicalOperatorBase* child, const unsigned block_size,
           vector<string> column_header = vector<string>(),
-          const PartitionOffset partitoin_offset = 0);
+          const PartitionOffset partitoin_offset = 0, int node_id = 0);
     State();
     ~State();
 
@@ -61,12 +61,14 @@ class ResultCollector : public PhysicalOperatorBase {
     unsigned block_size_;
     PartitionOffset partition_offset_;
     vector<string> column_header_;
+    int collector_node_;
 
    private:
     friend class boost::serialization::access;
     template <class Archive>
     void serialize(Archive& ar, const unsigned int version) {  // NOLINT
-      ar& input_& child_& block_size_& partition_offset_& column_header_;
+      ar& input_& child_& block_size_& partition_offset_& column_header_&
+          collector_node_;
     }
   };
   /**
@@ -82,7 +84,7 @@ class ResultCollector : public PhysicalOperatorBase {
   bool Close(SegmentExecStatus* const exec_status);
   void Print();
   RetCode GetAllSegments(stack<Segment*>* all_segments);
-
+  RetCode GetJobDAG(JobContext* const job_cnxt);
   /**
    * @brief Get query result data set.
    * @details The resultset will be automatically freed along with the result

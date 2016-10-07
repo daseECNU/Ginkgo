@@ -182,6 +182,7 @@ bool Expander::Close(SegmentExecStatus* const exec_status) {
   return true;
 }
 void Expander::Print() {
+  std::cout << "-----------------Expander-----------------------" << std::endl;
   printf("Expander: thread num:%d\n", state_.init_thread_count_);
   state_.child_->Print();
 }
@@ -478,6 +479,16 @@ RetCode Expander::GetAllSegments(stack<Segment*>* all_segments) {
   RetCode ret = rSuccess;
   if (NULL != state_.child_) {
     return state_.child_->GetAllSegments(all_segments);
+  }
+  return ret;
+}
+RetCode Expander::GetJobDAG(JobContext* const job_cnxt) {
+  RetCode ret = rSuccess;
+  if (NULL != state_.child_) {
+    return state_.child_->GetJobDAG(job_cnxt);
+  } else {
+    LOG(ERROR) << "the child of expander is NULL";
+    ret = rFailure;
   }
   return ret;
 }

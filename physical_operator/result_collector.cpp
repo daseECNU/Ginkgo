@@ -29,7 +29,11 @@
 #include <iostream>  // NOLINT
 #include <stack>
 
+#include "../scheduler/pipeline_job.h"
+#include "../scheduler/stage_task.h"
 #include "../utility/rdtsc.h"
+using claims::scheduler::PipelineJob;
+using claims::scheduler::StageTask;
 using std::vector;
 using std::string;
 using std::cout;
@@ -69,17 +73,23 @@ ResultCollector::~ResultCollector() {
   }
 }
 ResultCollector::State::State()
-    : input_(NULL), child_(NULL), block_size_(0), partition_offset_(0) {}
+    : input_(NULL),
+      child_(NULL),
+      block_size_(0),
+      partition_offset_(0),
+      collector_node_(0) {}
 
 ResultCollector::State::State(Schema* input, PhysicalOperatorBase* child,
                               const unsigned block_size,
                               vector<string> column_header,
-                              const PartitionOffset partitoin_offset)
+                              const PartitionOffset partitoin_offset,
+                              int node_id = 0)
     : input_(input),
       child_(child),
       block_size_(block_size),
       partition_offset_(partitoin_offset),
-      column_header_(column_header) {}
+      column_header_(column_header),
+      collector_node_(node_id) {}
 
 bool ResultCollector::Open(SegmentExecStatus* const exec_status,
                            const PartitionOffset& part_offset) {
@@ -126,9 +136,8 @@ bool ResultCollector::Close(SegmentExecStatus* const exec_status) {
   return true;
 }
 void ResultCollector::Print() {
-  cout << "------------" << endl;
-  cout << "ResultCollector" << endl;
-  cout << "------------" << endl;
+  std::cout << "-----------------ResultCollector----------------" << std::endl;
+  cout << " collector id= " << state_.collector_node_ << endl;
   state_.child_->Print();
 }
 ResultSet* ResultCollector::GetResultSet() {
@@ -212,6 +221,30 @@ RetCode ResultCollector::GetAllSegments(stack<Segment*>* all_segments) {
   RetCode ret = rSuccess;
   if (NULL != state_.child_) {
     ret = state_.child_->GetAllSegments(all_segments);
+  }
+  return ret;
+}
+RetCode ResultCollector::GetJobDAG(JobContext* const job_cnxt) {
+  RetCode ret = rSuccess;
+  if (NULL != state_.child_) {
+    job_cnxt->set_node_id(state_.collector_node_);  // set collection node
+    ret = state_.child_->GetJobDAG(job_cnxt);
+    if (rSuccess != ret) {
+      return ret;
+    }
+    // create stage-task
+    job_cnxt->set_stage_tasks((new StageTask(this, job_cnxt->get_node_id(),
+                                             job_cnxt->get_node_id(), 0)));
+    // create pipeline-job
+    PipelineJob* pjob =
+        new PipelineJob(job_cnxt->get_stage_tasks(), job_cnxt->get_parents(),
+                        job_cnxt->GenJobId());
+    job_cnxt->ClearParents();
+    job_cnxt->set_dag_root(pjob);
+    job_cnxt->ClearStageTasks();
+  } else {
+    LOG(ERROR) << "the child of ResultCollector is NULL";
+    ret = rFailure;
   }
   return ret;
 }

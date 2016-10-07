@@ -94,6 +94,7 @@ class ExchangeSenderMaterialized : public ExchangeSender {
   bool Next(SegmentExecStatus* const exec_status, BlockStreamBase* no_block);
   bool Close(SegmentExecStatus* const exec_status);
   RetCode GetAllSegments(stack<Segment*>* all_segments);
+  RetCode GetJobDAG(JobContext* const job_cnxt);
   void SetPartitionOffset(const int par_off) {
     state_.partition_offset_ = par_off;
   }

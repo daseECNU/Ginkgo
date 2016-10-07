@@ -263,7 +263,7 @@ bool PhysicalFilter::Close(SegmentExecStatus* const exec_status) {
 }
 
 void PhysicalFilter::Print() {
-  printf("filter: \n");
+  std::cout << "-----------------Filter-------------------------" << std::endl;
 #ifdef NEWCONDI
   for (int i = 0; i < state_.qual_.size(); i++) {
     printf("  %s\n", state_.qual_[i]->alias.c_str());
@@ -364,6 +364,16 @@ RetCode PhysicalFilter::GetAllSegments(stack<Segment*>* all_segments) {
   RetCode ret = rSuccess;
   if (NULL != state_.child_) {
     ret = state_.child_->GetAllSegments(all_segments);
+  }
+  return ret;
+}
+RetCode PhysicalFilter::GetJobDAG(JobContext* const job_cnxt) {
+  RetCode ret = rSuccess;
+  if (NULL != state_.child_) {
+    return state_.child_->GetJobDAG(job_cnxt);
+  } else {
+    LOG(ERROR) << "the child of PhysicalFilter is NULL";
+    ret = rFailure;
   }
   return ret;
 }

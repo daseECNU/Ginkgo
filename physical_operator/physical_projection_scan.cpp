@@ -211,7 +211,15 @@ bool PhysicalProjectionScan::Close(SegmentExecStatus* const exec_status) {
 }
 
 void PhysicalProjectionScan::Print() {
-  printf("Scan (ID=%d)\n", state_.projection_id_.table_id);
+  std::cout << "-----------------Scan---------------------------" << std::endl;
+  printf("Table name = %s ,Table ID=%d, Projection off= %d\n",
+         Environment::getInstance()
+             ->getCatalog()
+             ->getInstance()
+             ->getTable(state_.projection_id_.table_id)
+             ->getTableName()
+             .c_str(),
+         state_.projection_id_.table_id, state_.projection_id_.projection_off);
 }
 
 bool PhysicalProjectionScan::PassSample() const {
@@ -219,6 +227,9 @@ bool PhysicalProjectionScan::PassSample() const {
   return false;
 }
 RetCode PhysicalProjectionScan::GetAllSegments(stack<Segment*>* all_segments) {
+  return rSuccess;
+}
+RetCode PhysicalProjectionScan::GetJobDAG(JobContext* const job_cnxt) {
   return rSuccess;
 }
 }  // namespace physical_operator

@@ -38,6 +38,7 @@ LDADD =  \
     exec_tracker/libexec_tracker.a	\
 	logical_operator/liblogicalqueryplan.a \
 	physical_operator/libphysicalqueryplan.a \
+    scheduler/libscheduler.a	\
 	storage/libstorage.a \
 	Resource/libresouce.a \
 	catalog/libcatalog.a \
@@ -102,10 +103,10 @@ test_SOURCES = Test/gtest_main.cpp\
 #				node_manager/node_main.cpp
 				
 SUBDIRS=  catalog Client common Daemon Executor IndexManager\
-loader physical_operator logical_operator  Resource \
-storage Test utility codegen sql_parser stmt_handler  node_manager exec_tracker
+loader physical_operator scheduler logical_operator  Resource  \
+storage Test utility codegen sql_parser stmt_handler  node_manager exec_tracker 
 
 DIST_SUBDIRS =  catalog Client common Daemon Executor IndexManager\
-loader physical_operator logical_operator  Resource \
-storage Test utility codegen sql_parser stmt_handler node_manager exec_tracker
+loader physical_operator scheduler logical_operator  Resource  \
+storage Test utility codegen sql_parser stmt_handler node_manager exec_tracker 
 

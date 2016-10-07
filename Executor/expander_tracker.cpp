@@ -550,7 +550,9 @@ void* ExpanderTracker::monitoringThread(void* arg) {
             it->second->current_stage.dataflow_desc_.end_point_name.c_str(),
             current_degree_of_parallelism))
     ExpanderID exp_id = it->first;
-    Pthis->lock_.release();
+    Pthis->lock_.release();  // TODO(fzh) ERROR:: it may be illegal, but if the
+                             // lock behind underlying code, resulting in dead
+                             // look
 
     switch (decision) {
       case DECISION_EXPAND: {
@@ -638,7 +640,7 @@ void ExpanderTracker::printStatus() {
 }
 
 bool ExpanderTracker::trackExpander(ExpanderID id) const {
-  lock_.acquire(); 
+  lock_.acquire();
   if (expander_id_to_expand_shrink_.find(id) !=
       expander_id_to_expand_shrink_.end()) {
     lock_.release();

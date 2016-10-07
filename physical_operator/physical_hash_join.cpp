@@ -374,6 +374,7 @@ bool PhysicalHashJoin::Close(SegmentExecStatus* const exec_status) {
 }
 
 void PhysicalHashJoin::Print() {
+  std::cout << "-----------------HashJoin-----------------------" << std::endl;
   LOG(INFO) << "Join: buckets: (num= " << state_.hashtable_bucket_num_
             << " , size= "
             << get_aligned_space(state_.input_schema_left_->getTupleMaxSize())

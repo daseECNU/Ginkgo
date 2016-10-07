@@ -40,6 +40,7 @@ AC_CONFIG_FILES([
   loader/Makefile
   loader/test/Makefile
   common/serialization/Makefile 
+  scheduler/Makefile
   physical_operator/Makefile
   logical_operator/Makefile 
   Resource/Makefile 

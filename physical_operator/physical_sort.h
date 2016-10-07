@@ -150,6 +150,7 @@ class PhysicalSort : public PhysicalOperator {
    */
   bool CreateBlock(BlockStreamBase*&) const;
   RetCode GetAllSegments(stack<Segment*>* all_segments);
+  RetCode GetJobDAG(JobContext* const job_cnxt);
 
  private:
   State state_;

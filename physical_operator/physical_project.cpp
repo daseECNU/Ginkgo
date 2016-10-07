@@ -149,7 +149,7 @@ bool PhysicalProject::CopyNewValue(void* tuple, void* result, int length) {
 }
 
 void PhysicalProject::Print() {
-  std::cout << "proj:" << endl;
+  std::cout << "-----------------Project------------------------" << std::endl;
 #ifdef NEWCONDI
   for (int i = 0; i < state_.expr_tree_.size(); i++) {
     printf("  %s\n", state_.expr_tree_[i]->alias.c_str());
@@ -230,6 +230,16 @@ RetCode PhysicalProject::GetAllSegments(stack<Segment*>* all_segments) {
   RetCode ret = rSuccess;
   if (NULL != state_.child_) {
     ret = state_.child_->GetAllSegments(all_segments);
+  }
+  return ret;
+}
+RetCode PhysicalProject::GetJobDAG(JobContext* const job_cnxt) {
+  RetCode ret = rSuccess;
+  if (NULL != state_.child_) {
+    return state_.child_->GetJobDAG(job_cnxt);
+  } else {
+    LOG(ERROR) << "the child of PhysicalProject is NULL";
+    ret = rFailure;
   }
   return ret;
 }

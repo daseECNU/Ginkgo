@@ -525,6 +525,7 @@ bool PhysicalOuterHashJoin::Close(SegmentExecStatus* const exec_status) {
 }
 
 void PhysicalOuterHashJoin::Print() {
+  std::cout << "-----------------OutHashJoin--------------------" << std::endl;
   LOG(INFO) << "Join: buckets:" << state_.hashtable_bucket_num_ << endl;
   cout << "Join: buckets:" << state_.hashtable_bucket_num_ << endl;
 

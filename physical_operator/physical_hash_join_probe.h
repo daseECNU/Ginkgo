@@ -116,6 +116,7 @@ class PhysicalHashJoinProbe : public PhysicalOperator {
   bool Close(SegmentExecStatus* const exec_status);
   void Print();
   RetCode GetAllSegments(stack<Segment*>* all_segments);
+  RetCode GetJobDAG(JobContext* const job_cnxt);
 
  private:
   /**

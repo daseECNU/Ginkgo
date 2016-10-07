@@ -287,7 +287,7 @@ bool PhysicalSort::Close(SegmentExecStatus *const exec_status) {
 }
 
 void PhysicalSort::Print() {
-  cout << "Sort: " << endl;
+  std::cout << "-----------------Order by-----------------------" << std::endl;
   for (int i = 0; i < state_.order_by_attrs_.size(); ++i) {
     cout << state_.order_by_attrs_[i].first->alias_ << "    "
          << (state_.order_by_attrs_[i].second == 0 ? "ASC" : "DESC") << endl;
@@ -310,6 +310,15 @@ RetCode PhysicalSort::GetAllSegments(stack<Segment *> *all_segments) {
   }
   return ret;
 }
-
+RetCode PhysicalSort::GetJobDAG(JobContext *const job_cnxt) {
+  RetCode ret = rSuccess;
+  if (NULL != state_.child_) {
+    return state_.child_->GetJobDAG(job_cnxt);
+  } else {
+    LOG(ERROR) << "the child of PhysicalSort is NULL";
+    ret = rFailure;
+  }
+  return ret;
+}
 }  // namespace physical_operator
 }  // namespace claims
