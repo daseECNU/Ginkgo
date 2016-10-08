@@ -293,9 +293,9 @@ RetCode PhysicalHashJoinProbe::GetJobDAG(JobContext* const job_cnxt) {
       return ret;
     }
     // create stage-task
-    job_cnxt->set_stage_tasks(
-        (new StageTask(state_.child_left_, job_cnxt->get_node_id(),
-                       job_cnxt->get_node_id(), 0)));
+    vector<NodeID> empty_node;  // the upper node of this stage-task is empty
+    job_cnxt->set_stage_tasks((new StageTask(
+        state_.child_left_, job_cnxt->get_node_id(), empty_node, 0)));
     state_.child_left_ = NULL;
     // create pipeline-job
     pjob = new PipelineJob(job_cnxt->get_stage_tasks(), job_cnxt->get_parents(),

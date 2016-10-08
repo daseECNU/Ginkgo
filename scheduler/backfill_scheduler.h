@@ -29,7 +29,12 @@
 #ifndef SCHEDULER_BACKFILL_SCHEDULER_H_
 #define SCHEDULER_BACKFILL_SCHEDULER_H_
 
+#include <set>
+#include "../common/error_define.h"
+#include "../scheduler/pipeline_job.h"
 #include "scheduler_base.h"
+
+using std::set;
 
 namespace claims {
 namespace scheduler {
@@ -37,7 +42,19 @@ namespace scheduler {
 class BackfillScheduler : public SchedulerBase {
  public:
   BackfillScheduler();
+  BackfillScheduler(PipelineJob* const dag_root, StmtExecStatus* exec_status);
   virtual ~BackfillScheduler();
+  RetCode ScheduleJob();
+
+ private:
+  RetCode ComputeJobRank();
+  RetCode GetReadyJobs(set<PipelineJob*>& ready_jobs);
+  void PrintReadyJobs();
+
+ private:
+  StmtExecStatus* stmt_exec_status_;
+  set<PipelineJob*> ready_jobs_;
+  PipelineJob* dag_root_;
 };
 }
 }  // namespace claims

@@ -31,6 +31,7 @@
 #include <boost/unordered/unordered_map.hpp>
 #include <atomic>
 #include <iosfwd>
+#include <map>
 #include <string>
 #include "./segment_exec_status.h"
 #include "../common/Block/ResultSet.h"
@@ -73,11 +74,15 @@ class StmtExecStatus {
     query_result_ = query_result;
   }
   bool IsCancelled() { return exec_status_ == ExecStatus::kCancelled; }
+  void AddOneJob(u_int16_t job_id);
+  void CheckJobIsDone(u_int64_t stage_id);
+  void JobWaitingDone(u_int16_t job_id, u_int16_t times = 1);
 
  private:
   string exec_info_;
   ExecStatus exec_status_;
   ResultSet* query_result_;
+  boost::unordered_map<u_int16_t, semaphore*> job_id_to_sem_;
   boost::unordered_map<NodeSegmentID, SegmentExecStatus*> node_seg_id_to_seges_;
   u_int64_t query_id_;
   string sql_stmt_;

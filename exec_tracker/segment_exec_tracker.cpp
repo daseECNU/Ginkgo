@@ -90,6 +90,62 @@ RetCode SegmentExecTracker::UnRegisterSegES(NodeSegmentID node_segment_id) {
   }
   return rSuccess;
 }
+void SegmentExecTracker::RegisterHashTable(int64_t join_par_id,
+                                           BasicHashTable* ht) {
+  ht_map_lock_.acquire();
+  join_par_id_to_ht_.insert(make_pair(join_par_id, ht));
+  ht_map_lock_.release();
+}
+BasicHashTable* SegmentExecTracker::GetHashTable(int64_t join_par_id) {
+  ht_map_lock_.acquire();
+  auto it = join_par_id_to_ht_.find(join_par_id);
+  if (join_par_id_to_ht_.end() != it) {
+    ht_map_lock_.release();
+    return it->second;
+  }
+  ht_map_lock_.release();
+  return NULL;
+}
+bool SegmentExecTracker::UnRegisterHashTable(int64_t join_par_id) {
+  ht_map_lock_.acquire();
+  auto it = join_par_id_to_ht_.find(join_par_id);
+  if (join_par_id_to_ht_.end() != it) {
+    join_par_id_to_ht_.erase(it);
+    ht_map_lock_.release();
+    return true;
+  }
+  ht_map_lock_.release();
+  return false;
+}
+void SegmentExecTracker::RegisterResult(int64_t query_id, ResultSet* result) {
+  rs_map_lock_.acquire();
+  query_id_to_result_.insert(make_pair(query_id, result));
+  rs_map_lock_.release();
+}
+
+ResultSet* SegmentExecTracker::GetResult(int64_t query_id) {
+  rs_map_lock_.acquire();
+  auto it = query_id_to_result_.find(query_id);
+  if (query_id_to_result_.end() != it) {
+    rs_map_lock_.release();
+    return it->second;
+  }
+  rs_map_lock_.release();
+  return NULL;
+}
+
+bool SegmentExecTracker::UnRegisterResult(int64_t query_id) {
+  rs_map_lock_.acquire();
+  auto it = query_id_to_result_.find(query_id);
+  if (query_id_to_result_.end() != it) {
+    query_id_to_result_.erase(it);
+    rs_map_lock_.release();
+    return true;
+  }
+  rs_map_lock_.release();
+  return false;
+}
+
 // report all status of all segment that locate at this node, but if just one
 // thread occur error, how to catch it and report it?
 void SegmentExecTracker::ReportAllSegStatus(

@@ -9,7 +9,9 @@
 
 #include "../exec_tracker/segment_exec_status.h"
 using claims::SegmentExecStatus;
-void PhysicalQueryPlan::run() {
+// the top node of every stage-plan is ExchangeSender or Expander or
+// ResultCollector
+void PhysicalQueryPlan::RunStagePlan() {
   SegmentExecStatus* segment_exec_status = new SegmentExecStatus(
       make_pair(query_id_, segment_id_ * kMaxNodeNum + target_node_id_),
       coor_node_id_);
@@ -17,11 +19,11 @@ void PhysicalQueryPlan::run() {
   segment_exec_status->UpdateStatus(
       SegmentExecStatus::ExecStatus::kOk,
       "physical plan reveived succeed and begin to open()", 0, true);
-  bool ret = block_stream_iterator_root_->Open(segment_exec_status);
+  bool ret = stage_plan_->Open(segment_exec_status, partition_offset_);
   if (ret) {
     segment_exec_status->UpdateStatus(SegmentExecStatus::ExecStatus::kOk,
                                       "physical plan open() succeed", 0, true);
-    while (block_stream_iterator_root_->Next(segment_exec_status, 0)) {
+    while (stage_plan_->Next(segment_exec_status, 0)) {
     }
 
     segment_exec_status->UpdateStatus(SegmentExecStatus::ExecStatus::kOk,
@@ -31,10 +33,7 @@ void PhysicalQueryPlan::run() {
                                       "physical plan open() failed", 0, true);
   }
 
-  ret = block_stream_iterator_root_->Close(segment_exec_status);
+  ret = stage_plan_->Close(segment_exec_status);
   segment_exec_status->UpdateStatus(SegmentExecStatus::ExecStatus::kDone,
                                     "physical plan close() succeed", 0, true);
-
-  //  segment_exec_status->UnRegisterFromTracker();
-  //  delete segment_exec_status;
 }

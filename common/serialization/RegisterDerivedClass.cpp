@@ -41,6 +41,7 @@
 #include "../../physical_operator/physical_outer_hash_join.h"
 #include "../../physical_operator/physical_hash_join_build.h"
 #include "../../physical_operator/physical_hash_join_probe.h"
+#include "../../physical_operator/result_collector.h"
 using claims::common::ExprBinary;
 using claims::common::ExprCaseWhen;
 using claims::common::ExprColumn;
@@ -71,7 +72,7 @@ using claims::physical_operator::PhysicalDeleteFilter;
 using claims::physical_operator::PhysicalHashJoinBuild;
 using claims::physical_operator::PhysicalHashJoinProbe;
 using claims::physical_operator::PhysicalOuterHashJoin;
-
+using claims::physical_operator::ResultCollector;
 #pragma auto_inline
 template <class Archive>
 void Register_Block_Stream_Iterator(Archive& ar) {
@@ -88,6 +89,7 @@ void Register_Block_Stream_Iterator(Archive& ar) {
   ar.register_type(static_cast<PhysicalProjectionScan*>(NULL));
   ar.register_type(static_cast<PerformanceMonitor*>(NULL));
   ar.register_type(static_cast<ResultPrinter*>(NULL));
+  ar.register_type(static_cast<ResultCollector*>(NULL));
   ar.register_type(static_cast<PhysicalAggregation*>(NULL));
   ar.register_type(static_cast<PhysicalNestLoopJoin*>(NULL));
   ar.register_type(static_cast<PhysicalSort*>(NULL));

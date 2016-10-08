@@ -26,7 +26,8 @@ class IteratorExecutorMaster {
   bool ExecuteBlockStreamIteratorsOnSite(PhysicalOperatorBase* it,
                                          NodeID target_id,
                                          u_int64_t query_id = 0,
-                                         u_int32_t segment_id = 0);
+                                         u_int32_t segment_id = 0,
+                                         u_int16_t partition_offset = 0);
   bool Propogation(const int, std::string target);
 
  private:

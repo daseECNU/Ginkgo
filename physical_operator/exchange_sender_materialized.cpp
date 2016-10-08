@@ -68,9 +68,9 @@ ExchangeSenderMaterialized::ExchangeSenderMaterialized() {
   set_phy_oper_type(kphysicalExchangeSender);
 }
 bool ExchangeSenderMaterialized::Open(SegmentExecStatus* const exec_status,
-                                      const PartitionOffset&) {
+                                      const PartitionOffset& partition_offset) {
   RETURN_IF_CANCELLED(exec_status);
-
+  state_.partition_offset_ = partition_offset;
   state_.child_->Open(exec_status, state_.partition_offset_);
 
   /** get the number of mergers **/

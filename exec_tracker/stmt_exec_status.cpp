@@ -61,6 +61,10 @@ StmtExecStatus::~StmtExecStatus() {
     it->second = NULL;
   }
   node_seg_id_to_seges_.clear();
+  for (auto it = job_id_to_sem_.begin(); it != job_id_to_sem_.end(); ++it) {
+    delete it->second;
+  }
+  job_id_to_sem_.clear();
   lock_.release();
 }
 /// just mark exec_status be kCancelled
@@ -94,8 +98,8 @@ bool StmtExecStatus::CouldBeDeleted(u_int64_t logic_time) {
   // kDone), then shouldn't delete this stmt
   for (auto it = node_seg_id_to_seges_.begin();
        it != node_seg_id_to_seges_.end(); ++it) {
-    if (it->second->get_exec_status() == SegmentExecStatus::ExecStatus::kOk
-        && !(it->second->HaveErrorCase(logic_time))) {
+    if (it->second->get_exec_status() == SegmentExecStatus::ExecStatus::kOk &&
+        !(it->second->HaveErrorCase(logic_time))) {
       lock_.release();
       return false;
     }
@@ -180,6 +184,9 @@ bool StmtExecStatus::UpdateSegExecStatus(
       return false;
     } else {
       it->second->UpdateStatus(exec_status, exec_info, logic_time);
+      if (SegmentExecStatus::ExecStatus::kDone == exec_status) {
+        CheckJobIsDone(node_segment_id.second);
+      }
       lock_.release();
       return true;
     }
@@ -191,6 +198,31 @@ bool StmtExecStatus::UpdateSegExecStatus(
     assert(false);
     return false;
   }
+}
+
+void StmtExecStatus::AddOneJob(u_int16_t job_id) {
+  job_id_to_sem_.insert(make_pair(job_id, new semaphore()));
+}
+
+void StmtExecStatus::CheckJobIsDone(u_int64_t node_stage_id) {
+  u_int16_t job_task_id = node_stage_id / kMaxNodeNum / kMaxPartNum;
+  u_int16_t task_id = job_task_id % kMaxTaskIdNum;
+  if (0 == task_id) {  // the top task of this pipeline job
+    u_int16_t job_id = job_task_id / kMaxTaskIdNum;
+    if (job_id_to_sem_.end() == job_id_to_sem_.find(job_id)) {
+      return;
+    }
+    job_id_to_sem_[job_id]->post();
+    LOG(INFO) << "%%% (job,task,partition) = (" << job_id << "," << task_id
+              << "," << (node_stage_id / kMaxNodeNum) % kMaxPartNum
+              << ") is Done!";
+  }
+}
+
+void StmtExecStatus::JobWaitingDone(u_int16_t job_id, u_int16_t times = 1) {
+  job_id_to_sem_[job_id]->wait(times);
+  LOG(INFO) << " $$$ job_id = " << job_id << " " << times
+            << " partitions have been Done!";
 }
 
 }  // namespace claims

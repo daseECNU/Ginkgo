@@ -378,21 +378,23 @@ class PhysicalQueryPlan {
  public:
   PhysicalQueryPlan(PhysicalOperatorBase* it, NodeID node_id,
                     u_int64_t query_id, u_int32_t segment_id,
-                    unsigned int coor_node_id)
-      : block_stream_iterator_root_(it),
+                    u_int16_t partition_offset, unsigned int coor_node_id)
+      : stage_plan_(it),
         target_node_id_(node_id),
         query_id_(query_id),
         segment_id_(segment_id),
+        partition_offset_(partition_offset),
         coor_node_id_(coor_node_id) {}
   PhysicalQueryPlan(const PhysicalQueryPlan& r) {
-    block_stream_iterator_root_ = r.block_stream_iterator_root_;
+    stage_plan_ = r.stage_plan_;
     target_node_id_ = r.target_node_id_;
     query_id_ = r.query_id_;
-    coor_node_id_ = r.coor_node_id_;
     segment_id_ = r.segment_id_;
+    partition_offset_ = r.partition_offset_;
+    coor_node_id_ = r.coor_node_id_;
   }
 
-  PhysicalQueryPlan() : block_stream_iterator_root_(0){};
+  PhysicalQueryPlan() : stage_plan_(0) {}
   ~PhysicalQueryPlan(){
       //		if(tuple_stream_iterator_root_>0)
       //			tuple_stream_iterator_root_->~Iterator();
@@ -405,8 +407,8 @@ class PhysicalQueryPlan {
    * the undesirable destruction of iterator caused by the default destructor of
    * IteratorMessage
    */
-  void destory() { DELETE_PTR(block_stream_iterator_root_); }
-  void run();
+  void destory() { DELETE_PTR(stage_plan_); }
+  void RunStagePlan();
   static PhysicalQueryPlan deserialize(Message256 message) {
     return Deserialize<PhysicalQueryPlan>(message);
   }
@@ -434,19 +436,19 @@ class PhysicalQueryPlan {
   u_int32_t get_segment_id_() { return segment_id_; }
 
  private:
-  PhysicalOperatorBase* block_stream_iterator_root_;
+  PhysicalOperatorBase* stage_plan_;
   NodeID target_node_id_;
   u_int64_t query_id_;
   u_int32_t segment_id_;
+  u_int16_t partition_offset_;
   unsigned int coor_node_id_;
   friend class boost::serialization::access;
   template <class Archive>
   void serialize(Archive& ar, const unsigned int version) {
     Register_Schemas(ar);
     Register_Block_Stream_Iterator(ar);
-    ar& block_stream_iterator_root_& target_node_id_& query_id_& coor_node_id_&
-        segment_id_;
-    //		ar & block_stream_iterator_root_;
+    ar& stage_plan_& target_node_id_& query_id_& segment_id_& partition_offset_&
+        coor_node_id_;
   }
 };
 

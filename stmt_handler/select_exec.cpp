@@ -49,7 +49,7 @@
 #include "../physical_operator/physical_operator_base.h"
 #include "../stmt_handler/stmt_handler.h"
 #include "caf/io/all.hpp"
-
+#include "../scheduler/backfill_scheduler.h"
 #include "../scheduler/job_context.h"
 using caf::io::remote_actor;
 using claims::logical_operator::LogicalQueryPlanRoot;
@@ -65,6 +65,7 @@ using std::string;
 using std::cout;
 using std::make_pair;
 using claims::common::rStmtCancelled;
+using claims::scheduler::BackfillScheduler;
 
 namespace claims {
 namespace stmt_handler {
@@ -133,7 +134,7 @@ RetCode SelectExec::Execute(ExecutedResult* exec_result) {
 RetCode SelectExec::Execute() {
 #ifdef PRINTCONTEXT
   select_ast_->Print();
-  cout << "--------------begin semantic analysis---------------" << endl;
+  cout << "$$$$$$$$$$$$$$$$$$$ begin semantic analysis$$$$$$$$$$$$$$" << endl;
 #endif
   SemanticContext sem_cnxt;
   RetCode ret = rSuccess;
@@ -147,7 +148,7 @@ RetCode SelectExec::Execute() {
   }
 #ifdef PRINTCONTEXT
   select_ast_->Print();
-  cout << "--------------begin push down condition ------------" << endl;
+  cout << "$$$$$$$$$$$$$$$$$$$ begin push down condition $$$$$$$$$$$" << endl;
 #endif
   PushDownConditionContext pdccnxt;
   ret = select_ast_->PushDownCondition(pdccnxt);
@@ -161,7 +162,7 @@ RetCode SelectExec::Execute() {
   }
 #ifndef PRINTCONTEXT
   select_ast_->Print();
-  cout << "--------------begin logical plan -------------------" << endl;
+  cout << "$$$$$$$$$$$$$$$$$$$ begin logical plan $$$$$$$$$$$$$$$$$$$" << endl;
 #endif
 
   LogicalOperator* logic_plan = NULL;
@@ -182,13 +183,12 @@ RetCode SelectExec::Execute() {
   logic_plan->GetPlanContext();
 #ifndef PRINTCONTEXT
   logic_plan->Print();
-  cout << "--------------begin physical plan -------------------" << endl;
+  cout << "$$$$$$$$$$$$$$$$$$$ begin physical plan $$$$$$$$$$$$$$$$$$" << endl;
 #endif
 
   PhysicalOperatorBase* physical_plan = logic_plan->GetPhysicalPlan(64 * 1024);
 #ifndef PRINTCONTEXT
   physical_plan->Print();
-  cout << "--------------begin output result -------------------" << endl;
 #endif
 #if 0
   // collect all plan segments
@@ -244,13 +244,30 @@ RetCode SelectExec::Execute() {
   }
   ret = rSuccess;
 #else
+  cout << "$$$$$$$$$$$$$$$$$$$ begin schedule job $$$$$$$$$$$$$$$$$$" << endl;
+
   JobContext* job_cnxt = new JobContext();
-  physical_plan->GetJobDAG(job_cnxt);
-  job_cnxt->get_dag_root()->PrintJob();
-  ret = rFailure;
+  ret = physical_plan->GetJobDAG(job_cnxt);
+  BackfillScheduler* bfs =
+      new BackfillScheduler(job_cnxt->get_dag_root(), get_stmt_exec_status());
+  ret = bfs->ScheduleJob();
+  if (rSuccess == ret) {
+    // get ResultSet from global space and unregister from it
+    stmt_exec_status_->set_query_result(
+        Environment::getInstance()->get_segment_exec_tracker()->GetResult(
+            stmt_exec_status_->get_query_id()));
+    Environment::getInstance()->get_segment_exec_tracker()->UnRegisterResult(
+        stmt_exec_status_->get_query_id());
+
+    stmt_exec_status_->set_exec_info(string("execute a query successfully"));
+  } else {
+    ret = rFailure;
+  }
+  DELETE_PTR(bfs);
+  DELETE_PTR(job_cnxt);
 #endif
-  delete logic_plan;
-  delete physical_plan;
+  DELETE_PTR(logic_plan);
+  DELETE_PTR(physical_plan);
   return ret;
 }
 //!!!return ret by global variant
@@ -274,9 +291,7 @@ void* SelectExec::SendAllSegments(void* arg) {
         if (select_exec->stmt_exec_status_->IsCancelled()) {
           return NULL;
         }
-        // set partition offset for each segment
-        reinterpret_cast<ExchangeSender*>(physical_sender_oper)
-            ->SetPartitionOffset(i);
+
         segment_id = select_exec->get_stmt_exec_status()->GenSegmentId();
 
         // new SegmentExecStatus and add it to StmtExecStatus
@@ -292,7 +307,7 @@ void* SelectExec::SendAllSegments(void* arg) {
                     physical_sender_oper,
                     a_plan_segment->lower_node_id_list_[i],
                     select_exec->get_stmt_exec_status()->get_query_id(),
-                    segment_id) == false) {
+                    segment_id, i) == false) {
           LOG(ERROR) << "sending plan of "
                      << select_exec->get_stmt_exec_status()->get_query_id()
                      << " , " << segment_id << "error!!!" << endl;

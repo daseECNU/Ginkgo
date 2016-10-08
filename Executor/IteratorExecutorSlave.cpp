@@ -62,6 +62,6 @@ void IteratorExecutorSlave::executePhysicalQueryPlan(PhysicalQueryPlan plan) {
   //	int core=CPUResourceManager::getInstance()->applyCore();
   //	printf("--------\n After apply:");
   //	CPUResourceManager::getInstance()->print();
-  plan.run();
+  plan.RunStagePlan();
   //	CPUResourceManager::getInstance()->freeCore(core);
 }

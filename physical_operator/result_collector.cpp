@@ -83,7 +83,7 @@ ResultCollector::State::State(Schema* input, PhysicalOperatorBase* child,
                               const unsigned block_size,
                               vector<string> column_header,
                               const PartitionOffset partitoin_offset,
-                              int node_id = 0)
+                              int node_id)
     : input_(input),
       child_(child),
       block_size_(block_size),
@@ -133,6 +133,9 @@ bool ResultCollector::Close(SegmentExecStatus* const exec_status) {
   }
   state_.child_->Close(exec_status);
   sema_input_complete_.set_value(0);
+  // register the result set to global place:SegmentExecTracker
+  Environment::getInstance()->get_segment_exec_tracker()->RegisterResult(
+      exec_status->get_node_segment_id().first, GetResultSet());
   return true;
 }
 void ResultCollector::Print() {
@@ -233,14 +236,16 @@ RetCode ResultCollector::GetJobDAG(JobContext* const job_cnxt) {
       return ret;
     }
     // create stage-task
-    job_cnxt->set_stage_tasks((new StageTask(this, job_cnxt->get_node_id(),
-                                             job_cnxt->get_node_id(), 0)));
+    vector<NodeID> empty_node;  // the upper node of this stage-task is empty
+
+    job_cnxt->set_stage_tasks(
+        (new StageTask(this, job_cnxt->get_node_id(), empty_node, 0)));
     // create pipeline-job
     PipelineJob* pjob =
         new PipelineJob(job_cnxt->get_stage_tasks(), job_cnxt->get_parents(),
                         job_cnxt->GenJobId());
     job_cnxt->ClearParents();
-    job_cnxt->set_dag_root(pjob);
+    job_cnxt->set_dag_root(pjob);  // the root of tree-like-dag
     job_cnxt->ClearStageTasks();
   } else {
     LOG(ERROR) << "the child of ResultCollector is NULL";

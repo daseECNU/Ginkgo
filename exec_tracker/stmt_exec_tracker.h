@@ -40,7 +40,7 @@
 #include "../utility/lock.h"
 using std::string;
 namespace claims {
-#define kMaxNodeNum 10000
+#define kMaxNodeNum 100
 #define kCheckIntervalTime 5000
 /// tracker the execution status of every statement, each StmtExecStatus should
 /// register to it

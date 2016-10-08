@@ -91,7 +91,11 @@ class semaphore {
     }
   }
 
-  void wait() { sem_wait(&sem); }
+  void wait(int times = 1) {
+    for (int i = 0; i < times; ++i) {
+      sem_wait(&sem);
+    }
+  }
 
   /*
    * The timed_wait() shall return true if the calling process/thread

@@ -95,9 +95,6 @@ class ExchangeSenderMaterialized : public ExchangeSender {
   bool Close(SegmentExecStatus* const exec_status);
   RetCode GetAllSegments(stack<Segment*>* all_segments);
   RetCode GetJobDAG(JobContext* const job_cnxt);
-  void SetPartitionOffset(const int par_off) {
-    state_.partition_offset_ = par_off;
-  }
 
  private:
   void Send();

@@ -37,6 +37,7 @@
 #include "../utility/lock.h"
 #include "caf/all.hpp"
 
+#include "../common/Block/ResultSet.h"
 #include "../common/hashtable.h"
 using caf::actor;
 using std::pair;
@@ -61,38 +62,20 @@ class SegmentExecTracker {
 
   actor segment_exec_tracker_actor_;
 
-  void RegisterHashTable(int64_t join_par_id, BasicHashTable* ht) {
-    ht_map_lock_.acquire();
-    join_par_id_to_ht_.insert(make_pair(join_par_id, ht));
-    ht_map_lock_.release();
-  }
-  BasicHashTable* GetHashTable(int64_t join_par_id) {
-    ht_map_lock_.acquire();
-    auto it = join_par_id_to_ht_.find(join_par_id);
-    if (join_par_id_to_ht_.end() != it) {
-      ht_map_lock_.release();
-      return it->second;
-    }
-    ht_map_lock_.release();
-    return NULL;
-  }
-  bool UnRegisterHashTable(int64_t join_par_id) {
-    ht_map_lock_.acquire();
-    auto it = join_par_id_to_ht_.find(join_par_id);
-    if (join_par_id_to_ht_.end() != it) {
-      join_par_id_to_ht_.erase(it);
-      ht_map_lock_.release();
-      return true;
-    }
-    ht_map_lock_.release();
-    return false;
-  }
+  void RegisterHashTable(int64_t join_par_id, BasicHashTable* ht);
+  BasicHashTable* GetHashTable(int64_t join_par_id);
+  bool UnRegisterHashTable(int64_t join_par_id);
+
+  void RegisterResult(int64_t query_id, ResultSet* result);
+  ResultSet* GetResult(int64_t query_id);
+  bool UnRegisterResult(int64_t query_id);
 
  private:
   boost::unordered_map<NodeSegmentID, SegmentExecStatus*>
       node_segment_id_to_status_;
-  Lock map_lock_, ht_map_lock_;
+  Lock map_lock_, ht_map_lock_, rs_map_lock_;
   boost::unordered_map<int64_t, BasicHashTable*> join_par_id_to_ht_;
+  boost::unordered_map<int64_t, ResultSet*> query_id_to_result_;
 };
 
 }  // namespace claims
