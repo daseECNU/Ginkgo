@@ -58,7 +58,7 @@ class JobContext {
   }
   void ResetNodeId(vector<int> new_node_id) { node_id_ = new_node_id; }
   void PushNodeId(uint16_t node_id) { node_id_.push_back(node_id); }
-  uint16_t GenJobId() { return job_id_++; }
+  uint16_t GenJobId() { return ++job_id_; }
 
   const vector<int>& get_node_id() const { return node_id_; }
   void ClearStageTasks() { stage_tasks_.clear(); }

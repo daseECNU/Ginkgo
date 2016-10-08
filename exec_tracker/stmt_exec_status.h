@@ -74,7 +74,7 @@ class StmtExecStatus {
     query_result_ = query_result;
   }
   bool IsCancelled() { return exec_status_ == ExecStatus::kCancelled; }
-  void AddOneJob(u_int16_t job_id);
+  void AddOneJob(u_int16_t job_id, u_int16_t part_num);
   void CheckJobIsDone(u_int64_t stage_id);
   void JobWaitingDone(u_int16_t job_id, u_int16_t times = 1);
 
@@ -82,7 +82,7 @@ class StmtExecStatus {
   string exec_info_;
   ExecStatus exec_status_;
   ResultSet* query_result_;
-  boost::unordered_map<u_int16_t, semaphore*> job_id_to_sem_;
+  boost::unordered_map<u_int16_t, semaphore*> stage_id_to_sem_;
   boost::unordered_map<NodeSegmentID, SegmentExecStatus*> node_seg_id_to_seges_;
   u_int64_t query_id_;
   string sql_stmt_;

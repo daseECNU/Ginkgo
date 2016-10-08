@@ -100,7 +100,7 @@ RetCode PipelineJob::GetReadyJobs(set<PipelineJob*>& ready_jobs) {
 
 RetCode PipelineJob::ExecuteJob(StmtExecStatus* const stmt_exec_status) {
   RetCode ret = rSuccess;
-  stmt_exec_status->AddOneJob(job_id_);
+  stmt_exec_status->AddOneJob(job_id_, stage_tasks_[0]->GetPartNum());
   // the id of stage_task corresponding to the order to stage_task_ vector
   // note the top task id =0
   for (u_int16_t id = 0; id < stage_tasks_.size(); ++id) {
@@ -108,6 +108,8 @@ RetCode PipelineJob::ExecuteJob(StmtExecStatus* const stmt_exec_status) {
   }
   // just check the top task(id=0) is Done?
   stmt_exec_status->JobWaitingDone(job_id_, stage_tasks_[0]->GetPartNum());
+  LOG(INFO) << "$$$ query_id, job_id = " << stmt_exec_status->get_query_id()
+            << " , " << job_id_ << " is Done!";
   return ret;
 }
 bool PipelineJob::IsReadyJob() { return get_waiting_parents() < 1; }

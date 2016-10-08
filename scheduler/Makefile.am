@@ -12,7 +12,7 @@ AM_CPPFLAGS+=-fno-builtin-malloc -fno-builtin-calloc -fno-builtin-realloc -fno-b
 AM_LDFLAGS+=-ltcmalloc 
 endif
 
-LDADD = ../logical_operator/liblogicalqueryplan.a \
+LDADD = ../logical_operator/libscheduler.a \
 		../catalog/libcatalog.a \
 		../catalog/stat/libstat.a \
 		../Resource/libresource.a \
@@ -23,27 +23,14 @@ LDADD = ../logical_operator/liblogicalqueryplan.a \
 		${BOOST_HOME}/stage/lib/libboost_system.a \
 		${BOOST_HOME}/stage/lib/libboost_system.so
 
-noinst_LIBRARIES=liblogicalqueryplan.a
-liblogicalqueryplan_a_SOURCES = \
-	logical_aggregation.cpp 			logical_aggregation.h \
-	plan_partition_info.cpp 			plan_partition_info.h \
-	plan_partitioner.cpp 				plan_partitioner.h \
-	plan_context.cpp					plan_context.h\
-	logical_equal_join.cpp 				logical_equal_join.h \
-	logical_filter.cpp 					logical_filter.h \
-	logical_operator.cpp 				logical_operator.h \
-	logcial_query_plan_root.h			logical_query_plan_root.cpp \
-	logical_project.cpp 				logical_project.h \
-	Requirement.cpp 					Requirement.h \
-	logical_scan.cpp 					logical_scan.h \
-	logical_limit.cpp                   logical_limit.h \
-	logical_cross_join.cpp				logical_cross_join.h \
-	logical_subquery.cpp				logical_subquery.h	\
-	logical_sort.cpp 					logical_sort.h \
-	logical_delete_filter.cpp           logical_delete_filter.h \
-	logical_outer_join.cpp              logical_outer_join.h
-
-
+noinst_LIBRARIES=libscheduler.a
+libscheduler_a_SOURCES = \
+	backfill_scheduler.cpp	backfill_scheduler.h	\
+	job_context.cpp			job_context.h			\
+	pipeline_job.cpp		pipeline_job.h			\
+	scheduler_base.cpp		scheduler_base.h		\
+	stage_task.cpp			stage_task.h
+	
 SUBDIRS = 
 DIST_SUBDIRS = 
 					

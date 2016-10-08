@@ -61,10 +61,10 @@ StmtExecStatus::~StmtExecStatus() {
     it->second = NULL;
   }
   node_seg_id_to_seges_.clear();
-  for (auto it = job_id_to_sem_.begin(); it != job_id_to_sem_.end(); ++it) {
+  for (auto it = stage_id_to_sem_.begin(); it != stage_id_to_sem_.end(); ++it) {
     delete it->second;
   }
-  job_id_to_sem_.clear();
+  stage_id_to_sem_.clear();
   lock_.release();
 }
 /// just mark exec_status be kCancelled
@@ -200,29 +200,37 @@ bool StmtExecStatus::UpdateSegExecStatus(
   }
 }
 
-void StmtExecStatus::AddOneJob(u_int16_t job_id) {
-  job_id_to_sem_.insert(make_pair(job_id, new semaphore()));
-}
-
-void StmtExecStatus::CheckJobIsDone(u_int64_t node_stage_id) {
-  u_int16_t job_task_id = node_stage_id / kMaxNodeNum / kMaxPartNum;
-  u_int16_t task_id = job_task_id % kMaxTaskIdNum;
-  if (0 == task_id) {  // the top task of this pipeline job
-    u_int16_t job_id = job_task_id / kMaxTaskIdNum;
-    if (job_id_to_sem_.end() == job_id_to_sem_.find(job_id)) {
-      return;
-    }
-    job_id_to_sem_[job_id]->post();
-    LOG(INFO) << "%%% (job,task,partition) = (" << job_id << "," << task_id
-              << "," << (node_stage_id / kMaxNodeNum) % kMaxPartNum
-              << ") is Done!";
+void StmtExecStatus::AddOneJob(u_int16_t job_id, u_int16_t part_num) {
+  u_int16_t stage_id = 0;
+  for (int i = 0; i < part_num; ++i) {
+    // (job_id,task_id=0,part_num)
+    stage_id = job_id * kMaxTaskIdNum * kMaxPartNum + i;
+    stage_id_to_sem_.insert(make_pair(stage_id, new semaphore()));
   }
 }
 
-void StmtExecStatus::JobWaitingDone(u_int16_t job_id, u_int16_t times = 1) {
-  job_id_to_sem_[job_id]->wait(times);
-  LOG(INFO) << " $$$ job_id = " << job_id << " " << times
-            << " partitions have been Done!";
+void StmtExecStatus::CheckJobIsDone(u_int64_t node_stage_id) {
+  u_int16_t stage_id = node_stage_id / kMaxNodeNum;
+  u_int16_t task_id = (stage_id / kMaxPartNum) % kMaxTaskIdNum;
+  if (0 == task_id) {  // the top task of this pipeline job
+    if (stage_id_to_sem_.end() == stage_id_to_sem_.find(stage_id)) {
+      LOG(WARNING) << "%%% (job,task,partition)= " << stage_id
+                   << " couldn't found!";
+      return;
+    }
+    stage_id_to_sem_[stage_id]->post();
+    LOG(INFO) << "%%% (job,task,partition)= " << stage_id << " is Done!";
+  }
+}
+
+void StmtExecStatus::JobWaitingDone(u_int16_t job_id, u_int16_t part_num = 1) {
+  u_int16_t stage_id = 0;
+  for (int i = 0; i < part_num; ++i) {
+    // (job_id,task_id=0,part_num)
+    stage_id = job_id * kMaxTaskIdNum * kMaxPartNum + i;
+    stage_id_to_sem_[stage_id]->wait();
+    LOG(INFO) << "%%% (job,task,partition)= " << stage_id << " waiting Done!";
+  }
 }
 
 }  // namespace claims

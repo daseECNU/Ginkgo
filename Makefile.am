@@ -103,10 +103,10 @@ test_SOURCES = Test/gtest_main.cpp\
 #				node_manager/node_main.cpp
 				
 SUBDIRS=  catalog Client common Daemon Executor IndexManager\
-loader physical_operator scheduler logical_operator  Resource  \
-storage Test utility codegen sql_parser stmt_handler  node_manager exec_tracker 
+loader physical_operator storage logical_operator  Resource  \
+ Test utility codegen sql_parser stmt_handler  node_manager exec_tracker scheduler
 
 DIST_SUBDIRS =  catalog Client common Daemon Executor IndexManager\
-loader physical_operator scheduler logical_operator  Resource  \
-storage Test utility codegen sql_parser stmt_handler node_manager exec_tracker 
+loader physical_operator storage logical_operator  Resource  \
+ Test utility codegen sql_parser stmt_handler node_manager exec_tracker scheduler
 

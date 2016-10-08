@@ -263,6 +263,8 @@ RetCode SelectExec::Execute() {
   } else {
     ret = rFailure;
   }
+  LOG(INFO) << "### query_id= " << stmt_exec_status_->get_query_id()
+            << " has Done!!";
   DELETE_PTR(bfs);
   DELETE_PTR(job_cnxt);
 #endif
