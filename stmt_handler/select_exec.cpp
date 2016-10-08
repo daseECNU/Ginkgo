@@ -269,7 +269,6 @@ RetCode SelectExec::Execute() {
   DELETE_PTR(job_cnxt);
 #endif
   DELETE_PTR(logic_plan);
-  DELETE_PTR(physical_plan);
   return ret;
 }
 //!!!return ret by global variant

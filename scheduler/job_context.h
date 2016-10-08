@@ -47,16 +47,6 @@ class JobContext {
 
   PipelineJob* const get_dag_root() const { return dag_root_; }
   void set_dag_root(PipelineJob* const dag_root) { dag_root_ = dag_root; }
-  void StoreNodeId() {
-    node_id_back_.assign(node_id_.begin(),
-                         node_id_.end());  // node_id_back_ = node_id_;
-    node_id_.clear();
-  }
-  void BackupNodeId() {
-    node_id_ = node_id_back_;
-    node_id_back_.clear();
-  }
-  void ResetNodeId(vector<int> new_node_id) { node_id_ = new_node_id; }
   void PushNodeId(uint16_t node_id) { node_id_.push_back(node_id); }
   uint16_t GenJobId() { return ++job_id_; }
 
@@ -65,13 +55,7 @@ class JobContext {
   void ClearParents() { parents_.clear(); }
 
   void set_node_id(const vector<int>& node_id) { node_id_ = node_id; }
-  void set_node_id(int const node_id) { node_id_.push_back(node_id); }
-
-  const vector<int>& get_node_id_back() const { return node_id_back_; }
-
-  void set_node_id_back(const vector<int>& node_id_back) {
-    node_id_back_ = node_id_back;
-  }
+  void set_node_id(int node_id) { node_id_.push_back(node_id); }
 
   const vector<PipelineJob*>& get_parents() const { return parents_; }
 
@@ -90,7 +74,7 @@ class JobContext {
  private:
   vector<StageTask*> stage_tasks_;
   vector<PipelineJob*> parents_;
-  vector<int> node_id_, node_id_back_;
+  vector<int> node_id_;
   atomic<uint16_t> job_id_;
   PipelineJob* dag_root_;
 };

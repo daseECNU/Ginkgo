@@ -1023,10 +1023,10 @@ RetCode ExchangeMerger::GetJobDAG(JobContext* const job_cnxt) {
   RetCode ret = rSuccess;
   PhysicalOperatorBase* ret_plan = NULL;
   if (NULL != state_.child_) {
-    job_cnxt->StoreNodeId();
-    job_cnxt->ResetNodeId(state_.lower_id_list_);
+    auto temp_node_id = job_cnxt->get_node_id();
+    job_cnxt->set_node_id(state_.lower_id_list_);
     ret = state_.child_->GetJobDAG(job_cnxt);
-    job_cnxt->BackupNodeId();
+    job_cnxt->set_node_id(temp_node_id);
     if (rSuccess != ret) {
       return ret;
     }

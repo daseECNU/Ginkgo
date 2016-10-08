@@ -53,8 +53,9 @@ PipelineJob::~PipelineJob() {
   // TODO Auto-generated destructor stub
 }
 void PipelineJob::PrintJob() {
-  std::cout << "***** job_id= " << job_id_ << "rank = " << rank_ << "***** has "
-            << stage_tasks_.size() << " stage_task begin*****" << std::endl;
+  std::cout << "***** job_id= " << job_id_ << " rank = " << rank_
+            << "***** has " << stage_tasks_.size() << " stage_task begin*****"
+            << std::endl;
   int i = 0;
   for (auto it = stage_tasks_.begin(); it != stage_tasks_.end(); ++it, ++i) {
     std::cout << "+++++ job_id= " << job_id_ << "+++++ task_id= " << i

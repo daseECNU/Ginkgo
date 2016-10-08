@@ -237,7 +237,6 @@ RetCode ResultCollector::GetJobDAG(JobContext* const job_cnxt) {
     }
     // create stage-task
     vector<NodeID> empty_node;  // the upper node of this stage-task is empty
-
     job_cnxt->set_stage_tasks(
         (new StageTask(this, job_cnxt->get_node_id(), empty_node, 0)));
     // create pipeline-job

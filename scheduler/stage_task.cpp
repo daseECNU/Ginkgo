@@ -57,9 +57,24 @@ StageTask::StageTask(PhysicalOperatorBase* plan,
       lower_node_id_list_(lower_node_id_list),
       upper_node_id_list_(upper_node_id_list),
       exchange_id_(exchange_id) {}
-void StageTask::PrintPlan() { plan_->Print(); }
+void StageTask::PrintPlan() {
+  cout << "total have " << upper_node_id_list_.size() << " upper_nodes : ";
+  for (int i = 0; i < upper_node_id_list_.size(); ++i) {
+    cout << upper_node_id_list_[i] << " ";
+  }
+  cout << endl;
+  cout << "total have " << lower_node_id_list_.size() << " lower_nodes : ";
+  for (int i = 0; i < lower_node_id_list_.size(); ++i) {
+    cout << lower_node_id_list_[i] << " ";
+  }
+  cout << endl;
+  plan_->Print();
+}
 RetCode StageTask::SendPlan(StmtExecStatus* const stmt_exec_status,
                             const u_int32_t task_id) {
+  LOG(INFO) << "begin to send plan of query_id, job_id, task_id "
+            << stmt_exec_status->get_query_id() << " , "
+            << task_id / kMaxTaskIdNum << " , " << task_id % kMaxTaskIdNum;
   int32_t stage_id = 0;
   RetCode ret = rSuccess;
   if (stmt_exec_status->IsCancelled()) {
