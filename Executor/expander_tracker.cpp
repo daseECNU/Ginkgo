@@ -189,8 +189,8 @@ void ExpanderTracker::UnregisterExpander(ExpanderID expander_id) {
   for (auto it = thread_id_to_expander_id_.begin();
        it != thread_id_to_expander_id_.end(); ++it) {
     if (it->second == expander_id) {
-      LOG(ERROR) << "there are active thread in the expander";
-      assert(false);
+      LOG(WARNING) << "there are active thread in the expander " << expander_id;
+      //      assert(false);
     }
   }
   if (expander_id_to_expander_.find(expander_id) ==
