@@ -40,7 +40,7 @@ struct ExpanderContext {
 
 Expander::Expander(State state)
     : state_(state),
-      block_stream_buffer_(0),
+      block_stream_buffer_(NULL),
       finished_thread_count_(0),
       thread_count_(0),
       is_registered_(false) {
@@ -48,7 +48,7 @@ Expander::Expander(State state)
 }
 
 Expander::Expander()
-    : block_stream_buffer_(0),
+    : block_stream_buffer_(NULL),
       finished_thread_count_(0),
       thread_count_(0),
       is_registered_(false) {
@@ -56,14 +56,8 @@ Expander::Expander()
 }
 
 Expander::~Expander() {
-  if (NULL != state_.child_) {
-    delete state_.child_;
-    state_.child_ = NULL;
-  }
-  if (NULL != state_.schema_) {
-    delete state_.schema_;
-    state_.schema_ = NULL;
-  }
+  DELETE_PTR(state_.child_);
+  DELETE_PTR(state_.schema_);
 }
 
 Expander::State::State(Schema* schema, PhysicalOperatorBase* child,
@@ -91,7 +85,7 @@ bool Expander::Open(SegmentExecStatus* const exec_status,
   in_work_expanded_thread_list_.clear();
   RETURN_IF_CANCELLED(exec_status);
 
-  expander_id_ = ExpanderTracker::getInstance()->registerNewExpander(
+  expander_id_ = ExpanderTracker::getInstance()->RegisterExpander(
       block_stream_buffer_, this);
   is_registered_ = true;
   LOG(INFO) << expander_id_
@@ -154,7 +148,7 @@ bool Expander::Close(SegmentExecStatus* const exec_status) {
               << " kByte " << received_tuples_ << " tuples!" << std::endl;
   }
   if (is_registered_) {
-    ExpanderTracker::getInstance()->unregisterExpander(expander_id_);
+    ExpanderTracker::getInstance()->UnregisterExpander(expander_id_);
     is_registered_ = false;
   }
   if (!exec_status->is_cancelled()) {
@@ -199,19 +193,17 @@ void* Expander::ExpandedWork(void* arg) {
             << " is created!  BlockStreamExpander address is  " << Pthis
             << std::endl;
 
+  (reinterpret_cast<ExpanderContext*>(arg))->sem_.post();
   bool expanding = true;
-  ticks start = curtick();
+  unsigned block_count = 0;
 
   Pthis->AddIntoWorkingThreadList(pid);
-  ExpanderTracker::getInstance()->registerNewExpandedThreadStatus(
+  ExpanderTracker::getInstance()->RegisterExpandedThreadStatus(
       pid, Pthis->expander_id_);
 
-  unsigned block_count = 0;
-  (reinterpret_cast<ExpanderContext*>(arg))->sem_.post();
-
   if (Pthis->ChildExhausted()) {
-    ExpanderTracker::getInstance()->deleteExpandedThreadStatus(pthread_self());
-    return 0;
+    ExpanderTracker::getInstance()->DeleteExpandedThreadStatus(pthread_self());
+    return NULL;
   }
 
   LOG(INFO) << Pthis->expander_id_ << ", pid= " << pid
@@ -269,7 +261,7 @@ void* Expander::ExpandedWork(void* arg) {
       LOG(INFO) << pthread_self() << " Produced " << block_count
                 << " block before called-back" << std::endl;
       Pthis->tid_to_shrink_semaphore_[pid]->post();
-    } else {
+    } else {  // always there are thread that hasn't been callback
       LOG(INFO) << pthread_self() << " Produced " << block_count
                 << " block before finished" << std::endl;
 
@@ -297,10 +289,10 @@ void* Expander::ExpandedWork(void* arg) {
   }
 
   /* delete its stauts from expander tracker before exit*/
-  ExpanderTracker::getInstance()->deleteExpandedThreadStatus(pthread_self());
+  ExpanderTracker::getInstance()->DeleteExpandedThreadStatus(pthread_self());
   LOG(INFO) << Pthis->expander_id_ << ", pid= " << pid
             << " expande thread finished!" << std::endl;
-  return 0;
+  return NULL;
 }
 
 /**
@@ -339,7 +331,6 @@ bool Expander::CreateWorkingThread() {
   }
   ExpanderContext para;
   para.pthis_ = this;
-  ticks start = curtick();
   if (exclusive_expanding_.try_acquire()) {
     if (true == g_thread_pool_used) {
       Environment::getInstance()->getThreadPool()->AddTask(ExpandedWork, &para);
@@ -363,8 +354,8 @@ bool Expander::CreateWorkingThread() {
     lock_.release();
     return true;
   } else {
-    LOG(ERROR) << "Fails to obtain the exclusive lock to expanding!"
-               << std::endl;
+    LOG(WARNING) << "Fails to obtain the exclusive lock to expanding!"
+                 << std::endl;
     return false;
   }
 }
@@ -373,17 +364,18 @@ bool Expander::CreateWorkingThread() {
  * set the status of corresponding call_backed, then try wait(), waiting
  * somewhere at some PhysicalOperator can exit safely and set post()
  */
-void Expander::TerminateWorkingThread(const pthread_t pid) {
-  if (!ExpanderTracker::getInstance()->isExpandedThreadCallBack(pid)) {
+void Expander::TerminateWorkingThread(const pthread_t thread_id) {
+  if (!ExpanderTracker::getInstance()->isExpandedThreadCallBack(thread_id)) {
     semaphore sem;
-    tid_to_shrink_semaphore_[pid] = &sem;
-    RemoveFromWorkingThreadList(pid);
+    tid_to_shrink_semaphore_[thread_id] = &sem;
+    RemoveFromWorkingThreadList(thread_id);
 
-    AddIntoCalledBackThreadList(pid);
-    ExpanderTracker::getInstance()->callbackExpandedThread(pid);
-    tid_to_shrink_semaphore_[pid]->wait();  // note waiting post() somewhere
+    AddIntoCalledBackThreadList(thread_id);
+    ExpanderTracker::getInstance()->SetThreadStatusCallback(thread_id);
+    tid_to_shrink_semaphore_[thread_id]
+        ->wait();  // note waiting post() somewhere
     lock_.acquire();
-    tid_to_shrink_semaphore_.erase(pid);
+    tid_to_shrink_semaphore_.erase(thread_id);
     lock_.release();
 
     lock_.acquire();

@@ -99,7 +99,7 @@ bool PhysicalDeleteFilter::Open(SegmentExecStatus* const exec_status,
   bool winning_thread = false;
   if (TryEntryIntoSerializedSection(0)) {
     winning_thread = true;
-    ExpanderTracker::getInstance()->addNewStageEndpoint(
+    ExpanderTracker::getInstance()->AddStageEndpoint(
         pthread_self(),
         LocalStageEndPoint(stage_desc, "delete filter build", 0));
     unsigned output_index = 0;

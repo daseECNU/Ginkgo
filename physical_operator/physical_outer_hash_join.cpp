@@ -104,7 +104,7 @@ bool PhysicalOuterHashJoin::Open(SegmentExecStatus* const exec_status,
   bool winning_thread = false;
   if (TryEntryIntoSerializedSection(0)) {
     winning_thread = true;
-    ExpanderTracker::getInstance()->addNewStageEndpoint(
+    ExpanderTracker::getInstance()->AddStageEndpoint(
         pthread_self(), LocalStageEndPoint(stage_desc, "Hash join build", 0));
     hash_func_ = PartitionFunctionFactory::createBoostHashFunction(
         state_.hashtable_bucket_num_);

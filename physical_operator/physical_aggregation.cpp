@@ -161,7 +161,7 @@ bool PhysicalAggregation::Open(SegmentExecStatus *const exec_status,
   }
 
   if (TryEntryIntoSerializedSection(0)) {
-    ExpanderTracker::getInstance()->addNewStageEndpoint(
+    ExpanderTracker::getInstance()->AddStageEndpoint(
         pthread_self(), LocalStageEndPoint(stage_desc, "Aggregation", 0));
   }
   BarrierArrive(0);
@@ -410,7 +410,7 @@ bool PhysicalAggregation::Open(SegmentExecStatus *const exec_status,
     bucket_cur_ = 0;
     hashtable_->placeIterator(it_, bucket_cur_);
     SetReturnStatus(true);
-    ExpanderTracker::getInstance()->addNewStageEndpoint(
+    ExpanderTracker::getInstance()->AddStageEndpoint(
         pthread_self(), LocalStageEndPoint(stage_src, "Aggregation  ", 0));
     perf_info_ =
         ExpanderTracker::getInstance()->getPerformanceInfo(pthread_self());

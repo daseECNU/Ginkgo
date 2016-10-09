@@ -93,7 +93,7 @@ bool PhysicalNestLoopJoin::Open(SegmentExecStatus *const exec_status,
   unsigned long long int timer;
   bool winning_thread = false;
   if (TryEntryIntoSerializedSection(0)) {  // the first thread of all need to do
-    ExpanderTracker::getInstance()->addNewStageEndpoint(
+    ExpanderTracker::getInstance()->AddStageEndpoint(
         pthread_self(), LocalStageEndPoint(stage_desc, "nest loop", 0));
     winning_thread = true;
     timer = curtick();

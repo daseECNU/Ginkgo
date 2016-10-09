@@ -119,7 +119,7 @@ bool PhysicalProjectionScan::Open(SegmentExecStatus* const exec_status,
       }
     }
 #endif
-    ExpanderTracker::getInstance()->addNewStageEndpoint(
+    ExpanderTracker::getInstance()->AddStageEndpoint(
         pthread_self(), LocalStageEndPoint(stage_src, "Scan", 0));
     perf_info_ =
         ExpanderTracker::getInstance()->getPerformanceInfo(pthread_self());

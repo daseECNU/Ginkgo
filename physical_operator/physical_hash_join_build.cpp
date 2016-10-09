@@ -86,7 +86,7 @@ bool PhysicalHashJoinBuild::Open(SegmentExecStatus* const exec_status,
   RegisterExpandedThreadToAllBarriers();
 
   if (TryEntryIntoSerializedSection(0)) {
-    ExpanderTracker::getInstance()->addNewStageEndpoint(
+    ExpanderTracker::getInstance()->AddStageEndpoint(
         pthread_self(), LocalStageEndPoint(stage_desc, "Hash join build", 0));
 
     // optimal bucket size could contain 2 tuples

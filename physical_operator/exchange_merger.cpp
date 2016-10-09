@@ -133,7 +133,7 @@ bool ExchangeMerger::Open(SegmentExecStatus* const exec_status,
 
     RETURN_IF_CANCELLED(exec_status);
 
-    ExpanderTracker::getInstance()->addNewStageEndpoint(
+    ExpanderTracker::getInstance()->AddStageEndpoint(
         pthread_self(),
         LocalStageEndPoint(stage_src, "Exchange", all_merged_block_buffer_));
     // if one of block_for_socket is full, it will be deserialized into
