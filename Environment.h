@@ -48,7 +48,7 @@ class Environment {
   ResourceManagerMaster* getResourceManagerMaster();
   InstanceResourceManager* getResourceManagerSlave();
   NodeID getNodeID() const;
-  void setNodeID(NodeID node_id){ node_id_ = node_id ;}
+  void setNodeID(NodeID node_id) { node_id_ = node_id; }
   claims::catalog::Catalog* getCatalog() const;
   ThreadPool* getThreadPool() const;
   IteratorExecutorSlave* getIteratorExecutorSlave() const;

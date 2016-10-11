@@ -93,6 +93,7 @@ class Expander : public PhysicalOperatorBase,
   void Print();
   RetCode GetAllSegments(stack<Segment*>* all_segments);
   RetCode GetJobDAG(JobContext* const job_cnxt);
+  NodeSegmentID& GetNodeSegmentID() { return expander_id_; }
 
  private:
   /**
@@ -101,9 +102,9 @@ class Expander : public PhysicalOperatorBase,
   static void* ExpandedWork(void* arg);
   bool ChildExhausted();
   bool CreateWorkingThread();
-  void TerminateWorkingThread(pthread_t pid);
-  bool Expand();
-  bool Shrink();
+  RetCode TerminateWorkingThread(pthread_t pid);
+  RetCode Expand();
+  RetCode Shrink();
   void AddIntoWorkingThreadList(pthread_t pid);
   bool RemoveFromWorkingThreadList(pthread_t pid);
   void AddIntoCalledBackThreadList(pthread_t pid);

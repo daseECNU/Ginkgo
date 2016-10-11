@@ -23,6 +23,7 @@ LDADD = 	../BlockStreamIterator/libblockstreamiterator.a \
 
 noinst_LIBRARIES=libexecutor.a
 libexecutor_a_SOURCES = exchange_tracker.cpp \
+	job_expander_tracker.h	job_expander_tracker.cpp	\
 	exchange_tracker.h 		expander_tracker.cpp \
 	expander_tracker.h 		IteratorExecutorMaster.cpp \
 	IteratorExecutorMaster.h 	IteratorExecutorSlave.cpp \

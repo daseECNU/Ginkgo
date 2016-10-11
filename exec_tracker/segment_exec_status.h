@@ -65,7 +65,7 @@ class SegmentExecStatus {
   string get_exec_info() { return exec_info_; }
   void set_exec_info(string exec_info) { exec_info_ = exec_info; }
   bool is_cancelled() { return kCancelled == exec_status_; }
-
+  NodeSegmentID& GetSegmentID() { return node_segment_id_; }
   actor coor_actor_;
   Lock lock_;
   std::atomic_bool stop_report_;

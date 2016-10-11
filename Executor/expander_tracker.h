@@ -13,107 +13,21 @@
 #include <map>
 #include <unordered_map>
 #include <stack>
-#ifdef DMALLOC
-#include "dmalloc.h"
-#endif
 #include "../common/Block/MonitorableBuffer.h"
 #include "../utility/ExpandabilityShrinkability.h"
 #include "../utility/lock.h"
 #include "../common/Logging.h"
 #include "../common/ids.h"
 #include "../common/ExpandedThreadTracker.h"
+#include "./job_expander_tracker.h"
+#include "../exec_tracker/stmt_exec_tracker.h"
+#include "../scheduler/stage_task.h"
+
+using claims::JobExpanderTracker;
+using claims::LocalStage;
+using claims::LocalStageEndPoint;
+// namespace claims {
 typedef pthread_t ExpandedThreadId;
-
-enum EndpoinType { stage_src, stage_desc };
-/**
- * Local local_stage endpoint refers to the start or the end of a stage within a
- * segment.
- * It could be either exchange, state, or expander.
- */
-struct LocalStageEndPoint {
-  LocalStageEndPoint(EndpoinType tp, std::string name = "Not Given",
-                     MonitorableBuffer* buffer_handle = 0)
-      : type(tp), monitorable_buffer_(buffer_handle), end_point_name_(name) {}
-  LocalStageEndPoint()
-      : monitorable_buffer_(0), end_point_name_("Initial"), type(stage_src) {}
-  LocalStageEndPoint(const LocalStageEndPoint& r) {
-    this->type = r.type;
-    this->monitorable_buffer_ = r.monitorable_buffer_;
-    this->end_point_name_ = r.end_point_name_;
-  }
-  EndpoinType type;
-  MonitorableBuffer* monitorable_buffer_;
-  std::string end_point_name_;
-};
-
-// typedef std::pair<LocalStageEndPoint,LocalStageEndPoint> local_stage;
-
-struct LocalStage {
-  enum LocalStageType {
-    from_buffer,
-    buffer_to_buffer,
-    to_buffer,
-    no_buffer,
-    incomplete
-  };
-  LocalStage() : type_(incomplete) {}
-  LocalStage(const LocalStage& r) {
-    this->type_ = r.type_;
-    this->dataflow_src_ = r.dataflow_src_;
-    this->dataflow_desc_ = r.dataflow_desc_;
-  }
-  //	operator=(const local_stage &r){
-  //
-  //	}
-  LocalStage(LocalStageEndPoint start, LocalStageEndPoint end)
-      : dataflow_src_(start), dataflow_desc_(end) {
-    bool start_buffer = dataflow_src_.monitorable_buffer_ != 0;
-    bool end_buffer = dataflow_desc_.monitorable_buffer_ != 0;
-    if (start_buffer) {
-      if (end_buffer) {
-        type_ = buffer_to_buffer;
-      } else {
-        type_ = from_buffer;
-      }
-    } else {
-      if (end_buffer) {
-        type_ = to_buffer;
-      } else {
-        type_ = no_buffer;
-      }
-    }
-  }
-  LocalStageEndPoint dataflow_src_;
-  LocalStageEndPoint dataflow_desc_;
-  LocalStageType type_;
-  std::string get_type_name(LocalStageType tp) const {
-    switch (tp) {
-      case from_buffer: {
-        return std::string("from_buffer");
-      }
-      case buffer_to_buffer: {
-        return std::string("buffer_to_buffer");
-      }
-      case to_buffer: {
-        return std::string("to_buffer");
-      }
-      case no_buffer: {
-        return std::string("no_buffer");
-      }
-      default: { return std::string("invalid type!"); }
-    }
-    //		return std::string();
-  }
-  void print() {
-    if (type_ == incomplete) {
-      printf("Incomplete!\n");
-      return;
-    }
-    printf("%s----->%s, type: %s\n", dataflow_src_.end_point_name_.c_str(),
-           dataflow_desc_.end_point_name_.c_str(),
-           get_type_name(type_).c_str());
-  }
-};
 
 class ExpanderTracker {
   enum segment_status {
@@ -131,17 +45,6 @@ class ExpanderTracker {
    * This structure maintains the status of current expander in terms of running
    * stage.
    */
-  struct ExpanderStatus {
-    ExpanderStatus(ExpandabilityShrinkability* expand_shrink)
-        : perf_info(expand_shrink) {}
-    //		ExpanderStatus(){};
-    ~ExpanderStatus();
-    PerformanceInfo perf_info;
-    LocalStage current_stage;
-    std::stack<LocalStageEndPoint> pending_endpoints;
-    void AddEndpoint(LocalStageEndPoint);
-    Lock lock;
-  };
 
  public:
   static ExpanderTracker* getInstance();
@@ -175,9 +78,14 @@ class ExpanderTracker {
   bool AddStageEndpoint(ExpandedThreadId, LocalStageEndPoint);
 
   PerformanceInfo* getPerformanceInfo(ExpandedThreadId);
-
+#ifdef OLD_TRACKER
   ExpanderID RegisterExpander(MonitorableBuffer* buffer,
                               ExpandabilityShrinkability* expand_shrink);
+#else
+  bool RegisterExpander(MonitorableBuffer* buffer,
+                        ExpandabilityShrinkability* expand_shrink,
+                        ExpanderID epd_id);
+#endif
   void UnregisterExpander(ExpanderID expander_id);
 
   /*
@@ -206,25 +114,34 @@ class ExpanderTracker {
       int current_degree_of_parallelism) const;
 
   void printStatus();
+  // even through it overflow, it doesn't matter because there shouldn't be so
+  // much active query
+  u_int64_t GetJobId(ExpanderID epd_id) {
+    return epd_id.first * kMaxJobIdNum +
+           (epd_id.second / kMaxNodeNum / kMaxPartNum / kMaxTaskIdNum) %
+               kMaxJobIdNum;
+  }
 
  private:
   static ExpanderTracker* instance_;
   Lock lock_, lock_adapt_;
-
   boost::unordered_map<ExpandedThreadId, ExpanderID> thread_id_to_expander_id_;
+#ifdef OLD_TRACKER
 
   std::unordered_map<ExpanderID, ExpanderStatus*> expander_id_to_status_;
 
   boost::unordered_map<ExpanderID, ExpandabilityShrinkability*>
       expander_id_to_expander_;
-
+#else
+  std::unordered_map<u_int64_t, JobExpanderTracker*> job_id_to_job_epd_tracker_;
+#endif
   /*
    * A unordered map from expanded thread id to expanded thread status
    */
+  pthread_t monitor_thread_id_;
+
  public:  // for debug, this should be private!
   std::map<ExpandedThreadId, ExpandedThreadStatus> thread_id_to_status_;
-
-  pthread_t monitor_thread_id_;
 };
-
+//}  // namespace claims
 #endif /* EXPANDERTRACKER_H_ */

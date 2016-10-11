@@ -29,6 +29,10 @@ void PhysicalQueryPlan::RunStagePlan() {
     segment_exec_status->UpdateStatus(SegmentExecStatus::ExecStatus::kOk,
                                       "physical plan next() succeed", 0, true);
   } else {
+    LOG(WARNING) << segment_exec_status->node_segment_id_.first << " , "
+                 << segment_exec_status->node_segment_id_.second
+                 << " open failed ";
+
     segment_exec_status->UpdateStatus(SegmentExecStatus::ExecStatus::kError,
                                       "physical plan open() failed", 0, true);
   }

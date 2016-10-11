@@ -93,6 +93,7 @@ int Config::memory_utilization;
 
 int Config::hash_join_bucket_num;
 int Config::hash_join_bucket_size;
+int Config::total_thread_num;
 
 Config *Config::getInstance() {
   if (instance_ == 0) {
@@ -161,6 +162,7 @@ void Config::initialize() {
 
   hash_join_bucket_size = getInt("hash_join_bucket_size", 1024);
 
+  total_thread_num = getInt("total_thread_num", 24);
 #ifdef DEBUG_Config
   print_configure();
 #endif
@@ -201,13 +203,14 @@ void Config::print_configure() const {
   std::cout << "configure file :" << config_file << std::endl;
   std::cout << "The configure is as follows." << std::endl;
   std::cout << "data:" << data_dir << std::endl;
+  std::cout << "total_thread_num: " << total_thread_num << std::endl;
   std::cout << "max_degree_of_parallelism:" << max_degree_of_parallelism
+            << std::endl;
+  std::cout << "initial_degree_of_parallelism:" << initial_degree_of_parallelism
             << std::endl;
   std::cout << "expander_adaptivity_check_frequency:"
             << expander_adaptivity_check_frequency << std::endl;
   std::cout << "enable_expander_adaptivity:" << enable_expander_adaptivity
-            << std::endl;
-  std::cout << "initial_degree_of_parallelism:" << initial_degree_of_parallelism
             << std::endl;
   std::cout << "hdfs master ip:" << hdfs_master_ip << std::endl;
   std::cout << "hdfs_master_port:" << hdfs_master_port << std::endl;

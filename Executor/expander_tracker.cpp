@@ -5,16 +5,21 @@
  *      Author: wangli
  */
 
+#include "../Executor/expander_tracker.h"
 #include <glog/logging.h>
 #include <stdio.h>
-#include "../IDsGenerator.h"
+#include <unistd.h>
 #include <pthread.h>
+#include "../IDsGenerator.h"
 #include "../Config.h"
 #include "../common/ids.h"
-#include "expander_tracker.h"
 
-#include <unistd.h>
+#include "./job_expander_tracker.h"
 #include "../common/memory_handle.h"
+
+using claims::JobExpanderTracker;
+// namespace claims {
+
 #define DECISION_SHRINK 0
 #define DECISION_EXPAND 1
 #define DECISION_KEEP 2
@@ -40,7 +45,10 @@ ExpanderTracker::ExpanderTracker() {
 ExpanderTracker::~ExpanderTracker() {
   pthread_cancel(monitor_thread_id_);
   instance_ = 0;
+#ifdef OLD_TRACKER
   expander_id_to_status_.clear();
+#else
+#endif
 }
 
 ExpanderTracker* ExpanderTracker::getInstance() {
@@ -138,7 +146,7 @@ bool ExpanderTracker::AddStageEndpoint(ExpandedThreadId thread_id,
     return false;
   }
   ExpanderID expender_id = thread_id_to_expander_id_[thread_id];
-
+#ifdef OLD_TRACKER
   if (expander_id_to_status_.find(expender_id) ==
       expander_id_to_status_.end()) {
     lock_.release();
@@ -146,28 +154,70 @@ bool ExpanderTracker::AddStageEndpoint(ExpandedThreadId thread_id,
     return false;
   }
   expander_id_to_status_[expender_id]->AddEndpoint(endpoint);
+#else
+  auto it = job_id_to_job_epd_tracker_.find(GetJobId(expender_id));
+  if (it == job_id_to_job_epd_tracker_.end()) {
+    LOG(ERROR) << "thread id= " << thread_id
+               << " add stage but couldn't find job= " << GetJobId(expender_id);
+    lock_.release();
+    return false;
+  }
+  it->second->AddStageEndpoint(expender_id, endpoint);
+#endif
   lock_.release();
   return true;
 }
-PerformanceInfo* ExpanderTracker::getPerformanceInfo(ExpandedThreadId tid) {
+PerformanceInfo* ExpanderTracker::getPerformanceInfo(
+    ExpandedThreadId thread_id) {
   lock_.acquire();
-  if (thread_id_to_expander_id_.find(tid) == thread_id_to_expander_id_.end()) {
+  if (thread_id_to_expander_id_.find(thread_id) ==
+      thread_id_to_expander_id_.end()) {
     lock_.release();
     assert(false && "thread_id_to_expander_id_ don't have this element");
     //		return false;
   }
-  ExpanderID expender_id = thread_id_to_expander_id_[tid];
+  ExpanderID expander_id = thread_id_to_expander_id_[thread_id];
+  PerformanceInfo* ret = NULL;
+#ifdef OLD_TRACKER
 
-  if (expander_id_to_status_.find(expender_id) ==
+  if (expander_id_to_status_.find(expander_id) ==
       expander_id_to_status_.end()) {
     lock_.release();
     assert(false && "expander_id_to_status_ don't have this element");
     //		return false;
   }
-  PerformanceInfo* ret = &expander_id_to_status_[expender_id]->perf_info;
+  PerformanceInfo* ret = &expander_id_to_status_[expander_id]->perf_info;
+#else
+  auto it = job_id_to_job_epd_tracker_.find(GetJobId(expander_id));
+  if (it == job_id_to_job_epd_tracker_.end()) {
+    LOG(ERROR) << "thread id= " << thread_id
+               << " getPerformanceInfo but couldn't find job= "
+               << GetJobId(expander_id);
+    lock_.release();
+    return false;
+  }
+  ret = it->second->GetPerformance(expander_id);
+#endif
   lock_.release();
   return ret;
 }
+bool ExpanderTracker::RegisterExpander(
+    MonitorableBuffer* buffer, ExpandabilityShrinkability* expand_shrink,
+    ExpanderID expander_id) {
+  lock_.acquire();
+  auto it = job_id_to_job_epd_tracker_.find(GetJobId(expander_id));
+  if (it != job_id_to_job_epd_tracker_.end()) {
+    it->second->RegisterExpander(buffer, expand_shrink, expander_id);
+  } else {
+    auto job_tracker = new JobExpanderTracker();
+    job_id_to_job_epd_tracker_.insert(
+        make_pair(GetJobId(expander_id), job_tracker));
+    job_tracker->RegisterExpander(buffer, expand_shrink, expander_id);
+  }
+  lock_.release();
+  return true;
+}
+#ifdef OLD_TRACKER
 ExpanderID ExpanderTracker::RegisterExpander(
     MonitorableBuffer* buffer, ExpandabilityShrinkability* expand_shrink) {
   assert(expand_shrink != 0);
@@ -178,10 +228,12 @@ ExpanderID ExpanderTracker::RegisterExpander(
   expander_id_to_status_[expander_id]->AddEndpoint(
       LocalStageEndPoint(stage_desc, "Expander", buffer));
   expander_id_to_expander_[expander_id] = expand_shrink;
+
   lock_.release();
   LOG(INFO) << "New Expander is registered, ID= " << expander_id;
   return expander_id;
 }
+#endif
 void ExpanderTracker::UnregisterExpander(ExpanderID expander_id) {
   lock_adapt_.acquire();
   lock_.acquire();
@@ -189,10 +241,12 @@ void ExpanderTracker::UnregisterExpander(ExpanderID expander_id) {
   for (auto it = thread_id_to_expander_id_.begin();
        it != thread_id_to_expander_id_.end(); ++it) {
     if (it->second == expander_id) {
-      LOG(WARNING) << "there are active thread in the expander " << expander_id;
+      LOG(WARNING) << "there are active thread in the expander= "
+                   << expander_id.first << " , " << expander_id.second;
       //      assert(false);
     }
   }
+#ifdef OLD_TRACKER
   if (expander_id_to_expander_.find(expander_id) ==
       expander_id_to_expander_.end()) {
     LOG(ERROR) << "Unregister expander_id = " << expander_id
@@ -210,24 +264,23 @@ void ExpanderTracker::UnregisterExpander(ExpanderID expander_id) {
             << " from expander_id_to_status_" << std::endl;
   expander_id_to_expander_.erase(expander_id);
   DELETE_PTR(es);
+#else
+  auto it = job_id_to_job_epd_tracker_.find(GetJobId(expander_id));
+  if (it == job_id_to_job_epd_tracker_.end()) {
+    LOG(ERROR) << "RegisterExpander doesn't have job= "
+               << GetJobId(expander_id);
+    assert(false);
+  }
+  it->second->UnRegisterExpander(expander_id);
+  if (it->second->IsEmpty()) {
+    DELETE_PTR(it->second);
+    job_id_to_job_epd_tracker_.erase(it);
+  }
+#endif
   lock_.release();
   lock_adapt_.release();
 }
 
-ExpanderTracker::ExpanderStatus::~ExpanderStatus() {}
-
-void ExpanderTracker::ExpanderStatus::AddEndpoint(
-    LocalStageEndPoint new_end_point) {
-  lock.acquire();
-  if (new_end_point.type == stage_desc) {
-    pending_endpoints.push(new_end_point);
-  } else {
-    LocalStageEndPoint top = pending_endpoints.top();
-    pending_endpoints.pop();
-    current_stage = LocalStage(new_end_point, top);
-  }
-  lock.release();
-}
 ExpanderTracker::segment_status ExpanderTracker::getSegmentStatus(
     LocalStage& current_stage) {
   switch (current_stage.type_) {
@@ -406,6 +459,7 @@ int ExpanderTracker::DecideExpandingOrShrinking(
   return ret;
 }
 void* ExpanderTracker::monitoringThread(void* arg) {
+#ifdef OLD_TRACKER
   if (!Config::enable_expander_adaptivity) {
     return NULL;
   }
@@ -479,6 +533,9 @@ void* ExpanderTracker::monitoringThread(void* arg) {
     Pthis->lock_adapt_.release();
     //		Pthis->lock_.release();
   }
+#else
+  return NULL;
+#endif
 }
 
 int ExpanderTracker::expandeIfNotExceedTheMaxDegreeOfParallelism(
@@ -499,6 +556,7 @@ int ExpanderTracker::shrinkIfNotExceedTheMinDegreeOfParallelims(
 }
 
 void ExpanderTracker::printStatus() {
+#ifdef OLD_TRACKER
   printf("Num. of Expanders: %d\n", expander_id_to_status_.size());
   printf("expanded_thread_id : ExpanderID\n");
   for (boost::unordered_map<ExpandedThreadId, ExpanderID>::iterator it =
@@ -529,9 +587,11 @@ void ExpanderTracker::printStatus() {
     printf("(%ld, %llx)", it->first, &it->second);
   }
   printf("\n");
+#endif
 }
 
 bool ExpanderTracker::trackExpander(ExpanderID id) {
+#ifdef OLD_TRACKER
   lock_.acquire();
   if (expander_id_to_expander_.find(id) != expander_id_to_expander_.end()) {
     lock_.release();
@@ -543,4 +603,8 @@ bool ExpanderTracker::trackExpander(ExpanderID id) {
   }
   lock_.release();
   return false;
+#else
+  return false;
+#endif
 }
+//}  // namespace claims

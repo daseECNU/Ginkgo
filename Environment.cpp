@@ -12,6 +12,8 @@
 #include "common/Message.h"
 #include "exec_tracker/stmt_exec_tracker.h"
 #include "exec_tracker/segment_exec_tracker.h"
+#include "Executor/exchange_tracker.h"
+#include "Executor/expander_tracker.h"
 #include "node_manager/base_node.h"
 #define GLOG_NO_ABBREVIATED_SEVERITIES
 #include <glog/logging.h>
