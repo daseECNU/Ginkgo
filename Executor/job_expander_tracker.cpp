@@ -268,12 +268,11 @@ int JobExpanderTracker::DecideSchedule(LocalStage& current_stage,
        */
       if (cur_thread_num == Config::max_degree_of_parallelism) {
         ret = DECISION_KEEP;
-        break;
       } else if (cur_thread_num < Config::max_degree_of_parallelism) {
         ret = DECISION_EXPAND;
-        break;
+      } else {
+        ret = DECISION_SHRINK;
       }
-      ret = DECISION_SHRINK;
       break;
     }
     case LocalStage::from_buffer: {
@@ -293,7 +292,7 @@ int JobExpanderTracker::DecideSchedule(LocalStage& current_stage,
           break;
         }
       }
-      if (current_usage > THRESHOLD_FULL) {
+      if (current_usage > THRESHOLD_FULL || cur_thread_num == 0) {
         ret = DECISION_EXPAND;
         break;
       } else if (current_usage < THRESHOLD_EMPTY) {
@@ -312,14 +311,12 @@ int JobExpanderTracker::DecideSchedule(LocalStage& current_stage,
           current_stage.dataflow_desc_.monitorable_buffer_->getBufferUsage();
       if (current_usage > THRESHOLD_FULL) {
         ret = DECISION_SHRINK;
-        break;
       } else if (current_usage < THRESHOLD_EMPTY) {
         ret = DECISION_EXPAND;
-        break;
       } else {
         ret = DECISION_KEEP;
-        break;
       }
+      break;
     }
     case LocalStage::buffer_to_buffer: {
       LOG(INFO)
