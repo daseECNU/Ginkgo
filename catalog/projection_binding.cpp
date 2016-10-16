@@ -39,7 +39,7 @@
 namespace claims {
 namespace catalog {
 
-ProjectionBinding::ProjectionBinding() {
+ProjectionBinding::ProjectionBinding() : allocate_cur_(0) {
   // TODO Auto-generated constructor stub
 }
 
@@ -61,10 +61,11 @@ bool ProjectionBinding::BindingEntireProjection(
     ResourceManagerMaster* rmm =
         Environment::getInstance()->getResourceManagerMaster();
     std::vector<NodeID> node_id_list = rmm->getSlaveIDList();
-    unsigned allocate_cur = 0;
+    //    unsigned allocate_cur = 0;
+    allocate_cur_ = allocate_cur_ >= node_id_list.size() ? 0 : allocate_cur_;
     //    allocate_cur = GetRandomInt(node_id_list.size());
     for (unsigned i = 0; i < part->getNumberOfPartitions(); i++) {
-      NodeID target = node_id_list[allocate_cur];
+      NodeID target = node_id_list[allocate_cur_];
 
       /*
        * check whether target node has enough resource,
@@ -106,8 +107,8 @@ bool ProjectionBinding::BindingEntireProjection(
         }
 
         if (!check_passed) {
-          allocate_cur = (allocate_cur + 1) % node_id_list.size();
-          target = node_id_list[allocate_cur];
+          allocate_cur_ = (allocate_cur_ + 1) % node_id_list.size();
+          target = node_id_list[allocate_cur_];
           failures++;
           if (failures >= node_id_list.size()) {
             /* none of the available Slave could meet the budget;
@@ -125,7 +126,7 @@ bool ProjectionBinding::BindingEntireProjection(
       partition_id_to_nodeid_list.push_back(
           std::pair<unsigned, NodeID>(i, target));
 
-      allocate_cur = (allocate_cur + 1) % node_id_list.size();
+      allocate_cur_ = (allocate_cur_ + 1) % node_id_list.size();
       /*bind*/
       //      part->bindPartitionToNode(i,node_id_list[allocate_cur]);
       //

@@ -83,10 +83,13 @@ NodeAddr BaseNode::GetNodeAddrFromId(const unsigned int id) {
 actor &BaseNode::GetNodeActorFromId(const unsigned int id) {
   lock_.acquire();
   auto it = node_id_to_actor_.find(id);
-  lock_.release();
   if (it != node_id_to_actor_.end()) {
+    lock_.release();
     return it->second;
   } else {
+    lock_.release();
+    LOG(ERROR) << "couldn'd find the node id = " << id;
+    assert(false);
     actor null_actor;
     return null_actor;
   }

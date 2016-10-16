@@ -42,13 +42,7 @@ using claims::physical_operator::PhysicalOperatorBase;
 namespace claims {
 namespace scheduler {
 
-StageTask::StageTask() {
-  // TODO Auto-generated constructor stub
-}
-
-StageTask::~StageTask() {
-  // TODO Auto-generated destructor stub
-}
+StageTask::~StageTask() {}
 
 StageTask::StageTask(PhysicalOperatorBase* plan,
                      vector<NodeID> lower_node_id_list,
@@ -56,7 +50,8 @@ StageTask::StageTask(PhysicalOperatorBase* plan,
     : plan_(plan),
       lower_node_id_list_(lower_node_id_list),
       upper_node_id_list_(upper_node_id_list),
-      exchange_id_(exchange_id) {}
+      exchange_id_(exchange_id),
+      stage_status_(kWaiting) {}
 void StageTask::PrintPlan() {
   cout << "total have " << upper_node_id_list_.size() << " upper_nodes : ";
   for (int i = 0; i < upper_node_id_list_.size(); ++i) {
@@ -70,8 +65,8 @@ void StageTask::PrintPlan() {
   cout << endl;
   plan_->Print();
 }
-RetCode StageTask::SendPlan(StmtExecStatus* const stmt_exec_status,
-                            const u_int32_t task_id) {
+RetCode StageTask::SendAndStartPlan(StmtExecStatus* const stmt_exec_status,
+                                    const u_int32_t task_id) {
   LOG(INFO) << "begin to send plan of query_id, job_id, task_id "
             << stmt_exec_status->get_query_id() << " , "
             << task_id / kMaxTaskIdNum << " , " << task_id % kMaxTaskIdNum;
@@ -119,6 +114,13 @@ RetCode StageTask::SendPlan(StmtExecStatus* const stmt_exec_status,
   }
 
   return ret;
+}
+void StageTask::ComputeNodeTask(
+    boost::unordered_map<int, u_int16_t>& node_task_num) {
+  for (auto it = lower_node_id_list_.begin(); it != lower_node_id_list_.cend();
+       ++it) {
+    ++node_task_num[*it];
+  }
 }
 RetCode StageTask::IsUpperExchangeRegistered(
     const vector<NodeID>& upper_node_id_list, const u_int64_t exchange_id) {

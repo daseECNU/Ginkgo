@@ -28,12 +28,12 @@
 
 #ifndef SCHEDULER_STAGE_TASK_H_
 #define SCHEDULER_STAGE_TASK_H_
+#include <boost/unordered/unordered_map.hpp>
 #include <sys/types.h>
 #include <vector>
 #include <iostream>
 #include "../common/ids.h"
 #include "../common/error_define.h"
-#include "../exec_tracker/stmt_exec_status.h"
 using std::vector;
 using std::cout;
 using std::endl;
@@ -45,22 +45,33 @@ namespace claims {
 namespace physical_operator {
 class PhysicalOperatorBase;
 }
+class StmtExecStatus;
+
 namespace scheduler {
 class StageTask {
  public:
-  StageTask();
+  enum StageTaskStatus { kWaiting, kRunning, kDone };
   virtual ~StageTask();
   StageTask(physical_operator::PhysicalOperatorBase* plan,
             vector<NodeID> lower_node_id_list,
             vector<NodeID> upper_node_id_list, u_int64_t exchange_id);
   physical_operator::PhysicalOperatorBase* get_plan_() { return plan_; }
   void PrintPlan();
-  RetCode SendPlan(StmtExecStatus* const stmt_exec_status, const u_int32_t id);
+  RetCode SendAndStartPlan(StmtExecStatus* const stmt_exec_status,
+                           const u_int32_t id);
   RetCode IsUpperExchangeRegistered(const vector<NodeID>& upper_node_id_list,
                                     const u_int64_t exchange_id);
   u_int16_t GetPartNum() { return lower_node_id_list_.size(); }
 
+  StageTaskStatus get_stage_status() const { return stage_status_; }
+
+  void set_stage_status(StageTaskStatus stage_status) {
+    stage_status_ = stage_status;
+  }
+  void ComputeNodeTask(boost::unordered_map<int, u_int16_t>& node_task_num);
+
  private:
+  StageTaskStatus stage_status_;
   vector<NodeID> lower_node_id_list_;
   vector<NodeID> upper_node_id_list_;
   u_int64_t exchange_id_ = 0;

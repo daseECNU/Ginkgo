@@ -118,15 +118,15 @@ RetCode JobExpanderTracker::PeriodSchedule(int cur) {
   LOG(INFO) << "Instance throughput: "
             << it->second->perf_info.report_instance_performance_in_millibytes()
             << " Mbytes";
-  const unsigned int current_degree_of_parallelism =
+  const unsigned int cur_parallelism =
       expander_id_to_expander_[it->first]->GetDegreeOfParallelism();
-  int decision =
-      DecideSchedule(it->second->current_stage, current_degree_of_parallelism);
+  cur_thread_num_ = cur_parallelism;
+  int decision = DecideSchedule(it->second->current_stage, cur_parallelism);
   LOG(INFO) << "^^^ stage  "
             << it->second->current_stage.dataflow_src_.end_point_name_.c_str()
             << " ---->   "
             << it->second->current_stage.dataflow_desc_.end_point_name_.c_str()
-            << "  parallelism= " << current_degree_of_parallelism;
+            << "  parallelism= " << cur_parallelism;
   map_lock_.release();
   lock_adapt_.acquire();
   if (expander_id_to_expander_.find(it->first) ==
@@ -142,9 +142,8 @@ RetCode JobExpanderTracker::PeriodSchedule(int cur) {
     case DECISION_EXPAND: {
       if (true == expander_id_to_expander_[it->first]->Expand()) {
         ++cur_thread_num_;
-        LOG(INFO) << "=========Expanding======== "
-                  << current_degree_of_parallelism << " --> "
-                  << current_degree_of_parallelism + 1;
+        LOG(INFO) << "=========Expanding======== " << cur_parallelism << " --> "
+                  << cur_parallelism + 1;
       } else {
         LOG(WARNING) << "=========Expanding======== Failed to expand!";
       }
@@ -153,9 +152,8 @@ RetCode JobExpanderTracker::PeriodSchedule(int cur) {
     case DECISION_SHRINK: {
       if (true == expander_id_to_expander_[it->first]->Shrink()) {
         --cur_thread_num_;
-        LOG(INFO) << "=========Shrinking======== "
-                  << current_degree_of_parallelism << " --> "
-                  << current_degree_of_parallelism - 1;
+        LOG(INFO) << "=========Shrinking======== " << cur_parallelism << " --> "
+                  << cur_parallelism - 1;
       } else {
         LOG(WARNING) << "=========Shrinking======== Failed to shrink!";
       }
@@ -189,9 +187,11 @@ RetCode JobExpanderTracker::ForceExpand(int thread_num) {
           i = thread_num;
           break;
         } else {
+          ++cur_thread_num_;
           LOG(INFO) << "job expander id= " << it->first.first << " , "
-                    << it->first.second << " Force Add one thread successfully";
-          --cur_thread_num_;
+                    << it->first.second
+                    << " Force Add one thread successfully, cur_thread_num= "
+                    << cur_thread_num_;
           break;
         }
       }
@@ -209,17 +209,18 @@ RetCode JobExpanderTracker::ForceExpand(int thread_num) {
 RetCode JobExpanderTracker::ForceShrink(int thread_num) {
   RetCode ret = rSuccess;
   for (int i = 0; i < thread_num;) {
-    for (auto it = expander_id_to_expander_.rbegin();
-         it != expander_id_to_expander_.rend() && i < thread_num; ++it) {
+    for (auto it = expander_id_to_expander_.begin();
+         it != expander_id_to_expander_.end() && i < thread_num; ++it) {
       int tmp = 0;
       while (true) {
         tmp = it->second->Shrink();
         if (true == tmp) {
           ++i;
+          --cur_thread_num_;
           LOG(INFO) << "job expander id= " << it->first.first << " , "
                     << it->first.second
-                    << " Force Shrink one thread successfully";
-          ++cur_thread_num_;
+                    << " Force Shrink one thread successfully, cur_thread_num= "
+                    << cur_thread_num_;
           break;
         } else if (2 == tmp) {
           LOG(INFO) << "job expander id= " << it->first.first << " , "

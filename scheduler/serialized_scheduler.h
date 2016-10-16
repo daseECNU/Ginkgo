@@ -16,43 +16,36 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * /Claims/catalog/projection_binding.h
+ * /Claims/scheduler/serialized_scheduler.h
  *
- *  Created on: Nov 2, 2013
- *      Author: wangli
- *  Renamed on: Oct 26, 2015
- *      Author: yukai
- *		   Email: yukai2014@gmail.com
+ *  Created on: Oct 12, 2016
+ *      Author: fzh
+ *		   Email: fzhedu@gmail.com
  *
  * Description:
  *
  */
 
-#ifndef CATALOG_PROJECTION_BINDING_H_
-#define CATALOG_PROJECTION_BINDING_H_
+#ifndef SCHEDULER_SERIALIZED_SCHEDULER_H_
+#define SCHEDULER_SERIALIZED_SCHEDULER_H_
 
-#include "../catalog/partitioner.h"
-#include "../storage/StorageLevel.h"
-#include "../utility/lock.h"
+#include "scheduler_base.h"
+
 namespace claims {
-namespace catalog {
-
-class ProjectionBinding {
+namespace scheduler {
+class SerializedScheduler : public scheduler::SchedulerBase {
  public:
-  ProjectionBinding();
-  virtual ~ProjectionBinding();
+  SerializedScheduler(PipelineJob* const dag_root, StmtExecStatus* exec_status);
 
-  /*binding an entire projection independently*/
-  bool BindingEntireProjection(
-      Partitioner*, const StorageLevel& desriable_storage_level = MEMORY);
-  bool UnbindingEntireProjection(Partitioner* part);
+  virtual ~SerializedScheduler();
+  static void ScheduleJob(caf::event_based_actor* self,
+                          SerializedScheduler* scheduler);
+  void CreateActor();
 
  private:
-  uint16_t allocate_cur_;
-  Lock lock_;
+  RetCode ComputeJobRank();
 };
+}  // namespace scheduler
+}  // namespace claims
 
-} /* namespace catalog */
-} /* namespace claims */
-
-#endif  // CATALOG_PROJECTION_BINDING_H_
+#endif  //  SCHEDULER_SERIALIZED_SCHEDULER_H_

@@ -117,13 +117,20 @@ bool SegmentExecTracker::UnRegisterHashTable(int64_t join_par_id) {
   ht_map_lock_.release();
   return false;
 }
+void SegmentExecTracker::RegisterSem(int64_t query_id) {
+  rs_map_lock_.acquire();
+  query_id_to_sem_[query_id] = new semaphore();
+  rs_map_lock_.release();
+}
 void SegmentExecTracker::RegisterResult(int64_t query_id, ResultSet* result) {
   rs_map_lock_.acquire();
   query_id_to_result_.insert(make_pair(query_id, result));
+  query_id_to_sem_[query_id]->post();
   rs_map_lock_.release();
 }
 
 ResultSet* SegmentExecTracker::GetResult(int64_t query_id) {
+  query_id_to_sem_[query_id]->wait();
   rs_map_lock_.acquire();
   auto it = query_id_to_result_.find(query_id);
   if (query_id_to_result_.end() != it) {
@@ -138,6 +145,8 @@ bool SegmentExecTracker::UnRegisterResult(int64_t query_id) {
   rs_map_lock_.acquire();
   auto it = query_id_to_result_.find(query_id);
   if (query_id_to_result_.end() != it) {
+    DELETE_PTR(query_id_to_sem_[query_id]);
+    query_id_to_sem_.erase(query_id);
     query_id_to_result_.erase(it);
     rs_map_lock_.release();
     return true;

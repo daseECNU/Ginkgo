@@ -25,11 +25,12 @@ LDADD = ../logical_operator/libscheduler.a \
 
 noinst_LIBRARIES=libscheduler.a
 libscheduler_a_SOURCES = \
-	backfill_scheduler.cpp	backfill_scheduler.h	\
-	job_context.cpp			job_context.h			\
-	pipeline_job.cpp		pipeline_job.h			\
-	scheduler_base.cpp		scheduler_base.h		\
-	stage_task.cpp			stage_task.h
+	serialized_scheduler.cpp	serialized_scheduler.h	\
+	backfill_scheduler.cpp		backfill_scheduler.h	\
+	job_context.cpp				job_context.h			\
+	pipeline_job.cpp			pipeline_job.h			\
+	scheduler_base.cpp			scheduler_base.h		\
+	stage_task.cpp				stage_task.h
 	
 SUBDIRS = 
 DIST_SUBDIRS = 

@@ -36,7 +36,9 @@
 #include "./segment_exec_status.h"
 #include "../common/Block/ResultSet.h"
 #include "../exec_tracker/segment_exec_tracker.h"
+#include "../scheduler/pipeline_job.h"
 #include "../utility/lock.h"
+using claims::scheduler::PipelineJob;
 using std::string;
 namespace claims {
 /// for monitoring the execution status of every segment, slave node has
@@ -75,7 +77,8 @@ class StmtExecStatus {
   }
   bool IsCancelled() { return exec_status_ == ExecStatus::kCancelled; }
   void AddOneJob(u_int16_t job_id, u_int16_t part_num);
-  void CheckJobIsDone(u_int64_t stage_id);
+  void RegisterOneJob(u_int16_t job_id, PipelineJob* const pjob);
+  bool CheckJobIsDone(u_int64_t stage_id);
   void JobWaitingDone(u_int16_t job_id, u_int16_t times = 1);
 
  private:
@@ -83,11 +86,12 @@ class StmtExecStatus {
   ExecStatus exec_status_;
   ResultSet* query_result_;
   boost::unordered_map<u_int16_t, semaphore*> stage_id_to_sem_;
+  boost::unordered_map<u_int16_t, PipelineJob*> job_id_to_job_;
   boost::unordered_map<NodeSegmentID, SegmentExecStatus*> node_seg_id_to_seges_;
   u_int64_t query_id_;
   string sql_stmt_;
   std::atomic_short segment_id_gen_;
-  Lock lock_;
+  Lock lock_, map_lock_;
 };
 }  // namespace claims
 

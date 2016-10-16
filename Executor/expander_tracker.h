@@ -96,6 +96,8 @@ class ExpanderTracker {
 
   static segment_status getSegmentStatus(LocalStage&);
 
+  JobExpanderTracker* GetJobExpanderTracker(u_int16_t job_id);
+
  private:
   ExpanderTracker();
   static void* monitoringThread(void* arg);

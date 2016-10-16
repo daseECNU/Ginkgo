@@ -28,9 +28,11 @@
  */
 #include "../logical_operator/logical_equal_join.h"
 #include <glog/logging.h>
+#include <algorithm>
 #include <iostream>
 #include <vector>
 #include <map>
+#include <set>
 #include <string>
 
 #include "../catalog/stat/StatManager.h"
@@ -934,7 +936,23 @@ PlanPartitioner LogicalEqualJoin::DecideOutputDataflowProperty(
       right_dataflow.GetAggregatedDataCardinality();
 
   std::vector<NodeID> all_node_id_list =
-      NodeTracker::GetInstance()->GetNodeIDList();
+      GetInvolvedNodeID(left_dataflow.plan_partitioner_);
+  std::vector<NodeID> right_node_id_list =
+      GetInvolvedNodeID(right_dataflow.plan_partitioner_);
+  std::set<NodeID> unique_node;
+  for (auto it = all_node_id_list.begin(); it != all_node_id_list.end(); ++it) {
+    unique_node.insert(*it);
+  }
+  for (auto it = right_node_id_list.begin(); it != right_node_id_list.end();
+       ++it) {
+    unique_node.insert(*it);
+  }
+  all_node_id_list.clear();
+  for (auto it = unique_node.begin(); it != unique_node.end(); ++it) {
+    all_node_id_list.push_back(*it);
+  }
+
+  //      NodeTracker::GetInstance()->GetNodeIDList();
   /**
    * In the current implementation, all the nodes are involved in the
    * complete_repartition method.

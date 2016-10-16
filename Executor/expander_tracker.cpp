@@ -607,4 +607,16 @@ bool ExpanderTracker::trackExpander(ExpanderID id) {
   return false;
 #endif
 }
+
+JobExpanderTracker* ExpanderTracker::GetJobExpanderTracker(u_int16_t job_id) {
+  lock_.acquire();
+  auto it = job_id_to_job_epd_tracker_.find((u_int64_t)job_id);
+  if (job_id_to_job_epd_tracker_.end() != it) {
+    lock_.release();
+    return it->second;
+  }
+  LOG(WARNING) << "couldn't find job expander tracker for job " << job_id;
+  lock_.release();
+  return NULL;
+}
 //}  // namespace claims

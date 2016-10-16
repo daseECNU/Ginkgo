@@ -209,18 +209,48 @@ void StmtExecStatus::AddOneJob(u_int16_t job_id, u_int16_t part_num) {
   }
 }
 
-void StmtExecStatus::CheckJobIsDone(u_int64_t node_stage_id) {
+bool StmtExecStatus::CheckJobIsDone(u_int64_t node_stage_id) {
+#ifdef SYN
   u_int16_t stage_id = node_stage_id / kMaxNodeNum;
   u_int16_t task_id = (stage_id / kMaxPartNum) % kMaxTaskIdNum;
   if (0 == task_id) {  // the top task of this pipeline job
     if (stage_id_to_sem_.end() == stage_id_to_sem_.find(stage_id)) {
       LOG(WARNING) << "%%% (job,task,partition)= " << stage_id
                    << " couldn't found!";
-      return;
+      return false;
     }
     stage_id_to_sem_[stage_id]->post();
-    LOG(INFO) << "%%% (job,task,partition)= " << stage_id << " is Done!";
+    return true;
   }
+  return false;
+#else
+  u_int16_t job_id =
+      (node_stage_id / kMaxNodeNum / kMaxPartNum / kMaxTaskIdNum) %
+      kMaxJobIdNum;
+  u_int16_t task_id =
+      (node_stage_id / kMaxNodeNum / kMaxPartNum) % kMaxTaskIdNum;
+  if (0 == task_id) {  // the top task of this pipeline job
+    map_lock_.acquire();
+    auto it = job_id_to_job_.find(job_id);
+    if (job_id_to_job_.end() == it) {
+      map_lock_.release();
+      return false;
+    } else {
+      bool rs = it->second->CheckTopTaskIsDone((node_stage_id / kMaxNodeNum) %
+                                               kMaxPartNum);
+      if (rs) {
+        job_id_to_job_.erase(it);
+      }
+      map_lock_.release();
+      return rs;
+    }
+  }
+  return false;
+#endif
+}
+
+void StmtExecStatus::RegisterOneJob(u_int16_t job_id, PipelineJob* const pjob) {
+  job_id_to_job_.insert(make_pair(job_id, pjob));
 }
 
 void StmtExecStatus::JobWaitingDone(u_int16_t job_id, u_int16_t part_num = 1) {

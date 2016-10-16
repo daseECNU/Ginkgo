@@ -30,21 +30,25 @@
 #define SCHEDULER_PIPELINE_JOB_H_
 #include "../scheduler/pipeline_job.h"
 
+#include <boost/unordered/unordered_map.hpp>
 #include <stdint.h>
 #include <set>
 #include <utility>
 #include <vector>
 
 #include "./stage_task.h"
+#include "caf/all.hpp"
+using caf::actor;
 using std::pair;
 using std::set;
 using std::vector;
 
 namespace claims {
 namespace scheduler {
+class SchedulerBase;
 class PipelineJob {
  public:
-  PipelineJob();
+  enum JobStatus { kQueued, kReady, kPivot, kExtra, kDone };
   PipelineJob(vector<StageTask*> stage_task, vector<PipelineJob*> parents,
               uint16_t job_id);
   virtual ~PipelineJob();
@@ -67,28 +71,53 @@ class PipelineJob {
     stage_tasks_ = stage_tasks;
   }
   bool operator<(PipelineJob* const a) const { return rank_ > a->rank_; }
-  RetCode ComputeJobRank(double upper_rank = 0);
+  RetCode ComputeJobRank(float upper_rank = 0);
   RetCode GetReadyJobs(set<PipelineJob*>& ready_jobs);
-  RetCode ExecuteJob(StmtExecStatus* const stmt_exec_status);
+  RetCode DirectExecuteJob(StmtExecStatus* const stmt_exec_status);
   bool IsReadyJob();
-  double get_rank() const { return rank_; }
+  float get_rank() const { return rank_; }
 
-  void set_rank(double rank) { rank_ = rank; }
+  void set_rank(float rank) { rank_ = rank; }
 
   int get_waiting_parents() const { return waiting_parents_; }
 
   void set_waiting_parents(int waiting_parents) {
     waiting_parents_ = waiting_parents;
   }
-  void ReduceWaitingParents() { --waiting_parents_; }
+  void ReduceWaitingParents();
+
+  JobStatus get_job_status() { return job_status_; }
+  void set_job_status(JobStatus const job_status) { job_status_ = job_status; }
+  static void ExecuteJob(caf::event_based_actor* self, PipelineJob* job,
+                         SchedulerBase* const scheduler);
+  void ExecuteNewJob(caf::event_based_actor* self,
+                     SchedulerBase* const scheduler);
+  void CreatJobActor(SchedulerBase* const scheduler);
+  actor& get_job_actor() { return job_actor_; }
+
+  void InitTopTaskStatus();
+  bool CheckTopTaskIsDone(u_int64_t node_stage_id);
+  SchedulerBase*& get_scheduler() {
+    assert(NULL != scheduler_);
+    return scheduler_;
+  }
+  void set_scheduler(SchedulerBase* const scheduler) { scheduler_ = scheduler; }
+  void ComputeNodeTask();
+
+  boost::unordered_map<int, u_int16_t> node_task_num_, node_allocated_thread_;
 
  private:
+  // for every instance of each partition
+  boost::unordered_map<u_int16_t, bool> top_task_is_done_;
+  JobStatus job_status_;
+  actor job_actor_;
   vector<StageTask*> stage_tasks_;
   vector<PipelineJob*> parents_;
   PipelineJob* child_;
   uint16_t job_id_;
   int waiting_parents_;
-  double rank_;
+  float rank_;
+  SchedulerBase* scheduler_;
 };
 }
 }  // namespace claims

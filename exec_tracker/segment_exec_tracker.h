@@ -66,6 +66,7 @@ class SegmentExecTracker {
   BasicHashTable* GetHashTable(int64_t join_par_id);
   bool UnRegisterHashTable(int64_t join_par_id);
 
+  void RegisterSem(int64_t query_id);
   void RegisterResult(int64_t query_id, ResultSet* result);
   ResultSet* GetResult(int64_t query_id);
   bool UnRegisterResult(int64_t query_id);
@@ -76,6 +77,7 @@ class SegmentExecTracker {
   Lock map_lock_, ht_map_lock_, rs_map_lock_;
   boost::unordered_map<int64_t, BasicHashTable*> join_par_id_to_ht_;
   boost::unordered_map<int64_t, ResultSet*> query_id_to_result_;
+  boost::unordered_map<int64_t, semaphore*> query_id_to_sem_;
 };
 
 }  // namespace claims

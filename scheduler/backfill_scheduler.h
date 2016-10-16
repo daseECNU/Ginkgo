@@ -32,6 +32,7 @@
 #include <set>
 #include "../common/error_define.h"
 #include "../scheduler/pipeline_job.h"
+#include "../utility/lock.h"
 #include "scheduler_base.h"
 
 using std::set;
@@ -41,20 +42,21 @@ namespace scheduler {
 
 class BackfillScheduler : public SchedulerBase {
  public:
-  BackfillScheduler();
   BackfillScheduler(PipelineJob* const dag_root, StmtExecStatus* exec_status);
   virtual ~BackfillScheduler();
-  RetCode ScheduleJob();
+  static void ScheduleJob(caf::event_based_actor* self,
+                          BackfillScheduler* scheduler);
+  PipelineJob* GetPivotJob();
+  void InitThread();
+  void CreateActor();
+
+  Lock lock_;
 
  private:
+  PipelineJob* pivot_jobs_;
+  set<PipelineJob*> extra_jobs_;
   RetCode ComputeJobRank();
-  RetCode GetReadyJobs(set<PipelineJob*>& ready_jobs);
-  void PrintReadyJobs();
-
- private:
-  StmtExecStatus* stmt_exec_status_;
-  set<PipelineJob*> ready_jobs_;
-  PipelineJob* dag_root_;
+  void ComputeTaskNum();
 };
 }
 }  // namespace claims

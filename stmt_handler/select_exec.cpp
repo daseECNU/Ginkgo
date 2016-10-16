@@ -51,6 +51,7 @@
 #include "caf/io/all.hpp"
 #include "../scheduler/backfill_scheduler.h"
 #include "../scheduler/job_context.h"
+#include "../scheduler/serialized_scheduler.h"
 using caf::io::remote_actor;
 using claims::logical_operator::LogicalQueryPlanRoot;
 using claims::physical_operator::ExchangeSender;
@@ -66,6 +67,7 @@ using std::cout;
 using std::make_pair;
 using claims::common::rStmtCancelled;
 using claims::scheduler::BackfillScheduler;
+using claims::scheduler::SerializedScheduler;
 
 namespace claims {
 namespace stmt_handler {
@@ -248,9 +250,16 @@ RetCode SelectExec::Execute() {
 
   JobContext* job_cnxt = new JobContext();
   ret = physical_plan->GetJobDAG(job_cnxt);
+#ifdef SER_SCH
+  SerializedScheduler* bfs =
+      new SerializedScheduler(job_cnxt->get_dag_root(), get_stmt_exec_status());
+#else
   BackfillScheduler* bfs =
       new BackfillScheduler(job_cnxt->get_dag_root(), get_stmt_exec_status());
-  ret = bfs->ScheduleJob();
+#endif
+  Environment::getInstance()->get_segment_exec_tracker()->RegisterSem(
+      stmt_exec_status_->get_query_id());
+  ret = bfs->Schedule();
   if (rSuccess == ret) {
     // get ResultSet from global space and unregister from it
     stmt_exec_status_->set_query_result(
@@ -265,7 +274,7 @@ RetCode SelectExec::Execute() {
   }
   LOG(INFO) << "### query_id= " << stmt_exec_status_->get_query_id()
             << " has Done!!";
-  DELETE_PTR(bfs);
+  //  DELETE_PTR(bfs);
   DELETE_PTR(job_cnxt);
 #endif
   DELETE_PTR(logic_plan);
