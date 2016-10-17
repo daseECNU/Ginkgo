@@ -284,7 +284,7 @@ void BackfillScheduler::ScheduleJob(caf::event_based_actor* self,
 }
 
 PipelineJob* BackfillScheduler::GetPivotJob() {
-  auto ret = NULL;
+  PipelineJob* ret = NULL;
   if (extra_jobs_.empty()) {
     if (!ready_jobs_.empty()) {
       ret = *ready_jobs_.begin();

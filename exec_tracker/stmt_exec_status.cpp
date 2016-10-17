@@ -250,7 +250,16 @@ bool StmtExecStatus::CheckJobIsDone(u_int64_t node_stage_id) {
 }
 
 void StmtExecStatus::RegisterOneJob(u_int16_t job_id, PipelineJob* const pjob) {
-  job_id_to_job_.insert(make_pair(job_id, pjob));
+  map_lock_.acquire();
+  auto it = job_id_to_job_.find(job_id);
+  if (job_id_to_job_.end() == it) {
+    job_id_to_job_.insert(make_pair(job_id, pjob));
+  } else {
+    LOG(ERROR) << job_id << " exist in stmtexecstatus ";
+    assert(false);
+  }
+  map_lock_.release();
+  return;
 }
 
 void StmtExecStatus::JobWaitingDone(u_int16_t job_id, u_int16_t part_num = 1) {
