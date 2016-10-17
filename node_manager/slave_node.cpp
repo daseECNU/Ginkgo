@@ -56,6 +56,7 @@ using std::unordered_map;
 using claims::common::rConRemoteActorError;
 using claims::common::rRegisterToMasterTimeOut;
 using claims::common::rRegisterToMasterError;
+using claims::scheduler::SkJobAtom;
 namespace claims {
 SlaveNode* SlaveNode::instance_ = 0;
 class SlaveNodeActor : public event_based_actor {
@@ -249,18 +250,39 @@ class SlaveNodeActor : public event_based_actor {
                     << "update nodelist info successfully, now size is"
                     << slave_node_->node_id_to_addr_.size() << endl;
         },
-        [=](EpdJobAtom, u_int16_t job_id, int thread_num) -> message {
+        [=](SkJobAtom, u_int64_t query_id, u_int16_t job_id,
+            int thread_num) -> message {
           JobExpanderTracker* job_expander_tracker = NULL;
           while (NULL == job_expander_tracker) {
             job_expander_tracker =
-                ExpanderTracker::getInstance()->GetJobExpanderTracker(job_id);
+                ExpanderTracker::getInstance()->GetJobExpanderTracker(query_id,
+                                                                      job_id);
             usleep(1);
             LOG(WARNING)
-                << "job_id, thread_num = " << job_id << " , " << thread_num
+                << "query,job_id, thread_num = " << query_id << " , " << job_id
+                << " , " << thread_num
                 << " job_expander_tracker is NULL, while continue to wait 1ms";
           }
           this->send(job_expander_tracker->get_job_expander_actor(),
                      ForceSchR::value, thread_num);
+          LOG(INFO) << "query,job_id = " << query_id << " , " << job_id << " , "
+                    << thread_num << " set shrink info successfully";
+          return make_message(OkAtom::value);
+        },
+        [=](EpdJobAtom, u_int64_t query_id, u_int16_t job_id) -> message {
+          JobExpanderTracker* job_expander_tracker = NULL;
+          while (NULL == job_expander_tracker) {
+            job_expander_tracker =
+                ExpanderTracker::getInstance()->GetJobExpanderTracker(query_id,
+                                                                      job_id);
+            usleep(5);
+            LOG(WARNING)
+                << "query,job_id, thread_num = " << query_id << " , " << job_id
+                << " job_expander_tracker is NULL, while continue to wait 1ms";
+          }
+          job_expander_tracker->set_is_pivot(true);
+          LOG(INFO) << "query,job_id = " << query_id << " , " << job_id << " , "
+                    << " set expand info successfully";
           return make_message(OkAtom::value);
         },
         [=](OkAtom) {},

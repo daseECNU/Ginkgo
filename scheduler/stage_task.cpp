@@ -66,7 +66,7 @@ void StageTask::PrintPlan() {
   plan_->Print();
 }
 RetCode StageTask::SendAndStartPlan(StmtExecStatus* const stmt_exec_status,
-                                    const u_int32_t task_id) {
+                                    const u_int32_t task_id, bool is_pivot) {
   LOG(INFO) << "begin to send plan of query_id, job_id, task_id "
             << stmt_exec_status->get_query_id() << " , "
             << task_id / kMaxTaskIdNum << " , " << task_id % kMaxTaskIdNum;
@@ -98,8 +98,8 @@ RetCode StageTask::SendAndStartPlan(StmtExecStatus* const stmt_exec_status,
               ->get_iterator_executor_master()
               ->ExecuteBlockStreamIteratorsOnSite(
                   plan_, lower_node_id_list_[part_off],
-                  stmt_exec_status->get_query_id(), stage_id,
-                  part_off) == false) {
+                  stmt_exec_status->get_query_id(), stage_id, part_off,
+                  is_pivot) == false) {
         LOG(ERROR) << "sending plan of " << stmt_exec_status->get_query_id()
                    << " , " << stage_id << "error!!!";
         return rFailure;

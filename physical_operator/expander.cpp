@@ -86,12 +86,17 @@ bool Expander::Open(SegmentExecStatus* const exec_status,
   RETURN_IF_CANCELLED(exec_status);
 
   expander_id_ = exec_status->GetSegmentID();
-  ExpanderTracker::getInstance()->RegisterExpander(block_stream_buffer_, this,
-                                                   expander_id_);
+  ExpanderTracker::getInstance()->RegisterExpander(
+      block_stream_buffer_, this, expander_id_, exec_status->is_pivot_);
   is_registered_ = true;
   LOG(INFO) << expander_id_.first << " , " << expander_id_.second
             << "Expander open, thread count= " << state_.init_thread_count_;
   exec_status_ = exec_status;
+
+  // for extra job, init_thread_count_=1
+  if (!exec_status->is_pivot_) {
+    state_.init_thread_count_ = 1;
+  }
   for (unsigned i = 0; i < state_.init_thread_count_;) {
     RETURN_IF_CANCELLED(exec_status);
 

@@ -47,6 +47,7 @@ using std::make_pair;
 using std::map;
 using claims::common::rSuccess;
 using claims::common::rFailure;
+using std::atomic_bool;
 using std::atomic_short;
 using std::atomic_ushort;
 namespace claims {
@@ -158,7 +159,7 @@ struct ExpanderStatus {
 };
 class JobExpanderTracker {
  public:
-  JobExpanderTracker();
+  JobExpanderTracker(bool is_pivot);
   virtual ~JobExpanderTracker();
   static void ScheduleResource(caf::event_based_actor* self,
                                JobExpanderTracker* job_epd_tracker);
@@ -190,8 +191,13 @@ class JobExpanderTracker {
     map_lock_.release();
     return ret;
   }
+  void set_is_pivot(const bool is_pivot) { is_pivot_ = is_pivot; }
+  void AddOneCurThread();
+  void DeleteOneCurThread();
+  static atomic_ushort extra_cur_thread_num_, pivot_cur_thread_num_;
 
  private:
+  atomic_bool is_pivot_;
   atomic_ushort thread_num_threshold_, cur_thread_num_;
   Lock sch_lock_, lock_adapt_, map_lock_;
   u_int64_t job_id_;

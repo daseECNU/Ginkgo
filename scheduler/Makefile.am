@@ -25,6 +25,7 @@ LDADD = ../logical_operator/libscheduler.a \
 
 noinst_LIBRARIES=libscheduler.a
 libscheduler_a_SOURCES = \
+	gready_scheduler.cpp		gready_scheduler.h		\
 	serialized_scheduler.cpp	serialized_scheduler.h	\
 	backfill_scheduler.cpp		backfill_scheduler.h	\
 	job_context.cpp				job_context.h			\

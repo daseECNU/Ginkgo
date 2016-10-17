@@ -43,6 +43,9 @@ namespace claims {
 #define THRESHOLD_EMPTY (THRESHOLD)
 #define THRESHOLD_FULL (1 - THRESHOLD)
 #define Refine 0.05
+static atomic_ushort JobExpanderTracker::extra_cur_thread_num_(0);
+static atomic_ushort JobExpanderTracker::pivot_cur_thread_num_(0);
+
 ExpanderStatus::~ExpanderStatus() {}
 
 void ExpanderStatus::AddEndpoint(LocalStageEndPoint new_end_point) {
@@ -56,8 +59,10 @@ void ExpanderStatus::AddEndpoint(LocalStageEndPoint new_end_point) {
   }
   lock.release();
 }
-JobExpanderTracker::JobExpanderTracker()
-    : thread_num_threshold_(Config::total_thread_num), cur_thread_num_(0) {
+JobExpanderTracker::JobExpanderTracker(bool is_pivot)
+    : is_pivot_(is_pivot),
+      thread_num_threshold_(Config::total_thread_num),
+      cur_thread_num_(0) {
   job_expander_actor_ = caf::spawn(ScheduleResource, this);
 }
 
@@ -122,11 +127,14 @@ RetCode JobExpanderTracker::PeriodSchedule(int cur) {
       expander_id_to_expander_[it->first]->GetDegreeOfParallelism();
   cur_thread_num_ = cur_parallelism;
   int decision = DecideSchedule(it->second->current_stage, cur_parallelism);
-  LOG(INFO) << "^^^ stage  "
+  LOG(INFO) << "^^^ stage job_id= " << job_id_ << " is pivot = " << is_pivot_
+            << "  "
             << it->second->current_stage.dataflow_src_.end_point_name_.c_str()
             << " ---->   "
             << it->second->current_stage.dataflow_desc_.end_point_name_.c_str()
-            << "  parallelism= " << cur_parallelism;
+            << "  parallelism= " << cur_parallelism
+            << " extra_cur_thread_num_= " << extra_cur_thread_num_
+            << " pivot_cur_thread_num_= " << pivot_cur_thread_num_;
   map_lock_.release();
   lock_adapt_.acquire();
   if (expander_id_to_expander_.find(it->first) ==
@@ -363,6 +371,21 @@ int JobExpanderTracker::DecideSchedule(LocalStage& current_stage,
       ret = DECISION_KEEP;
     }
   }
+  if (!is_pivot_) {
+    if (ret != DECISION_SHRINK) {
+      if (pivot_cur_thread_num_ + extra_cur_thread_num_ >
+          Config::total_thread_num) {
+        ret = DECISION_SHRINK;
+      }
+    }  // not else
+    if (ret == DECISION_SHRINK) {
+      if (cur_thread_num < 1) {
+        ret = DECISION_KEEP;
+      } else {
+        // see how many thread to be shrunk, if enough, keep, else, shrink
+      }
+    }
+  }
   return ret;
 }
 
@@ -434,6 +457,22 @@ RetCode JobExpanderTracker::UnRegisterExpander(ExpanderID expander_id) {
   --cur_thread_num_;
   map_lock_.release();
   return rSuccess;
+}
+
+void JobExpanderTracker::AddOneCurThread() {
+  if (is_pivot_) {
+    ++pivot_cur_thread_num_;
+  } else {
+    ++extra_cur_thread_num_;
+  }
+}
+
+void JobExpanderTracker::DeleteOneCurThread() {
+  if (is_pivot_) {
+    --pivot_cur_thread_num_;
+  } else {
+    --extra_cur_thread_num_;
+  }
 }
 
 }  // namespace claims

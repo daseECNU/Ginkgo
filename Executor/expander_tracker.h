@@ -84,7 +84,7 @@ class ExpanderTracker {
 #else
   bool RegisterExpander(MonitorableBuffer* buffer,
                         ExpandabilityShrinkability* expand_shrink,
-                        ExpanderID epd_id);
+                        ExpanderID epd_id, bool is_pivot);
 #endif
   void UnregisterExpander(ExpanderID expander_id);
 
@@ -96,7 +96,8 @@ class ExpanderTracker {
 
   static segment_status getSegmentStatus(LocalStage&);
 
-  JobExpanderTracker* GetJobExpanderTracker(u_int16_t job_id);
+  JobExpanderTracker* GetJobExpanderTracker(u_int64_t query_id,
+                                            u_int16_t job_id);
 
  private:
   ExpanderTracker();
@@ -135,7 +136,7 @@ class ExpanderTracker {
   boost::unordered_map<ExpanderID, ExpandabilityShrinkability*>
       expander_id_to_expander_;
 #else
-  std::unordered_map<u_int64_t, JobExpanderTracker*> job_id_to_job_epd_tracker_;
+  std::unordered_map<u_int64_t, JobExpanderTracker*> qjob_id_to_epd_tracker_;
 #endif
   /*
    * A unordered map from expanded thread id to expanded thread status

@@ -43,9 +43,10 @@ using claims::common::rSendingTimeout;
 namespace claims {
 
 SegmentExecStatus::SegmentExecStatus(NodeSegmentID node_segment_id,
-                                     unsigned int coor_node_id)
+                                     unsigned int coor_node_id, bool is_pivot)
     : node_segment_id_(node_segment_id),
       coor_node_id_(coor_node_id),
+      is_pivot_(is_pivot),
       exec_info_("ok"),
       exec_status_(ExecStatus::kOk),
       ret_code_(0),

@@ -14,7 +14,7 @@ using claims::SegmentExecStatus;
 void PhysicalQueryPlan::RunStagePlan() {
   SegmentExecStatus* segment_exec_status = new SegmentExecStatus(
       make_pair(query_id_, segment_id_ * kMaxNodeNum + target_node_id_),
-      coor_node_id_);
+      coor_node_id_, is_pivot_);
   segment_exec_status->RegisterToTracker();
   segment_exec_status->UpdateStatus(
       SegmentExecStatus::ExecStatus::kOk,

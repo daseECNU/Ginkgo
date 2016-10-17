@@ -58,7 +58,7 @@ class StageTask {
   physical_operator::PhysicalOperatorBase* get_plan_() { return plan_; }
   void PrintPlan();
   RetCode SendAndStartPlan(StmtExecStatus* const stmt_exec_status,
-                           const u_int32_t id);
+                           const u_int32_t id, bool is_pivot);
   RetCode IsUpperExchangeRegistered(const vector<NodeID>& upper_node_id_list,
                                     const u_int64_t exchange_id);
   u_int16_t GetPartNum() { return lower_node_id_list_.size(); }

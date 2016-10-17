@@ -39,10 +39,11 @@ bool IteratorExecutorMaster::ExecuteBlockStreamIteratorsOnSites(
 // send serialized plan string to target
 bool IteratorExecutorMaster::ExecuteBlockStreamIteratorsOnSite(
     PhysicalOperatorBase* it, NodeID target_id, u_int64_t query_id = 0,
-    u_int32_t segment_id = 0, u_int16_t partition_offset = 0) {
+    u_int32_t segment_id = 0, u_int16_t partition_offset = 0,
+    bool is_pivot = true) {
   PhysicalQueryPlan* physical_plan = new PhysicalQueryPlan(
       it, target_id, query_id, segment_id, partition_offset,
-      Environment::getInstance()->get_slave_node()->get_node_id());
+      Environment::getInstance()->get_slave_node()->get_node_id(), is_pivot);
   string str = PhysicalQueryPlan::TextSerializePlan(*physical_plan);
   caf::scoped_actor self;
   LOG(INFO) << "!!!!!Master send Plan!!!!" << endl;

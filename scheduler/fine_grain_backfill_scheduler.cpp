@@ -16,9 +16,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * /Claims/scheduler/backfill_scheduler.cpp
+ * /Claims/scheduler/fine_grain_backfill_scheduler.cpp
  *
- *  Created on: Oct 6, 2016
+ *  Created on: Oct 17, 2016
  *      Author: fzh
  *		   Email: fzhedu@gmail.com
  *
@@ -26,27 +26,26 @@
  *
  */
 
-#include "backfill_scheduler.h"
+#include "fine_grain_backfill_scheduler.h"
 
-#include <stdlib.h>
+#include <glog/logging.h>
 
-#include "../Config.h"
-#include "../exec_tracker/stmt_exec_tracker.h"
-#include "../Environment.h"
-#include "../scheduler/pipeline_job.h"
+#include "caf/all.hpp"
 #include "scheduler_base.h"
 namespace claims {
 namespace scheduler {
 
-BackfillScheduler::BackfillScheduler(PipelineJob* const dag_root,
-                                     StmtExecStatus* const stmt_exec_status)
+FineGrainBackfillScheduler::FineGrainBackfillScheduler(
+    PipelineJob* const dag_root, StmtExecStatus* stmt_exec_status)
     : SchedulerBase(dag_root, stmt_exec_status) {}
 
-BackfillScheduler::~BackfillScheduler() {}
+FineGrainBackfillScheduler::~FineGrainBackfillScheduler() {
+  // TODO Auto-generated destructor stub
+}
 
-void BackfillScheduler::ScheduleJob(caf::event_based_actor* self,
-                                    BackfillScheduler* scheduler) {
-  LOG(INFO) << "BackfillScheduler starts up now!";
+void FineGrainBackfillScheduler::ScheduleJob(
+    caf::event_based_actor* self, FineGrainBackfillScheduler* scheduler) {
+  LOG(INFO) << "FineGrainBackfillScheduler starts up now!";
   scheduler->ComputeTaskNum();
   scheduler->InitThread();
   self->become(
@@ -54,26 +53,6 @@ void BackfillScheduler::ScheduleJob(caf::event_based_actor* self,
         scheduler->lock_.acquire();
         PipelineJob* pjob = scheduler->GetPivotJob();
         if (NULL != pjob) {
-          // decide to shrink which jobs to release resource
-          // naive method : shrink every extra jobs that is confict with pjob
-          /*
-          for (auto it = scheduler->extra_jobs_.begin();
-               it != scheduler->extra_jobs_.end(); ++it) {
-            for (auto mit = pjob->node_task_num_.begin();
-                 mit != pjob->node_task_num_.end(); ++mit) {
-              if (0 != (*it)->node_allocated_thread_[mit->first]) {
-                LOG(INFO) << "query, job id= "
-                          << scheduler->stmt_exec_status_->get_query_id()
-                          << " , " << (*it)->get_job_id()
-                          << " will be shrunk when active pivot job";
-                scheduler->thread_rest_[mit->first] +=
-                    (*it)->node_allocated_thread_[mit->first];
-                (*it)->node_allocated_thread_[mit->first] = 0;
-                self->send((*it)->get_job_actor(), SkJobAtom::value);
-              }
-            }
-          }
-          */
           LOG(INFO) << "query ,job id, status = "
                     << scheduler->stmt_exec_status_->get_query_id() << " , "
                     << pjob->get_job_id() << " , " << pjob->get_job_status()
@@ -123,7 +102,7 @@ void BackfillScheduler::ScheduleJob(caf::event_based_actor* self,
             if (scheduler->thread_rest_[nit->first] > 0) {
               tmp_score += scheduler->thread_rest_[nit->first];
             } else {
-              tmp_score -= 100;
+              // tmp_score -= 100;
             }
           }
           if (tmp_score > max_score) {
@@ -198,56 +177,14 @@ void BackfillScheduler::ScheduleJob(caf::event_based_actor* self,
       },
 
       [=](ExitAtom) { self->quit(); },
-      caf::others >>
-          [=]() { LOG(WARNING) << "ScheduleBase receives unkown message"; }
 
-      );
+      caf::others >>
+
+          [=]() {
+            LOG(WARNING)
+                << "FineGrainBackfillScheduler receives unkown message";
+          });
   self->send(self, SchPJobAtom::value);
 }
-
-PipelineJob* BackfillScheduler::GetPivotJob() {
-  PipelineJob* ret = NULL;
-  if (extra_jobs_.empty()) {
-    if (!ready_jobs_.empty()) {
-      ret = *ready_jobs_.begin();
-      ready_jobs_.erase(ready_jobs_.begin());
-    }
-  } else {
-    if (ready_jobs_.empty()) {
-      ret = *extra_jobs_.begin();
-      extra_jobs_.erase(extra_jobs_.begin());
-    } else {
-      if ((*extra_jobs_.begin())->get_rank() >=
-          (*ready_jobs_.begin())->get_rank()) {
-        ret = *extra_jobs_.begin();
-        extra_jobs_.erase(extra_jobs_.begin());
-      } else {
-        ret = *ready_jobs_.begin();
-        ready_jobs_.erase(ready_jobs_.begin());
-      }
-    }
-  }
-  return ret;
 }
-
-void BackfillScheduler::InitThread() {
-  for (int i = 0; i < kMaxNodeNum; ++i) {
-    thread_num_.push_back(Config::total_thread_num);
-    thread_rest_.push_back(Config::total_thread_num);
-  }
-}
-
-RetCode BackfillScheduler::ComputeJobRank() {
-  RetCode ret = rSuccess;
-  dag_root_->ComputeJobRank(0);
-  return ret;
-}
-
-void BackfillScheduler::CreateActor() {
-  scheduler_actor_ = caf::spawn(ScheduleJob, this);
-}
-
-void BackfillScheduler::ComputeTaskNum() { dag_root_->ComputeNodeTask(); }
-
-}  // namespace scheduler
 }  // namespace claims

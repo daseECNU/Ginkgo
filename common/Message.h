@@ -378,13 +378,15 @@ class PhysicalQueryPlan {
  public:
   PhysicalQueryPlan(PhysicalOperatorBase* it, NodeID node_id,
                     u_int64_t query_id, u_int32_t segment_id,
-                    u_int16_t partition_offset, unsigned int coor_node_id)
+                    u_int16_t partition_offset, unsigned int coor_node_id,
+                    bool is_pivot)
       : stage_plan_(it),
         target_node_id_(node_id),
         query_id_(query_id),
         segment_id_(segment_id),
         partition_offset_(partition_offset),
-        coor_node_id_(coor_node_id) {}
+        coor_node_id_(coor_node_id),
+        is_pivot_(is_pivot) {}
   PhysicalQueryPlan(const PhysicalQueryPlan& r) {
     stage_plan_ = r.stage_plan_;
     target_node_id_ = r.target_node_id_;
@@ -437,6 +439,7 @@ class PhysicalQueryPlan {
 
  private:
   PhysicalOperatorBase* stage_plan_;
+  bool is_pivot_;
   NodeID target_node_id_;
   u_int64_t query_id_;
   u_int32_t segment_id_;
@@ -448,7 +451,7 @@ class PhysicalQueryPlan {
     Register_Schemas(ar);
     Register_Block_Stream_Iterator(ar);
     ar& stage_plan_& target_node_id_& query_id_& segment_id_& partition_offset_&
-        coor_node_id_;
+        coor_node_id_& is_pivot_;
   }
 };
 

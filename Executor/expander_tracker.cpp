@@ -82,6 +82,9 @@ bool ExpanderTracker::RegisterExpandedThreadStatus(ExpandedThreadId thread_id,
     return false;
   } else {
     thread_id_to_expander_id_[thread_id] = epd_id;
+    auto ret = qjob_id_to_epd_tracker_[GetJobId(epd_id)];
+    assert(NULL != ret);
+    ret->AddOneCurThread();
   }
   lock_.release();
   return true;
@@ -97,14 +100,17 @@ bool ExpanderTracker::DeleteExpandedThreadStatus(ExpandedThreadId thread_id) {
   } else {
     thread_id_to_status_.erase(thread_id);
   }
-  if (thread_id_to_expander_id_.find(thread_id) ==
-      thread_id_to_expander_id_.end()) {
+  auto it = thread_id_to_expander_id_.find(thread_id);
+  if (it == thread_id_to_expander_id_.end()) {
     LOG(ERROR) << "the thread = " << thread_id
                << " isn't in thread_id_to_expander_id";
     lock_.release();
     assert(false);
     return false;
   } else {
+    auto ret = qjob_id_to_epd_tracker_[GetJobId(it->second)];
+    assert(NULL != ret);
+    ret->DeleteOneCurThread();
     thread_id_to_expander_id_.erase(thread_id);
   }
   lock_.release();
@@ -155,8 +161,8 @@ bool ExpanderTracker::AddStageEndpoint(ExpandedThreadId thread_id,
   }
   expander_id_to_status_[expender_id]->AddEndpoint(endpoint);
 #else
-  auto it = job_id_to_job_epd_tracker_.find(GetJobId(expender_id));
-  if (it == job_id_to_job_epd_tracker_.end()) {
+  auto it = qjob_id_to_epd_tracker_.find(GetJobId(expender_id));
+  if (it == qjob_id_to_epd_tracker_.end()) {
     LOG(ERROR) << "thread id= " << thread_id
                << " add stage but couldn't find job= " << GetJobId(expender_id);
     lock_.release();
@@ -188,8 +194,8 @@ PerformanceInfo* ExpanderTracker::getPerformanceInfo(
   }
   PerformanceInfo* ret = &expander_id_to_status_[expander_id]->perf_info;
 #else
-  auto it = job_id_to_job_epd_tracker_.find(GetJobId(expander_id));
-  if (it == job_id_to_job_epd_tracker_.end()) {
+  auto it = qjob_id_to_epd_tracker_.find(GetJobId(expander_id));
+  if (it == qjob_id_to_epd_tracker_.end()) {
     LOG(ERROR) << "thread id= " << thread_id
                << " getPerformanceInfo but couldn't find job= "
                << GetJobId(expander_id);
@@ -203,14 +209,14 @@ PerformanceInfo* ExpanderTracker::getPerformanceInfo(
 }
 bool ExpanderTracker::RegisterExpander(
     MonitorableBuffer* buffer, ExpandabilityShrinkability* expand_shrink,
-    ExpanderID expander_id) {
+    ExpanderID expander_id, bool is_pivot) {
   lock_.acquire();
-  auto it = job_id_to_job_epd_tracker_.find(GetJobId(expander_id));
-  if (it != job_id_to_job_epd_tracker_.end()) {
+  auto it = qjob_id_to_epd_tracker_.find(GetJobId(expander_id));
+  if (it != qjob_id_to_epd_tracker_.end()) {
     it->second->RegisterExpander(buffer, expand_shrink, expander_id);
   } else {
-    auto job_tracker = new JobExpanderTracker();
-    job_id_to_job_epd_tracker_.insert(
+    auto job_tracker = new JobExpanderTracker(is_pivot);
+    qjob_id_to_epd_tracker_.insert(
         make_pair(GetJobId(expander_id), job_tracker));
     job_tracker->RegisterExpander(buffer, expand_shrink, expander_id);
   }
@@ -265,8 +271,8 @@ void ExpanderTracker::UnregisterExpander(ExpanderID expander_id) {
   expander_id_to_expander_.erase(expander_id);
   DELETE_PTR(es);
 #else
-  auto it = job_id_to_job_epd_tracker_.find(GetJobId(expander_id));
-  if (it == job_id_to_job_epd_tracker_.end()) {
+  auto it = qjob_id_to_epd_tracker_.find(GetJobId(expander_id));
+  if (it == qjob_id_to_epd_tracker_.end()) {
     LOG(ERROR) << "RegisterExpander doesn't have job= "
                << GetJobId(expander_id);
     assert(false);
@@ -274,7 +280,7 @@ void ExpanderTracker::UnregisterExpander(ExpanderID expander_id) {
   it->second->UnRegisterExpander(expander_id);
   if (it->second->IsEmpty()) {
     DELETE_PTR(it->second);
-    job_id_to_job_epd_tracker_.erase(it);
+    qjob_id_to_epd_tracker_.erase(it);
   }
 #endif
   lock_.release();
@@ -608,14 +614,16 @@ bool ExpanderTracker::trackExpander(ExpanderID id) {
 #endif
 }
 
-JobExpanderTracker* ExpanderTracker::GetJobExpanderTracker(u_int16_t job_id) {
+JobExpanderTracker* ExpanderTracker::GetJobExpanderTracker(u_int64_t query_id,
+                                                           u_int16_t job_id) {
   lock_.acquire();
-  auto it = job_id_to_job_epd_tracker_.find((u_int64_t)job_id);
-  if (job_id_to_job_epd_tracker_.end() != it) {
+  auto it = qjob_id_to_epd_tracker_.find(query_id * kMaxJobIdNum + job_id);
+  if (qjob_id_to_epd_tracker_.end() != it) {
     lock_.release();
     return it->second;
   }
-  LOG(WARNING) << "couldn't find job expander tracker for job " << job_id;
+  LOG(WARNING) << "couldn't find job expander tracker for job "
+               << query_id * kMaxJobIdNum + job_id;
   lock_.release();
   return NULL;
 }

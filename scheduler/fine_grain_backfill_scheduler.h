@@ -16,9 +16,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * /Claims/scheduler/backfill_scheduler.h
+ * /Claims/scheduler/fine_grain_backfill_scheduler.h
  *
- *  Created on: Oct 6, 2016
+ *  Created on: Oct 17, 2016
  *      Author: fzh
  *		   Email: fzhedu@gmail.com
  *
@@ -26,39 +26,23 @@
  *
  */
 
-#ifndef SCHEDULER_BACKFILL_SCHEDULER_H_
-#define SCHEDULER_BACKFILL_SCHEDULER_H_
+#ifndef SCHEDULER_FINE_GRAIN_BACKFILL_SCHEDULER_H_
+#define SCHEDULER_FINE_GRAIN_BACKFILL_SCHEDULER_H_
 
-#include <set>
-#include "../common/error_define.h"
-#include "../scheduler/pipeline_job.h"
-#include "../utility/lock.h"
-#include "scheduler_base.h"
-
-using std::set;
+#include "backfill_scheduler.h"
 
 namespace claims {
 namespace scheduler {
 
-class BackfillScheduler : public SchedulerBase {
+class FineGrainBackfillScheduler : public BackfillScheduler {
  public:
-  BackfillScheduler(PipelineJob* const dag_root, StmtExecStatus* exec_status);
-  virtual ~BackfillScheduler();
+  FineGrainBackfillScheduler(PipelineJob* const dag_root,
+                             StmtExecStatus* exec_status);
+  virtual ~FineGrainBackfillScheduler();
   static void ScheduleJob(caf::event_based_actor* self,
-                          BackfillScheduler* scheduler);
-  PipelineJob* GetPivotJob();
-  void InitThread();
-  virtual void CreateActor();
-
-  Lock lock_;
-  set<PipelineJob*> extra_jobs_;
-
- private:
-  PipelineJob* pivot_jobs_;
-  RetCode ComputeJobRank();
-  void ComputeTaskNum();
+                          FineGrainBackfillScheduler* scheduler);
 };
 }
 }  // namespace claims
 
-#endif  //  SCHEDULER_BACKFILL_SCHEDULER_H_
+#endif  //  SCHEDULER_FINE_GRAIN_BACKFILL_SCHEDULER_H_

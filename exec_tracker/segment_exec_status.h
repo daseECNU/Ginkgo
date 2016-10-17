@@ -48,7 +48,8 @@ const int TryReportTimes = 20;
 class SegmentExecStatus {
  public:
   enum ExecStatus { kError, kOk, kCancelled, kDone };
-  SegmentExecStatus(NodeSegmentID node_segment_id, unsigned int coor_node_id);
+  SegmentExecStatus(NodeSegmentID node_segment_id, unsigned int coor_node_id,
+                    bool is_pivot);
   SegmentExecStatus(NodeSegmentID node_segment_id);
   virtual ~SegmentExecStatus();
   // first cancel data source, e.t. exchange merger
@@ -74,6 +75,7 @@ class SegmentExecStatus {
   NodeSegmentID node_segment_id_;
   unsigned int coor_node_id_;
   u_int64_t logic_time_;
+  bool is_pivot_;
 
  private:
   ExecStatus exec_status_;

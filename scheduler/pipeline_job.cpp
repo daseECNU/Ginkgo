@@ -121,9 +121,12 @@ RetCode PipelineJob::DirectExecuteJob(StmtExecStatus* const stmt_exec_status) {
 #endif
   // the id of stage_task corresponding to the order to stage_task_ vector
   // note the top task id =0
+  // as some scheduler don't set job status, so if it's set kExtra, so not
+  // kPivot
+  bool is_pivot = (kExtra == job_status_ ? false : true);
   for (u_int16_t id = 0; id < stage_tasks_.size(); ++id) {
     stage_tasks_[id]->SendAndStartPlan(stmt_exec_status,
-                                       job_id_ * kMaxTaskIdNum + id);
+                                       job_id_ * kMaxTaskIdNum + id, is_pivot);
   }
 #ifdef SYN
   // just check the top task(id=0) is Done?
@@ -168,47 +171,20 @@ void PipelineJob::ExecuteJob(caf::event_based_actor* self, PipelineJob* job,
           job->node_allocated_thread_[it->first] +=
               scheduler->thread_rest_[it->first];
           scheduler->thread_rest_[it->first] = 0;
-          /*          self->sync_send(Environment::getInstance()
-                                    ->get_slave_node()
-                                    ->GetNodeActorFromId(it->first),
-                                EpdJobAtom::value, job->get_job_id(),
-                                scheduler->thread_rest_[it->first])
-                    .then(
-
-                        [=](OkAtom) {
-
-                          job->node_allocated_thread_[it->first] +=
-                              scheduler->thread_rest_[it->first];
-                          scheduler->thread_rest_[it->first] = 0;
-                        },
-                        caf::others >>
-                            [=]() {
-                              LOG(WARNING)
-                                  << "pipeline execute job receives unknown
-          message";
-                            },
-                        caf::after(std::chrono::seconds(kTimeout)) >>
-                            [&]() {
-                              LOG(WARNING)
-                                  << "expand execution job= " <<
-          job->get_job_id()
-                                  << " timeout!";
-                            }
-
-                        );*/
         }
       },
       [=](EpdJobAtom) {
         LOG(INFO) << "query, job id= "
                   << scheduler->get_stmt_exec_status()->get_query_id() << " , "
                   << job->job_id_ << " will be expaned!";
-        /*       for (auto it = job->node_task_num_.begin();
+        for (auto it = job->node_task_num_.begin();
              it != job->node_task_num_.end(); ++it) {
           self->sync_send(Environment::getInstance()
                               ->get_slave_node()
                               ->GetNodeActorFromId(it->first),
-                          EpdJobAtom::value, job->get_job_id(),
-                          scheduler->thread_rest_[it->first])
+                          EpdJobAtom::value,
+                          scheduler->get_stmt_exec_status()->get_query_id(),
+                          job->get_job_id())
               .then(
 
                   [=](OkAtom) {
@@ -229,7 +205,7 @@ void PipelineJob::ExecuteJob(caf::event_based_actor* self, PipelineJob* job,
 
                   );
         }
- */
+
       },
       [=](SkJobAtom) {
         LOG(INFO) << "query, job id= "
@@ -240,7 +216,9 @@ void PipelineJob::ExecuteJob(caf::event_based_actor* self, PipelineJob* job,
           self->sync_send(Environment::getInstance()
                               ->get_slave_node()
                               ->GetNodeActorFromId(it->first),
-                          EpdJobAtom::value, job->get_job_id(),
+                          SkJobAtom::value,
+                          scheduler->get_stmt_exec_status()->get_query_id(),
+                          job->get_job_id(),
                           -job->node_allocated_thread_[it->first])
               .then(
 
