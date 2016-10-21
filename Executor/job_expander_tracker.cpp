@@ -75,26 +75,20 @@ void JobExpanderTracker::ScheduleResource(caf::event_based_actor* self,
                                           JobExpanderTracker* job_epd_tracker) {
   self->become(
 
-      [=](SchRAtom, int cur) {
-        if (cur >= job_epd_tracker->expander_id_to_status_.size()) {
-          cur = 0;
-        }
+      [=](SchRAtom) {
+
         job_epd_tracker->get_sch_lock().acquire();
-        job_epd_tracker->PeriodSchedule(cur);
+        job_epd_tracker->PeriodSchedule();
         job_epd_tracker->get_sch_lock().release();
 
         self->delayed_send(self,
                            std::chrono::milliseconds(
                                Config::expander_adaptivity_check_frequency),
-                           SchRAtom::value, ++cur);
+                           SchRAtom::value);
       },
-      [=](ForceSchR, int thread_num) {
+      [=](ForceSchR) {
         job_epd_tracker->get_sch_lock().acquire();
-        if (thread_num > 0) {
-          job_epd_tracker->ForceExpand(thread_num);
-        } else if (thread_num < 0) {
-          job_epd_tracker->ForceShrink(-thread_num);
-        }
+        job_epd_tracker->ForceShrink();
         job_epd_tracker->get_sch_lock().release();
       },
       [=](ExitAtom) { self->quit(); },
@@ -103,76 +97,77 @@ void JobExpanderTracker::ScheduleResource(caf::event_based_actor* self,
                            << "ScheduleResource receives unkown message";
                      });
   if (Config::enable_expander_adaptivity) {
-    self->send(self, SchRAtom::value, 0);
+    self->send(self, SchRAtom::value);
   }
 }
 
-RetCode JobExpanderTracker::PeriodSchedule(int cur) {
+RetCode JobExpanderTracker::PeriodSchedule() {
   RetCode ret = rSuccess;
   map_lock_.acquire();
   if (expander_id_to_expander_.empty()) {
     map_lock_.release();
     return ret;
   }
-  auto it = expander_id_to_status_.begin();
-  for (int tmp = 0; tmp < cur; tmp++) {
-    it++;
-  }
-  ExpanderID id = it->first;
-  assert(!expander_id_to_expander_.empty());
-  LOG(INFO) << "Instance throughput: "
-            << it->second->perf_info.report_instance_performance_in_millibytes()
-            << " Mbytes";
-  const unsigned int cur_parallelism =
-      expander_id_to_expander_[it->first]->GetDegreeOfParallelism();
-  cur_thread_num_ = cur_parallelism;
-  int decision = DecideSchedule(it->second->current_stage, cur_parallelism);
-  LOG(INFO) << "^^^ stage job_id= " << job_id_ << " is pivot = " << is_pivot_
-            << "  "
-            << it->second->current_stage.dataflow_src_.end_point_name_.c_str()
-            << " ---->   "
-            << it->second->current_stage.dataflow_desc_.end_point_name_.c_str()
-            << "  parallelism= " << cur_parallelism
-            << " extra_cur_thread_num_= " << extra_cur_thread_num_
-            << " pivot_cur_thread_num_= " << pivot_cur_thread_num_;
-  map_lock_.release();
-  lock_adapt_.acquire();
-  if (expander_id_to_expander_.find(it->first) ==
-      expander_id_to_expander_.end()) {
-    LOG(WARNING) << "expander_id= " << it->first.first << " , "
-                 << it->first.second
-                 << " has been erased from expander_id_to_expander_, so "
-                    "coundn't expand or shrink it!";
+  for (auto it = expander_id_to_status_.begin();
+       it != expander_id_to_status_.end(); ++it) {
+    ExpanderID id = it->first;
+    assert(!expander_id_to_expander_.empty());
+    LOG(INFO)
+        << "Instance throughput: "
+        << it->second->perf_info.report_instance_performance_in_millibytes()
+        << " Mbytes";
+    const unsigned int cur_parallelism =
+        expander_id_to_expander_[it->first]->GetDegreeOfParallelism();
+    cur_thread_num_ = cur_parallelism;
+    int decision = DecideSchedule(it->second->current_stage, cur_parallelism);
+    LOG(INFO)
+        << "^^^ stage job_id= " << job_id_ << " is pivot = " << is_pivot_
+        << "  "
+        << it->second->current_stage.dataflow_src_.end_point_name_.c_str()
+        << " ---->   "
+        << it->second->current_stage.dataflow_desc_.end_point_name_.c_str()
+        << "  parallelism= " << cur_parallelism
+        << " extra_cur_thread_num_= " << extra_cur_thread_num_
+        << " pivot_cur_thread_num_= " << pivot_cur_thread_num_;
+    map_lock_.release();
+    lock_adapt_.acquire();
+    if (expander_id_to_expander_.find(it->first) ==
+        expander_id_to_expander_.end()) {
+      LOG(WARNING) << "expander_id= " << it->first.first << " , "
+                   << it->first.second
+                   << " has been erased from expander_id_to_expander_, so "
+                      "coundn't expand or shrink it!";
+      lock_adapt_.release();
+      return rFailure;
+    }
+    switch (decision) {
+      case DECISION_EXPAND: {
+        if (true == expander_id_to_expander_[it->first]->Expand()) {
+          ++cur_thread_num_;
+          LOG(INFO) << "=========Expanding======== " << cur_parallelism
+                    << " --> " << cur_parallelism + 1;
+        } else {
+          LOG(WARNING) << "=========Expanding======== Failed to expand!";
+        }
+        break;
+      }
+      case DECISION_SHRINK: {
+        if (true == expander_id_to_expander_[it->first]->Shrink()) {
+          --cur_thread_num_;
+          LOG(INFO) << "=========Shrinking======== " << cur_parallelism
+                    << " --> " << cur_parallelism - 1;
+        } else {
+          LOG(WARNING) << "=========Shrinking======== Failed to shrink!";
+        }
+        break;
+      }
+      default: {
+        LOG(INFO) << "=========KEEP========";
+        break;
+      }
+    }
     lock_adapt_.release();
-    return rFailure;
   }
-  switch (decision) {
-    case DECISION_EXPAND: {
-      if (true == expander_id_to_expander_[it->first]->Expand()) {
-        ++cur_thread_num_;
-        LOG(INFO) << "=========Expanding======== " << cur_parallelism << " --> "
-                  << cur_parallelism + 1;
-      } else {
-        LOG(WARNING) << "=========Expanding======== Failed to expand!";
-      }
-      break;
-    }
-    case DECISION_SHRINK: {
-      if (true == expander_id_to_expander_[it->first]->Shrink()) {
-        --cur_thread_num_;
-        LOG(INFO) << "=========Shrinking======== " << cur_parallelism << " --> "
-                  << cur_parallelism - 1;
-      } else {
-        LOG(WARNING) << "=========Shrinking======== Failed to shrink!";
-      }
-      break;
-    }
-    default: {
-      LOG(INFO) << "=========KEEP========";
-      break;
-    }
-  }
-  lock_adapt_.release();
   return ret;
 }
 
@@ -212,13 +207,15 @@ RetCode JobExpanderTracker::ForceExpand(int thread_num) {
   }
   return ret;
 }
-// reverse iterate the expander_id_to_expander_ to reduce one thread for every
+// reverse iterate the expander_id_to_expander_ to reduce all threads for every
 // expander
-RetCode JobExpanderTracker::ForceShrink(int thread_num) {
+RetCode JobExpanderTracker::ForceShrink() {
   RetCode ret = rSuccess;
-  for (int i = 0; i < thread_num;) {
-    for (auto it = expander_id_to_expander_.begin();
-         it != expander_id_to_expander_.end() && i < thread_num; ++it) {
+  int thread_num = 0;
+  for (auto it = expander_id_to_expander_.begin();
+       it != expander_id_to_expander_.end(); ++it) {
+    thread_num = it->second->GetDegreeOfParallelism();
+    for (int i = 0; i < thread_num;) {
       int tmp = 0;
       while (true) {
         tmp = it->second->Shrink();
@@ -244,6 +241,8 @@ RetCode JobExpanderTracker::ForceShrink(int thread_num) {
           LOG(ERROR) << "job expander id= " << it->first.first << " , "
                      << it->first.second
                      << " the thread-num isn't consistent to remote info !!";
+          i = thread_num;
+          break;
         }
       }
     }
@@ -460,19 +459,39 @@ RetCode JobExpanderTracker::UnRegisterExpander(ExpanderID expander_id) {
 }
 
 void JobExpanderTracker::AddOneCurThread() {
+  thread_num_lock_.acquire();
   if (is_pivot_) {
     ++pivot_cur_thread_num_;
   } else {
     ++extra_cur_thread_num_;
   }
+  thread_num_lock_.release();
+}
+
+void JobExpanderTracker::set_is_pivot(const bool is_pivot) {
+  thread_num_lock_.acquire();
+  is_pivot_ = is_pivot;
+  u_int16_t thread_num = 0;
+  for (auto it = expander_id_to_expander_.begin();
+       it != expander_id_to_expander_.end(); ++it) {
+    thread_num += it->second->GetDegreeOfParallelism();
+  }
+  assert(extra_cur_thread_num_ >= thread_num);
+  pivot_cur_thread_num_ += thread_num;
+  extra_cur_thread_num_ -= extra_cur_thread_num_;
+  thread_num_lock_.release();
 }
 
 void JobExpanderTracker::DeleteOneCurThread() {
+  thread_num_lock_.acquire();
   if (is_pivot_) {
     --pivot_cur_thread_num_;
   } else {
     --extra_cur_thread_num_;
   }
+  assert(pivot_cur_thread_num_ < 600);
+  assert(extra_cur_thread_num_ < 600);
+  thread_num_lock_.release();
 }
 
 }  // namespace claims

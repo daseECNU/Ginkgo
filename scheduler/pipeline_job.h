@@ -50,7 +50,7 @@ class PipelineJob {
  public:
   enum JobStatus { kQueued, kReady, kPivot, kExtra, kDone };
   PipelineJob(vector<StageTask*> stage_task, vector<PipelineJob*> parents,
-              uint16_t job_id);
+              uint16_t job_id, float cost);
   virtual ~PipelineJob();
   void PrintJob();
   PipelineJob* const get_child() const { return child_; }
@@ -72,6 +72,8 @@ class PipelineJob {
   }
   bool operator<(PipelineJob* const a) const { return rank_ > a->rank_; }
   RetCode ComputeJobRank(float upper_rank = 0);
+  RetCode ComputeJobRank(float& low_rank, float upper_rank = 0);
+
   RetCode GetReadyJobs(set<PipelineJob*>& ready_jobs);
   RetCode DirectExecuteJob(StmtExecStatus* const stmt_exec_status);
   bool IsReadyJob();
@@ -116,7 +118,7 @@ class PipelineJob {
   PipelineJob* child_;
   uint16_t job_id_;
   int waiting_parents_;
-  float rank_;
+  float rank_, cost_;
   SchedulerBase* scheduler_;
 };
 }

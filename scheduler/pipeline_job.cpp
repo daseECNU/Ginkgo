@@ -44,14 +44,16 @@ namespace claims {
 namespace scheduler {
 
 PipelineJob::PipelineJob(vector<StageTask*> stage_tasks,
-                         vector<PipelineJob*> parents, uint16_t job_id)
+                         vector<PipelineJob*> parents, uint16_t job_id,
+                         float cost)
     : stage_tasks_(stage_tasks),
       parents_(parents),
       job_id_(job_id),
       child_(NULL),
       rank_(-1),
       job_status_(kQueued),
-      scheduler_(NULL) {
+      scheduler_(NULL),
+      cost_(cost) {
   // reorder the stage_task of one pipeline from top to down
   reverse(stage_tasks_.begin(), stage_tasks_.end());
   for (int i = 0; i < kMaxNodeNum; ++i) {
@@ -64,9 +66,9 @@ PipelineJob::~PipelineJob() {
   // TODO Auto-generated destructor stub
 }
 void PipelineJob::PrintJob() {
-  std::cout << "***** job_id= " << job_id_ << " rank = " << rank_
-            << "***** has " << stage_tasks_.size() << " stage_task begin*****"
-            << std::endl;
+  std::cout << "***** job_id= " << job_id_ << " cost= " << cost_
+            << " rank = " << rank_ << "***** has " << stage_tasks_.size()
+            << " stage_task begin*****" << std::endl;
   int i = 0;
   for (auto it = stage_tasks_.begin(); it != stage_tasks_.end(); ++it, ++i) {
     std::cout << "+++++ job_id= " << job_id_ << "+++++ task_id= " << i
@@ -90,11 +92,29 @@ void PipelineJob::set_child(PipelineJob* const child) {
 }
 RetCode PipelineJob::ComputeJobRank(float upper_rank) {
   RetCode ret = rSuccess;
+#ifdef LEVEL_RANK
   set_waiting_parents(parents_.size());
   set_rank(upper_rank + 1);
   for (auto it = parents_.begin(); it != parents_.end(); ++it) {
     (*it)->ComputeJobRank(get_rank());
   }
+#else
+  float low_rank = 0;
+  ret = ComputeJobRank(low_rank, upper_rank);
+#endif
+  return ret;
+}
+RetCode PipelineJob::ComputeJobRank(float& low_rank, float upper_rank) {
+  RetCode ret = rSuccess;
+  set_waiting_parents(parents_.size());
+  float rank = 0;
+  float max_rank = 0;
+  for (auto it = parents_.begin(); it != parents_.end(); ++it) {
+    (*it)->ComputeJobRank(rank, upper_rank + 1);
+    max_rank = max(max_rank, rank);
+  }
+  rank_ = max_rank + cost_;
+  low_rank = rank_;
   return ret;
 }
 
@@ -166,12 +186,6 @@ void PipelineJob::ExecuteJob(caf::event_based_actor* self, PipelineJob* job,
                   << job->job_id_ << " will be executed!";
         job->DirectExecuteJob(scheduler->get_stmt_exec_status());
 
-        for (auto it = job->node_task_num_.begin();
-             it != job->node_task_num_.end(); ++it) {
-          job->node_allocated_thread_[it->first] +=
-              scheduler->thread_rest_[it->first];
-          scheduler->thread_rest_[it->first] = 0;
-        }
       },
       [=](EpdJobAtom) {
         LOG(INFO) << "query, job id= "
@@ -188,19 +202,28 @@ void PipelineJob::ExecuteJob(caf::event_based_actor* self, PipelineJob* job,
               .then(
 
                   [=](OkAtom) {
-                    job->node_allocated_thread_[it->first] +=
-                        scheduler->thread_rest_[it->first];
-                    scheduler->thread_rest_[it->first] = 0;
+                    LOG(INFO)
+                        << "query, job, node id= "
+                        << scheduler->get_stmt_exec_status()->get_query_id()
+                        << " , " << job->job_id_ << " , " << it->first
+                        << " send msg: be expaned successfully!";
                   },
                   caf::others >>
                       [=]() {
                         LOG(WARNING)
+                            << "query, job, node id= "
+                            << scheduler->get_stmt_exec_status()->get_query_id()
+                            << " , " << job->job_id_ << " , " << it->first
                             << "pipeline expand job receives unknown message";
                       },
                   caf::after(std::chrono::seconds(kTimeout)) >>
                       [&]() {
-                        LOG(WARNING) << "expand job " << job->get_job_id()
-                                     << " timeout!";
+                        LOG(WARNING)
+                            << "query, job, node id= "
+                            << scheduler->get_stmt_exec_status()->get_query_id()
+                            << " , " << job->job_id_ << " , " << it->first
+                            << "expand job " << job->get_job_id()
+                            << " timeout!";
                       }
 
                   );
@@ -218,24 +241,32 @@ void PipelineJob::ExecuteJob(caf::event_based_actor* self, PipelineJob* job,
                               ->GetNodeActorFromId(it->first),
                           SkJobAtom::value,
                           scheduler->get_stmt_exec_status()->get_query_id(),
-                          job->get_job_id(),
-                          -job->node_allocated_thread_[it->first])
+                          job->get_job_id())
               .then(
 
                   [=](OkAtom) {
-                    scheduler->thread_rest_[it->first] +=
-                        job->node_allocated_thread_[it->first];
-                    job->node_allocated_thread_[it->first] = 0;
+                    LOG(INFO)
+                        << "query, job, node id= "
+                        << scheduler->get_stmt_exec_status()->get_query_id()
+                        << " , " << job->job_id_ << " , " << it->first
+                        << " send msg: be shrunk successfully!";
                   },
                   caf::others >>
                       [=]() {
                         LOG(WARNING)
-                            << "pipeline shrink job receives unknown message";
+                            << "query, job, node id= "
+                            << scheduler->get_stmt_exec_status()->get_query_id()
+                            << " , " << job->job_id_ << " , " << it->first
+                            << " pipeline shrink job receives unknown message";
                       },
                   caf::after(std::chrono::seconds(kTimeout)) >>
                       [&]() {
-                        LOG(WARNING) << "shrink job " << job->get_job_id()
-                                     << " timeout!";
+                        LOG(WARNING)
+                            << "query, job, node id= "
+                            << scheduler->get_stmt_exec_status()->get_query_id()
+                            << " , " << job->job_id_ << " , " << it->first
+                            << "shrink job " << job->get_job_id()
+                            << " timeout!";
                       }
 
                   );

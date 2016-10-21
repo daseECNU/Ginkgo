@@ -122,35 +122,48 @@ void LogicalSort::SetColumnId(const PlanContext &plan_context) {
 
 PhysicalOperatorBase *LogicalSort::GetPhysicalPlan(const unsigned &blocksize) {
   PlanContext child_plan_context_ = child_->GetPlanContext();
-
-  // Get all of the data from other nodes if needed.
-  Expander::State expander_state;
-  expander_state.block_count_in_buffer_ = EXPANDER_BUFFER_SIZE;
-  expander_state.block_size_ = blocksize;
-  expander_state.init_thread_count_ = Config::initial_degree_of_parallelism;
-  expander_state.child_ = child_->GetPhysicalPlan(blocksize);
-  expander_state.schema_ = GetSchema(child_plan_context_.attribute_list_);
-  PhysicalOperatorBase *expander_lower = new Expander(expander_state);
-
-  ExchangeMerger::State exchange_state;
-  exchange_state.block_size_ = blocksize;
-  exchange_state.child_ = expander_lower;
-  exchange_state.exchange_id_ =
-      IDsGenerator::getInstance()->generateUniqueExchangeID();
-  exchange_state.schema_ = GetSchema(child_plan_context_.attribute_list_);
+  int coor_id = Environment::getInstance()->get_slave_node()->get_node_id();
+  PhysicalOperatorBase *child_plan = child_->GetPhysicalPlan(blocksize);
   vector<NodeID> lower_id_list =
       GetInvolvedNodeID(child_plan_context_.plan_partitioner_);
-  exchange_state.lower_id_list_ = lower_id_list;  // upper
-  exchange_state.partition_schema_ = partition_schema::set_hash_partition(0);
-  // TODO(admin): compute the upper_ip_list to do reduce side sort
-  vector<NodeID> upper_ip_list;
-  upper_ip_list.push_back(0);
-  exchange_state.upper_id_list_ = upper_ip_list;  // lower
-  PhysicalOperatorBase *exchange = new ExchangeMerger(exchange_state);
+  if (lower_id_list.size() == 1 && lower_id_list[0] == coor_id) {
+    // local
 
+  } else {
+    // Get all of the data from other nodes if needed.
+
+    Expander::State expander_state;
+    expander_state.block_count_in_buffer_ = EXPANDER_BUFFER_SIZE;
+    expander_state.block_size_ = blocksize;
+    expander_state.init_thread_count_ = Config::initial_degree_of_parallelism;
+    expander_state.child_ = child_plan;
+    expander_state.schema_ = GetSchema(child_plan_context_.attribute_list_);
+    PhysicalOperatorBase *expander_lower = new Expander(expander_state);
+    expander_lower->agg_cardi_ = expander_state.child_->agg_cardi_;
+    expander_lower->total_agg_cardi_ = expander_state.child_->total_agg_cardi_;
+
+    ExchangeMerger::State exchange_state;
+    exchange_state.block_size_ = blocksize;
+    exchange_state.child_ = expander_lower;
+    exchange_state.exchange_id_ =
+        IDsGenerator::getInstance()->generateUniqueExchangeID();
+    exchange_state.schema_ = GetSchema(child_plan_context_.attribute_list_);
+
+    exchange_state.lower_id_list_ = lower_id_list;  // upper
+    exchange_state.partition_schema_ = partition_schema::set_hash_partition(0);
+    // TODO(admin): compute the upper_ip_list to do reduce side sort
+    vector<NodeID> upper_ip_list;
+    upper_ip_list.push_back(coor_id);
+    exchange_state.upper_id_list_ = upper_ip_list;  // lower
+    PhysicalOperatorBase *exchange = new ExchangeMerger(exchange_state);
+    exchange->agg_cardi_ = exchange_state.child_->agg_cardi_;
+    exchange->total_agg_cardi_ =
+        exchange->agg_cardi_ + exchange_state.child_->total_agg_cardi_;
+    child_plan = exchange;
+  }
   PhysicalSort::State reducer_state;
   reducer_state.block_size_ = blocksize;
-  reducer_state.child_ = exchange;
+  reducer_state.child_ = child_plan;
 #ifndef NEWCONDI
   // Actually we just need the column number in the end.
   for (unsigned i = 0; i < order_by_attr_.size(); i++) {
@@ -163,7 +176,9 @@ PhysicalOperatorBase *LogicalSort::GetPhysicalPlan(const unsigned &blocksize) {
 #endif
   reducer_state.input_schema_ = GetSchema(child_plan_context_.attribute_list_);
   PhysicalOperatorBase *reducer_sort = new PhysicalSort(reducer_state);
-
+  reducer_sort->agg_cardi_ = reducer_state.child_->agg_cardi_;
+  reducer_sort->total_agg_cardi_ =
+      reducer_sort->agg_cardi_ + reducer_state.child_->total_agg_cardi_;
   return reducer_sort;
 }
 

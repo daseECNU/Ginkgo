@@ -31,13 +31,16 @@
 #include <glog/logging.h>
 
 #include "caf/all.hpp"
+
+#include "../node_manager/base_node.h"
+#include "../scheduler/pipeline_job.h"
 #include "scheduler_base.h"
 namespace claims {
 namespace scheduler {
 
 FineGrainBackfillScheduler::FineGrainBackfillScheduler(
     PipelineJob* const dag_root, StmtExecStatus* stmt_exec_status)
-    : SchedulerBase(dag_root, stmt_exec_status) {}
+    : BackfillScheduler(dag_root, stmt_exec_status) {}
 
 FineGrainBackfillScheduler::~FineGrainBackfillScheduler() {
   // TODO Auto-generated destructor stub

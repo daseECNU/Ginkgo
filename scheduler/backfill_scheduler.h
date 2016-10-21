@@ -53,7 +53,7 @@ class BackfillScheduler : public SchedulerBase {
   Lock lock_;
   set<PipelineJob*> extra_jobs_;
 
- private:
+ protected:
   PipelineJob* pivot_jobs_;
   RetCode ComputeJobRank();
   void ComputeTaskNum();

@@ -46,6 +46,10 @@ using claims::physical_operator::ExchangeMerger;
 using claims::physical_operator::PhysicalProjectionScan;
 namespace claims {
 namespace logical_operator {
+static u_int64_t LogicalScan::TableAggeCardi[10][40] = {
+    {200000, 0, 10000, 0, 800000, 0, 150000, 0, 1500000, 0, 6001215, 0, 25, 0,
+     5}};
+
 LogicalScan::LogicalScan(std::vector<Attribute> attribute_list)
     : LogicalOperator(kLogicalScan),
       scan_attribute_list_(attribute_list),
@@ -210,7 +214,10 @@ PhysicalOperatorBase* LogicalScan::GetPhysicalPlan(const unsigned& block_size) {
   state.projection_id_ = target_projection_->getProjectionID();
   state.schema_ = GetSchema(plan_context_->attribute_list_);
   state.sample_rate_ = sample_rate_;
-  return new PhysicalProjectionScan(state);
+  PhysicalOperatorBase* scan = new PhysicalProjectionScan(state);
+  scan->agg_cardi_ = GetAggeCardi();
+  scan->total_agg_cardi_ = scan->agg_cardi_;
+  return scan;
 }
 
 bool LogicalScan::GetOptimalPhysicalPlan(
@@ -326,6 +333,13 @@ void LogicalScan::Print(int level) const {
        << Catalog::getInstance()
               ->getTable(target_projection_->getProjectionID().table_id)
               ->getTableName() << "   alias: " << table_alias_ << endl;
+}
+
+u_int64_t LogicalScan::GetAggeCardi() {
+  u_int64_t ret = 0;
+  TableID table_id = scan_attribute_list_[0].table_id_;
+  ret = TableAggeCardi[0][table_id];
+  return ret;
 }
 
 }  // namespace logical_operator

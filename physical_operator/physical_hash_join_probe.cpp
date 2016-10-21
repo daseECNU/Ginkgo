@@ -296,10 +296,11 @@ RetCode PhysicalHashJoinProbe::GetJobDAG(JobContext* const job_cnxt) {
     vector<NodeID> empty_node;  // the upper node of this stage-task is empty
     job_cnxt->set_stage_tasks((new StageTask(
         state_.child_left_, job_cnxt->get_node_id(), empty_node, 0)));
-    state_.child_left_ = NULL;
     // create pipeline-job
     pjob = new PipelineJob(job_cnxt->get_stage_tasks(), job_cnxt->get_parents(),
-                           job_cnxt->GenJobId());
+                           job_cnxt->GenJobId(),
+                           state_.child_left_->total_agg_cardi_ * 1.0);
+    state_.child_left_ = NULL;
     job_cnxt->ClearParents();
     job_cnxt->ClearStageTasks();
   } else {

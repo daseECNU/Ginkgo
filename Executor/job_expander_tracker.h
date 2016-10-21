@@ -163,9 +163,9 @@ class JobExpanderTracker {
   virtual ~JobExpanderTracker();
   static void ScheduleResource(caf::event_based_actor* self,
                                JobExpanderTracker* job_epd_tracker);
-  RetCode PeriodSchedule(int cur = 0);
+  RetCode PeriodSchedule();
   RetCode ForceExpand(int thread_num);
-  RetCode ForceShrink(int thread_num);
+  RetCode ForceShrink();
 
   void add_expander_id_to_expander(ExpanderID expander_id,
                                    ExpandabilityShrinkability* const expander) {
@@ -191,7 +191,7 @@ class JobExpanderTracker {
     map_lock_.release();
     return ret;
   }
-  void set_is_pivot(const bool is_pivot) { is_pivot_ = is_pivot; }
+  void set_is_pivot(const bool is_pivot);
   void AddOneCurThread();
   void DeleteOneCurThread();
   static atomic_ushort extra_cur_thread_num_, pivot_cur_thread_num_;
@@ -199,7 +199,7 @@ class JobExpanderTracker {
  private:
   atomic_bool is_pivot_;
   atomic_ushort thread_num_threshold_, cur_thread_num_;
-  Lock sch_lock_, lock_adapt_, map_lock_;
+  Lock sch_lock_, lock_adapt_, map_lock_, thread_num_lock_;
   u_int64_t job_id_;
   actor job_expander_actor_;
   // have order to schedule resource for different priority

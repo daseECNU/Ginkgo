@@ -179,7 +179,11 @@ PhysicalOperatorBase* LogicalProject::GetPhysicalPlan(
   state.schema_output_ = GetOutputSchema();
   state.expr_tree_ = expression_tree_;
   state.expr_list_ = expr_list_;
-  return new PhysicalProject(state);
+  PhysicalOperatorBase* project = new PhysicalProject(state);
+  project->agg_cardi_ = state.child_->agg_cardi_;
+  project->total_agg_cardi_ =
+      project->agg_cardi_ + state.child_->total_agg_cardi_;
+  return project;
 }
 
 // construct a schema from attribute list of PlanContext

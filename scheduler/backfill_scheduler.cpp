@@ -43,7 +43,7 @@ BackfillScheduler::BackfillScheduler(PipelineJob* const dag_root,
     : SchedulerBase(dag_root, stmt_exec_status) {}
 
 BackfillScheduler::~BackfillScheduler() {}
-
+// for scheduling well, so guarantee the thread info is updated in time
 void BackfillScheduler::ScheduleJob(caf::event_based_actor* self,
                                     BackfillScheduler* scheduler) {
   LOG(INFO) << "BackfillScheduler starts up now!";
@@ -55,16 +55,16 @@ void BackfillScheduler::ScheduleJob(caf::event_based_actor* self,
         PipelineJob* pjob = scheduler->GetPivotJob();
         if (NULL != pjob) {
           // decide to shrink which jobs to release resource
-          // naive method : shrink every extra jobs that is confict with pjob
-          /*
+          // naive method : shrink every extra jobs that is conflict with pjob
+
           for (auto it = scheduler->extra_jobs_.begin();
                it != scheduler->extra_jobs_.end(); ++it) {
             for (auto mit = pjob->node_task_num_.begin();
                  mit != pjob->node_task_num_.end(); ++mit) {
               if (0 != (*it)->node_allocated_thread_[mit->first]) {
-                LOG(INFO) << "query, job id= "
+                LOG(INFO) << "query, job id, node = "
                           << scheduler->stmt_exec_status_->get_query_id()
-                          << " , " << (*it)->get_job_id()
+                          << " , " << (*it)->get_job_id() << " , " << mit->first
                           << " will be shrunk when active pivot job";
                 scheduler->thread_rest_[mit->first] +=
                     (*it)->node_allocated_thread_[mit->first];
@@ -73,7 +73,7 @@ void BackfillScheduler::ScheduleJob(caf::event_based_actor* self,
               }
             }
           }
-          */
+
           LOG(INFO) << "query ,job id, status = "
                     << scheduler->stmt_exec_status_->get_query_id() << " , "
                     << pjob->get_job_id() << " , " << pjob->get_job_status()

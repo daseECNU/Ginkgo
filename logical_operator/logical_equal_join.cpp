@@ -618,6 +618,8 @@ PhysicalOperatorBase* LogicalEqualJoin::GetPhysicalPlan(
       expander_state.child_ = child_iterator_left;
       expander_state.schema_ = GetSchema(dataflow_left.attribute_list_);
       PhysicalOperatorBase* expander = new Expander(expander_state);
+      expander->agg_cardi_ = expander_state.child_->agg_cardi_;
+      expander->total_agg_cardi_ = expander_state.child_->total_agg_cardi_;
 
       NodeTracker* node_tracker = NodeTracker::GetInstance();
       ExchangeMerger::State exchange_state;
@@ -650,6 +652,9 @@ PhysicalOperatorBase* LogicalEqualJoin::GetPhysicalPlan(
       //                                 dataflow_right.attribute_list_);
       exchange_state.schema_ = GetSchema(dataflow_left.attribute_list_);
       PhysicalOperatorBase* exchange = new ExchangeMerger(exchange_state);
+      exchange->agg_cardi_ = exchange_state.child_->agg_cardi_;
+      exchange->total_agg_cardi_ =
+          exchange->agg_cardi_ + exchange_state.child_->total_agg_cardi_;
       state_probe.child_left_ = exchange;
       state_probe.child_right_ = child_iterator_right;
       break;
@@ -662,6 +667,8 @@ PhysicalOperatorBase* LogicalEqualJoin::GetPhysicalPlan(
       expander_state.child_ = child_iterator_right;
       expander_state.schema_ = GetSchema(dataflow_right.attribute_list_);
       PhysicalOperatorBase* expander = new Expander(expander_state);
+      expander->agg_cardi_ = expander_state.child_->agg_cardi_;
+      expander->total_agg_cardi_ = expander_state.child_->total_agg_cardi_;
 
       NodeTracker* node_tracker = NodeTracker::GetInstance();
       ExchangeMerger::State exchange_state;
@@ -702,6 +709,10 @@ PhysicalOperatorBase* LogicalEqualJoin::GetPhysicalPlan(
 
       exchange_state.schema_ = GetSchema(dataflow_right.attribute_list_);
       PhysicalOperatorBase* exchange = new ExchangeMerger(exchange_state);
+      exchange->agg_cardi_ = exchange_state.child_->agg_cardi_;
+      exchange->total_agg_cardi_ =
+          exchange->agg_cardi_ + exchange_state.child_->total_agg_cardi_;
+
       state_probe.child_left_ = child_iterator_left;
       state_probe.child_right_ = exchange;
       break;
@@ -716,6 +727,8 @@ PhysicalOperatorBase* LogicalEqualJoin::GetPhysicalPlan(
       expander_state_l.child_ = child_iterator_left;
       expander_state_l.schema_ = GetSchema(dataflow_left.attribute_list_);
       PhysicalOperatorBase* expander_l = new Expander(expander_state_l);
+      expander_l->agg_cardi_ = expander_state_l.child_->agg_cardi_;
+      expander_l->total_agg_cardi_ = expander_state_l.child_->total_agg_cardi_;
 
       ExchangeMerger::State l_exchange_state;
       l_exchange_state.block_size_ = block_size;
@@ -738,7 +751,9 @@ PhysicalOperatorBase* LogicalEqualJoin::GetPhysicalPlan(
               dataflow_left.attribute_list_, left_partition_key));
       l_exchange_state.schema_ = GetSchema(dataflow_left.attribute_list_);
       PhysicalOperatorBase* l_exchange = new ExchangeMerger(l_exchange_state);
-
+      l_exchange->agg_cardi_ = l_exchange_state.child_->agg_cardi_;
+      l_exchange->total_agg_cardi_ =
+          l_exchange->agg_cardi_ + l_exchange_state.child_->total_agg_cardi_;
       // build right input
 
       Expander::State expander_state_r;
@@ -749,6 +764,8 @@ PhysicalOperatorBase* LogicalEqualJoin::GetPhysicalPlan(
       expander_state_r.child_ = child_iterator_right;
       expander_state_r.schema_ = GetSchema(dataflow_right.attribute_list_);
       PhysicalOperatorBase* expander_r = new Expander(expander_state_r);
+      expander_r->agg_cardi_ = expander_state_r.child_->agg_cardi_;
+      expander_r->total_agg_cardi_ = expander_state_r.child_->total_agg_cardi_;
 
       ExchangeMerger::State r_exchange_state;
       r_exchange_state.block_size_ = block_size;
@@ -770,6 +787,9 @@ PhysicalOperatorBase* LogicalEqualJoin::GetPhysicalPlan(
               dataflow_right.attribute_list_, right_partition_key));
       r_exchange_state.schema_ = GetSchema(dataflow_right.attribute_list_);
       PhysicalOperatorBase* r_exchange = new ExchangeMerger(r_exchange_state);
+      r_exchange->agg_cardi_ = r_exchange_state.child_->agg_cardi_;
+      r_exchange->total_agg_cardi_ =
+          r_exchange->agg_cardi_ + r_exchange_state.child_->total_agg_cardi_;
 
       // finally  build the join iterator itself
       state_probe.child_left_ = l_exchange;
@@ -789,6 +809,9 @@ PhysicalOperatorBase* LogicalEqualJoin::GetPhysicalPlan(
   state_build.join_id_ = join_id;
   state_build.join_index_left_ = GetLeftJoinKeyIds();
   PhysicalHashJoinBuild* join_build = new PhysicalHashJoinBuild(state_build);
+  join_build->agg_cardi_ = state_build.child_left_->agg_cardi_;
+  join_build->total_agg_cardi_ =
+      join_build->agg_cardi_ + state_build.child_left_->total_agg_cardi_;
 
   // create Expander to control PhysicalHashJoinBuild
   Expander::State expander_build_state;
@@ -801,11 +824,16 @@ PhysicalOperatorBase* LogicalEqualJoin::GetPhysicalPlan(
   expander_build_state.child_ = join_build;
   expander_build_state.schema_ = GetSchema(dataflow_left.attribute_list_);
   PhysicalOperatorBase* expander_build = new Expander(expander_build_state);
+  expander_build->agg_cardi_ = expander_build_state.child_->agg_cardi_;
+  expander_build->total_agg_cardi_ =
+      expander_build_state.child_->total_agg_cardi_;
 
   // create PhysicalHashJoinProbe
   state_probe.child_left_ = expander_build;
   join_probe = new PhysicalHashJoinProbe(state_probe);
-
+  join_probe->agg_cardi_ = state_probe.child_right_->agg_cardi_;
+  join_probe->total_agg_cardi_ =
+      join_probe->agg_cardi_ + state_probe.child_right_->total_agg_cardi_;
   return join_probe;
 }
 #endif

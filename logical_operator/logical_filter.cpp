@@ -134,6 +134,9 @@ PhysicalOperatorBase* LogicalFilter::GetPhysicalPlan(
   state.condition_ = condition_;
   state.schema_ = GetSchema(plan_context.attribute_list_);
   PhysicalOperatorBase* filter = new PhysicalFilter(state);
+  filter->agg_cardi_ = child_iterator->agg_cardi_ * 0.5;
+  filter->total_agg_cardi_ =
+      filter->agg_cardi_ + child_iterator->total_agg_cardi_;
   return filter;
 }
 

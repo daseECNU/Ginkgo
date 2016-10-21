@@ -65,11 +65,13 @@ class LogicalScan : public LogicalOperator {
                               PhysicalPlanDescriptor& physical_plan_descriptor,
                               const unsigned& kBlock_size = 4096 * 1024);
   void ChangeAliasAttr();
+  static u_int64_t TableAggeCardi[10][40];
 
  private:
   /**check whether all the involved attributes are in the same projection.*/
   bool IsInASingleProjection() const;
   void Print(int level = 0) const;
+  u_int64_t GetAggeCardi();
 
  private:
   std::vector<Attribute> scan_attribute_list_;

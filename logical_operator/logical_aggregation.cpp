@@ -314,6 +314,9 @@ PhysicalOperatorBase* LogicalAggregation::GetPhysicalPlan(
       local_agg_state.agg_node_type_ =
           PhysicalAggregation::State::kNotHybridAgg;
       ret = new PhysicalAggregation(local_agg_state);
+      ret->agg_cardi_ = local_agg_state.child_->agg_cardi_;
+      ret->total_agg_cardi_ =
+          local_agg_state.child_->total_agg_cardi_ + ret->agg_cardi_;
       break;
     }
     case kLocalAggReparGlobalAgg: {
@@ -321,6 +324,11 @@ PhysicalOperatorBase* LogicalAggregation::GetPhysicalPlan(
           PhysicalAggregation::State::kHybridAggLocal;
       PhysicalAggregation* local_aggregation =
           new PhysicalAggregation(local_agg_state);
+      local_aggregation->agg_cardi_ = local_agg_state.child_->agg_cardi_;
+      local_aggregation->total_agg_cardi_ =
+          local_aggregation->agg_cardi_ +
+          local_agg_state.child_->total_agg_cardi_;
+
       Expander::State expander_state;
       expander_state.block_count_in_buffer_ = EXPANDER_BUFFER_SIZE;
       expander_state.block_size_ = block_size;
@@ -328,6 +336,10 @@ PhysicalOperatorBase* LogicalAggregation::GetPhysicalPlan(
       expander_state.child_ = local_aggregation;
       expander_state.schema_ = local_agg_state.hash_schema_->duplicateSchema();
       PhysicalOperatorBase* expander_lower = new Expander(expander_state);
+      expander_lower->agg_cardi_ = expander_state.child_->agg_cardi_;
+      expander_lower->total_agg_cardi_ =
+          expander_state.child_->total_agg_cardi_;
+
       ExchangeMerger::State exchange_state;
       exchange_state.block_size_ = block_size;
       exchange_state.child_ = expander_lower;
@@ -341,6 +353,10 @@ PhysicalOperatorBase* LogicalAggregation::GetPhysicalPlan(
           partition_schema::set_hash_partition(0);
       exchange_state.schema_ = local_agg_state.hash_schema_->duplicateSchema();
       PhysicalOperatorBase* exchange = new ExchangeMerger(exchange_state);
+      exchange->agg_cardi_ = exchange_state.child_->agg_cardi_;
+      exchange->total_agg_cardi_ =
+          exchange->agg_cardi_ + exchange_state.child_->total_agg_cardi_;
+
       PhysicalAggregation::State global_agg_state;
       global_agg_state.agg_node_type_ =
           PhysicalAggregation::State::kHybridAggGlobal;
@@ -364,6 +380,9 @@ PhysicalOperatorBase* LogicalAggregation::GetPhysicalPlan(
       //      PhysicalOperatorBase* global_aggregation =
       //          new PhysicalAggregation(global_agg_state);
       ret = new PhysicalAggregation(global_agg_state);
+
+      ret->agg_cardi_ = global_agg_state.child_->agg_cardi_;
+      ret->total_agg_cardi_ = global_agg_state.child_->total_agg_cardi_;
       break;
     }
     case kReparGlobalAgg: {

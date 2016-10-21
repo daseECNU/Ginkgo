@@ -93,6 +93,7 @@ class PhysicalOperatorBase {
     phy_oper_type_ = phy_oper_type;
   }
   PhysicalOperatorType phy_oper_type_;
+  uint64_t total_agg_cardi_, agg_cardi_;
 
  private:
   friend class boost::serialization::access;

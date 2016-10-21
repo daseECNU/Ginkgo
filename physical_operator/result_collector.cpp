@@ -242,7 +242,7 @@ RetCode ResultCollector::GetJobDAG(JobContext* const job_cnxt) {
     // create pipeline-job
     PipelineJob* pjob =
         new PipelineJob(job_cnxt->get_stage_tasks(), job_cnxt->get_parents(),
-                        job_cnxt->GenJobId());
+                        job_cnxt->GenJobId(), 0);
     job_cnxt->ClearParents();
     job_cnxt->set_dag_root(pjob);  // the root of tree-like-dag
     job_cnxt->ClearStageTasks();

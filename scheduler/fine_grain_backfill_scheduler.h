@@ -29,7 +29,10 @@
 #ifndef SCHEDULER_FINE_GRAIN_BACKFILL_SCHEDULER_H_
 #define SCHEDULER_FINE_GRAIN_BACKFILL_SCHEDULER_H_
 
+#include "../exec_tracker/stmt_exec_status.h"
+#include "../scheduler/pipeline_job.h"
 #include "backfill_scheduler.h"
+#include "caf/all.hpp"
 
 namespace claims {
 namespace scheduler {
