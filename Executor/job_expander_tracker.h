@@ -159,7 +159,7 @@ struct ExpanderStatus {
 };
 class JobExpanderTracker {
  public:
-  JobExpanderTracker(bool is_pivot);
+  JobExpanderTracker(bool is_pivot, u_int64_t job_id);
   virtual ~JobExpanderTracker();
   static void ScheduleResource(caf::event_based_actor* self,
                                JobExpanderTracker* job_epd_tracker);

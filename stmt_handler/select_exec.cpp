@@ -52,6 +52,8 @@
 #include "../scheduler/backfill_scheduler.h"
 #include "../scheduler/job_context.h"
 #include "../scheduler/serialized_scheduler.h"
+#include "../scheduler/fine_grain_backfill_scheduler.h"
+#include "../scheduler/gready_scheduler.h"
 using caf::io::remote_actor;
 using claims::logical_operator::LogicalQueryPlanRoot;
 using claims::physical_operator::ExchangeSender;
@@ -68,10 +70,16 @@ using std::make_pair;
 using claims::common::rStmtCancelled;
 using claims::scheduler::BackfillScheduler;
 using claims::scheduler::SerializedScheduler;
-
+using claims::scheduler::FineGrainBackfillScheduler;
+using claims::scheduler::GreadyScheduler;
 namespace claims {
 namespace stmt_handler {
 //#define PRINTCONTEXT
+//#define COARSE
+#define FINE
+//#define SER_SCH
+//#define GREADY
+
 SelectExec::SelectExec(AstNode* stmt, string raw_sql)
     : StmtExec(stmt), raw_sql_(raw_sql) {
   select_ast_ = reinterpret_cast<AstSelectStmt*>(stmt_);
@@ -253,9 +261,15 @@ RetCode SelectExec::Execute() {
 #ifdef SER_SCH
   SerializedScheduler* bfs =
       new SerializedScheduler(job_cnxt->get_dag_root(), get_stmt_exec_status());
-#else
+#elif defined(COARSE)
   BackfillScheduler* bfs =
       new BackfillScheduler(job_cnxt->get_dag_root(), get_stmt_exec_status());
+#elif defined(FINE)
+  FineGrainBackfillScheduler* bfs = new FineGrainBackfillScheduler(
+      job_cnxt->get_dag_root(), get_stmt_exec_status());
+#elif defined(GREADY)
+  GreadyScheduler* bfs =
+      new GreadyScheduler(job_cnxt->get_dag_root(), get_stmt_exec_status());
 #endif
   Environment::getInstance()->get_segment_exec_tracker()->RegisterSem(
       stmt_exec_status_->get_query_id());

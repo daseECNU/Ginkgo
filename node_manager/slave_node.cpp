@@ -273,10 +273,14 @@ class SlaveNodeActor : public event_based_actor {
             job_expander_tracker =
                 ExpanderTracker::getInstance()->GetJobExpanderTracker(query_id,
                                                                       job_id);
-            usleep(3);
-            LOG(WARNING)
-                << "query,job_id = " << query_id << " , " << job_id
-                << " job_expander_tracker is NULL, while continue to wait 1ms";
+            if (NULL == job_expander_tracker) {
+              usleep(3);
+              LOG(WARNING) << "query,job_id = " << query_id << " , " << job_id
+                           << " job_expander_tracker is NULL, while continue "
+                              "to wait 1ms";
+            } else {
+              break;
+            }
           }
           job_expander_tracker->set_is_pivot(true);
           LOG(INFO) << "query,job_id = " << query_id << " , " << job_id << " , "

@@ -394,6 +394,7 @@ class PhysicalQueryPlan {
     segment_id_ = r.segment_id_;
     partition_offset_ = r.partition_offset_;
     coor_node_id_ = r.coor_node_id_;
+    is_pivot_ = r.is_pivot_;
   }
 
   PhysicalQueryPlan() : stage_plan_(0) {}

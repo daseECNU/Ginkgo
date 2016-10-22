@@ -44,6 +44,7 @@ class FineGrainBackfillScheduler : public BackfillScheduler {
   virtual ~FineGrainBackfillScheduler();
   static void ScheduleJob(caf::event_based_actor* self,
                           FineGrainBackfillScheduler* scheduler);
+  void CreateActor();
 };
 }
 }  // namespace claims

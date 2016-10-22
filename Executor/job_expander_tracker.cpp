@@ -59,8 +59,9 @@ void ExpanderStatus::AddEndpoint(LocalStageEndPoint new_end_point) {
   }
   lock.release();
 }
-JobExpanderTracker::JobExpanderTracker(bool is_pivot)
+JobExpanderTracker::JobExpanderTracker(bool is_pivot, u_int64_t job_id)
     : is_pivot_(is_pivot),
+      job_id_(job_id),
       thread_num_threshold_(Config::total_thread_num),
       cur_thread_num_(0) {
   job_expander_actor_ = caf::spawn(ScheduleResource, this);
@@ -228,9 +229,12 @@ RetCode JobExpanderTracker::ForceShrink() {
                     << cur_thread_num_;
           break;
         } else if (2 == tmp) {
-          LOG(INFO) << "job expander id= " << it->first.first << " , "
-                    << it->first.second
-                    << " Force Shrink one thread failed, but ignore it";
+          LOG(INFO)
+              << "job expander id= " << it->first.first << " , "
+              << it->first.second
+              << " Force Shrink one thread failed, but all have been shrunk";
+          it = expander_id_to_expander_.end();
+          i = thread_num;
           break;
         } else {
           LOG(WARNING) << "job expander id= " << it->first.first << " , "
@@ -241,6 +245,7 @@ RetCode JobExpanderTracker::ForceShrink() {
           LOG(ERROR) << "job expander id= " << it->first.first << " , "
                      << it->first.second
                      << " the thread-num isn't consistent to remote info !!";
+          it = expander_id_to_expander_.end();
           i = thread_num;
           break;
         }
@@ -470,15 +475,19 @@ void JobExpanderTracker::AddOneCurThread() {
 
 void JobExpanderTracker::set_is_pivot(const bool is_pivot) {
   thread_num_lock_.acquire();
-  is_pivot_ = is_pivot;
   u_int16_t thread_num = 0;
   for (auto it = expander_id_to_expander_.begin();
        it != expander_id_to_expander_.end(); ++it) {
     thread_num += it->second->GetDegreeOfParallelism();
   }
+  LOG(INFO) << "expander size= " << expander_id_to_expander_.size()
+            << " extra_num= " << extra_cur_thread_num_
+            << " pivot= " << pivot_cur_thread_num_
+            << " thread_num= " << thread_num;
   assert(extra_cur_thread_num_ >= thread_num);
   pivot_cur_thread_num_ += thread_num;
-  extra_cur_thread_num_ -= extra_cur_thread_num_;
+  extra_cur_thread_num_ -= thread_num;
+  is_pivot_ = is_pivot;
   thread_num_lock_.release();
 }
 

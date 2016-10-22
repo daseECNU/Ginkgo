@@ -60,15 +60,16 @@ void FineGrainBackfillScheduler::ScheduleJob(
                     << scheduler->stmt_exec_status_->get_query_id() << " , "
                     << pjob->get_job_id() << " , " << pjob->get_job_status()
                     << " will be pivot";
+          // for pivot job to record the resource that is used
+          for (auto it = pjob->node_task_num_.begin();
+               it != pjob->node_task_num_.end(); ++it) {
+            pjob->node_allocated_thread_[it->first] +=
+                scheduler->thread_rest_[it->first];
+            scheduler->thread_rest_[it->first] = 0;
+          }
           if (PipelineJob::kReady == pjob->get_job_status()) {
             pjob->set_job_status(PipelineJob::kPivot);
             // execute the underlying job
-            for (auto it = pjob->node_task_num_.begin();
-                 it != pjob->node_task_num_.end(); ++it) {
-              pjob->node_allocated_thread_[it->first] +=
-                  scheduler->thread_rest_[it->first];
-              scheduler->thread_rest_[it->first] = 0;
-            }
             pjob->CreatJobActor(scheduler);
             self->send(pjob->get_job_actor(), ExceJobAtom::value);
 
@@ -95,6 +96,7 @@ void FineGrainBackfillScheduler::ScheduleJob(
 
         int tmp_score = 0;
         int max_score = 0;
+        float max_rank = 0;
         PipelineJob* ejob = NULL;
 
         for (auto it = scheduler->ready_jobs_.begin();
@@ -108,13 +110,14 @@ void FineGrainBackfillScheduler::ScheduleJob(
               // tmp_score -= 100;
             }
           }
-          if (tmp_score > max_score) {
+          if (tmp_score >= max_score && (*it)->get_rank() > max_rank) {
             max_score = tmp_score;
             ejob = *it;
+            max_rank = (*it)->get_rank();
           }
         }
 
-        if (max_score > 0) {
+        if (NULL != ejob) {
           LOG(INFO) << "query ,job id, status = "
                     << scheduler->stmt_exec_status_->get_query_id() << " , "
                     << ejob->get_job_id() << " , " << ejob->get_job_status()
@@ -123,14 +126,14 @@ void FineGrainBackfillScheduler::ScheduleJob(
           ejob->set_job_status(PipelineJob::kExtra);
           scheduler->extra_jobs_.insert(ejob);
           // execute the underlying job
-
-          for (auto it = ejob->node_task_num_.begin();
-               it != ejob->node_task_num_.end(); ++it) {
-            ejob->node_allocated_thread_[it->first] +=
-                scheduler->thread_rest_[it->first];
-            scheduler->thread_rest_[it->first] = 0;
-          }
-
+          /*
+                    for (auto it = ejob->node_task_num_.begin();
+                         it != ejob->node_task_num_.end(); ++it) {
+                      ejob->node_allocated_thread_[it->first] +=
+                          scheduler->thread_rest_[it->first];
+                      scheduler->thread_rest_[it->first] = 0;
+                    }
+          */
           ejob->CreatJobActor(scheduler);
           self->send(ejob->get_job_actor(), ExceJobAtom::value);
 
@@ -188,6 +191,10 @@ void FineGrainBackfillScheduler::ScheduleJob(
                 << "FineGrainBackfillScheduler receives unkown message";
           });
   self->send(self, SchPJobAtom::value);
+}
+
+void FineGrainBackfillScheduler::CreateActor() {
+  scheduler_actor_ = caf::spawn(ScheduleJob, this);
 }
 }
 }  // namespace claims

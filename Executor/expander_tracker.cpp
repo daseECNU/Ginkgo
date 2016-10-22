@@ -215,7 +215,7 @@ bool ExpanderTracker::RegisterExpander(
   if (it != qjob_id_to_epd_tracker_.end()) {
     it->second->RegisterExpander(buffer, expand_shrink, expander_id);
   } else {
-    auto job_tracker = new JobExpanderTracker(is_pivot);
+    auto job_tracker = new JobExpanderTracker(is_pivot, GetJobId(expander_id));
     qjob_id_to_epd_tracker_.insert(
         make_pair(GetJobId(expander_id), job_tracker));
     job_tracker->RegisterExpander(buffer, expand_shrink, expander_id);
