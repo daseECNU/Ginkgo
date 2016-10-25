@@ -243,8 +243,8 @@ void* Expander::ExpandedWork(void* arg) {
                  "call back signal after open!>>>>>>>" << pthread_self()
               << std::endl;
 
-    Pthis->RemoveFromCalledBackThreadList(pid);
-    Pthis->tid_to_shrink_semaphore_[pid]->post();
+    //    Pthis->RemoveFromCalledBackThreadList(pid);
+    //    Pthis->tid_to_shrink_semaphore_[pid]->post();
   } else {
     if (expanding == true) {
       expanding = false;
@@ -281,10 +281,10 @@ void* Expander::ExpandedWork(void* arg) {
       Pthis->lock_.acquire();
       Pthis->input_data_complete_ = false;
       Pthis->lock_.release();
-      Pthis->RemoveFromCalledBackThreadList(pthread_self());
-      LOG(INFO) << pthread_self() << " Produced " << block_count
-                << " block before called-back" << std::endl;
-      Pthis->tid_to_shrink_semaphore_[pid]->post();
+      //      Pthis->RemoveFromCalledBackThreadList(pthread_self());
+      //      LOG(INFO) << pthread_self() << " Produced " << block_count
+      //                << " block before called-back" << std::endl;
+      //      Pthis->tid_to_shrink_semaphore_[pid]->post();
     } else {  // always there are thread that hasn't been callback
       LOG(INFO) << pthread_self() << " Produced " << block_count
                 << " block before finished" << std::endl;
@@ -304,16 +304,21 @@ void* Expander::ExpandedWork(void* arg) {
                 << std::endl;
       Pthis->lock_.release();
 
-      if (!Pthis->RemoveFromWorkingThreadList(pthread_self())) {
-        /* current thread has been called back*/
-        Pthis->RemoveFromCalledBackThreadList(pthread_self());
-        Pthis->tid_to_shrink_semaphore_[pid]->post();
-      }
+      //      if (!Pthis->RemoveFromWorkingThreadList(pthread_self())) {
+      //        /* current thread has been called back*/
+      //        Pthis->RemoveFromCalledBackThreadList(pthread_self());
+      //        Pthis->tid_to_shrink_semaphore_[pid]->post();
+      //      }
     }
   }
 
   /* delete its stauts from expander tracker before exit*/
   ExpanderTracker::getInstance()->DeleteExpandedThreadStatus(pthread_self());
+  if (!Pthis->RemoveFromWorkingThreadList(pthread_self())) {
+    /* current thread has been called back*/
+    Pthis->RemoveFromCalledBackThreadList(pthread_self());
+    Pthis->tid_to_shrink_semaphore_[pid]->post();
+  }
   LOG(INFO) << "expander_id_ = " << Pthis->expander_id_.first << " , "
             << Pthis->expander_id_.second << ", pid= " << pid
             << " expande thread finished!" << std::endl;

@@ -51,7 +51,7 @@ Logging::Logging(char* program) {
   //    google::SetLogDestination(google::ERROR,LOGDIR"/ERROR_");
 
   FLAGS_stderrthreshold = google::FATAL;
-
+  //  FLAGS_minloglevel = google::FATAL;
   // set every time output cache, default = 30, now to 0
   FLAGS_logbufsecs = 0;
   FLAGS_max_log_size = 100;

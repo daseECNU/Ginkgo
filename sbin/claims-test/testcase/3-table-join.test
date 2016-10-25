@@ -1,0 +1,2 @@
+select count(*) from LINEITEM, PART,ORDERS where L_ORDERKEY=P_PARTKEY and P_PARTKEY=O_ORDERKEY;
+exit;

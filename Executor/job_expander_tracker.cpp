@@ -327,7 +327,11 @@ int JobExpanderTracker::DecideSchedule(LocalStage& current_stage,
       } else if (current_usage < THRESHOLD_EMPTY) {
         ret = DECISION_EXPAND;
       } else {
-        ret = DECISION_KEEP;
+        if (0 == cur_thread_num) {
+          ret = DECISION_EXPAND;
+        } else {
+          ret = DECISION_KEEP;
+        }
       }
       break;
     }
@@ -346,22 +350,25 @@ int JobExpanderTracker::DecideSchedule(LocalStage& current_stage,
       if (current_stage.dataflow_src_.monitorable_buffer_->inputComplete()) {
         if (cur_thread_num == 0) {
           ret = DECISION_EXPAND;
-          break;
         } else {
           ret = DECISION_KEEP;
+        }
+        break;
+      }
+      if (cur_thread_num != 0) {
+        if (bottom_usage > THRESHOLD_FULL && top_usage < THRESHOLD_EMPTY) {
+          ret = DECISION_EXPAND;
           break;
         }
-      }
-
-      if (bottom_usage > THRESHOLD_FULL && top_usage < THRESHOLD_EMPTY) {
+        if (top_usage > THRESHOLD_FULL || bottom_usage < THRESHOLD_EMPTY) {
+          ret = DECISION_SHRINK;
+          break;
+        }
+        ret = DECISION_KEEP;
+      } else {
         ret = DECISION_EXPAND;
-        break;
       }
-      if (top_usage > THRESHOLD_FULL || bottom_usage < THRESHOLD_EMPTY) {
-        ret = DECISION_SHRINK;
-        break;
-      }
-      ret = DECISION_KEEP;
+      break;
     }
   }
 

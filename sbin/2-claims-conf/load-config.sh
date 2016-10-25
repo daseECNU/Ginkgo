@@ -30,6 +30,7 @@ function load_config()
     getcfg $config hdfs_master_port hdfs_master_port
     getcfg $config max_degree_of_parallelism max_degree_of_parallelism 
     getcfg $config initial_degree_of_parallelism initial_degree_of_parallelism
+    getcfg $config total_thread_num total_thread_num
     getcfg $config expander_adaptivity_check_frequency expander_adaptivity_check_frequency
     getcfg $config enable_expander_adaptivity enable_expander_adaptivity
     getcfg $config local_disk_mode local_disk_mode
@@ -39,6 +40,7 @@ function load_config()
     getcfg $config memory_utilization memory_utilization
     getcfg $config hash_join_bucket_num hash_join_bucket_num
     getcfg $config hash_join_bucket_size hash_join_bucket_size
+    getcfg $config scheduler scheduler
 }
 
 function currdir()
@@ -63,6 +65,7 @@ echo "hdfs_master_ip :   [$hdfs_master_ip]"
 echo "hdfs_master_port : [$hdfs_master_port]"
 echo "max_degree_of_parallelism :           [$max_degree_of_parallelism]"
 echo "initial_degree_of_parallelism :       [$initial_degree_of_parallelism]"
+echo "total_thread_num : 		    [$total_thread_num]"
 echo "expander_adaptivity_check_frequency : [$expander_adaptivity_check_frequency]"
 echo "enable_expander_adaptivity :          [$enable_expander_adaptivity]"
 echo "local_disk_mode :                     [$local_disk_mode]"
@@ -72,6 +75,7 @@ echo "load_thread_num :                     [$load_thread_num]"
 echo "memory_utilization :                  [$memory_utilization]"
 echo "hash_join_bucket_num :                [$hash_join_bucket_num]"
 echo "hash_join_bucket_size :               [$hash_join_bucket_size]"
+echo "scheduler : 			[$scheduler]"
 echo "=========cluster config end=========="
 }
 

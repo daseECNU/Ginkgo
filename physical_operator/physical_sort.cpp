@@ -53,6 +53,7 @@ OperFuncInfo PhysicalSort::fcinfo = NULL;
 PhysicalSort::PhysicalSort() : PhysicalOperator(3, 2), block_buffer_(NULL) {
   set_phy_oper_type(kPhysicalSort);
   lock_ = new Lock();
+  cmp_state_ = &state_;
   InitExpandedStatus();
 }
 

@@ -108,10 +108,14 @@ bool ExpanderTracker::DeleteExpandedThreadStatus(ExpandedThreadId thread_id) {
     assert(false);
     return false;
   } else {
-    auto ret = qjob_id_to_epd_tracker_[GetJobId(it->second)];
-    assert(NULL != ret);
-    ret->DeleteOneCurThread();
-    thread_id_to_expander_id_.erase(thread_id);
+    auto ret = qjob_id_to_epd_tracker_.find(GetJobId(it->second));
+    if (qjob_id_to_epd_tracker_.end() == ret) {
+      LOG(ERROR) << "the epd tracker of job id = " << GetJobId(it->second)
+                 << " couldn't be found!";
+    } else {
+      ret->second->DeleteOneCurThread();
+      thread_id_to_expander_id_.erase(thread_id);
+    }
   }
   lock_.release();
   return true;

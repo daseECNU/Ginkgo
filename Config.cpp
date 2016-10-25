@@ -95,6 +95,8 @@ int Config::hash_join_bucket_num;
 int Config::hash_join_bucket_size;
 int Config::total_thread_num;
 
+std::string Config::scheduler;
+
 Config *Config::getInstance() {
   if (instance_ == 0) {
     instance_ = new Config();
@@ -163,6 +165,9 @@ void Config::initialize() {
   hash_join_bucket_size = getInt("hash_join_bucket_size", 1024);
 
   total_thread_num = getInt("total_thread_num", 24);
+
+  scheduler = getString("scheduler", "SerializedScheduler");
+
 #ifdef DEBUG_Config
   print_configure();
 #endif
@@ -224,6 +229,7 @@ void Config::print_configure() const {
   std::cout << "load_thread_num:" << load_thread_num << std::endl;
   std::cout << "hash_join_bucket_num" << hash_join_bucket_num << std::endl;
   std::cout << "hash_join_bucket_size" << hash_join_bucket_size << std::endl;
+  std::cout << "scheduler: " << scheduler << std::endl;
 }
 
 void Config::setConfigFile(std::string file_name) { config_file = file_name; }

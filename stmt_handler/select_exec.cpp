@@ -54,6 +54,7 @@
 #include "../scheduler/serialized_scheduler.h"
 #include "../scheduler/fine_grain_backfill_scheduler.h"
 #include "../scheduler/gready_scheduler.h"
+#include "../scheduler/scheduler_base.h"
 using caf::io::remote_actor;
 using claims::logical_operator::LogicalQueryPlanRoot;
 using claims::physical_operator::ExchangeSender;
@@ -72,6 +73,7 @@ using claims::scheduler::BackfillScheduler;
 using claims::scheduler::SerializedScheduler;
 using claims::scheduler::FineGrainBackfillScheduler;
 using claims::scheduler::GreadyScheduler;
+using claims::scheduler::SchedulerBase;
 namespace claims {
 namespace stmt_handler {
 //#define PRINTCONTEXT
@@ -258,19 +260,20 @@ RetCode SelectExec::Execute() {
 
   JobContext* job_cnxt = new JobContext();
   ret = physical_plan->GetJobDAG(job_cnxt);
-#ifdef SER_SCH
-  SerializedScheduler* bfs =
-      new SerializedScheduler(job_cnxt->get_dag_root(), get_stmt_exec_status());
-#elif defined(COARSE)
-  BackfillScheduler* bfs =
-      new BackfillScheduler(job_cnxt->get_dag_root(), get_stmt_exec_status());
-#elif defined(FINE)
-  FineGrainBackfillScheduler* bfs = new FineGrainBackfillScheduler(
-      job_cnxt->get_dag_root(), get_stmt_exec_status());
-#elif defined(GREADY)
-  GreadyScheduler* bfs =
-      new GreadyScheduler(job_cnxt->get_dag_root(), get_stmt_exec_status());
-#endif
+  SchedulerBase* bfs = NULL;
+  if (Config::scheduler == "GreedyScheduler") {
+    bfs = new GreadyScheduler(job_cnxt->get_dag_root(), get_stmt_exec_status());
+  } else if (Config::scheduler == "CoarseBackfillScheduler") {
+    bfs =
+        new BackfillScheduler(job_cnxt->get_dag_root(), get_stmt_exec_status());
+  } else if (Config::scheduler == "FineGrainBackfillScheduler") {
+    bfs = new FineGrainBackfillScheduler(job_cnxt->get_dag_root(),
+                                         get_stmt_exec_status());
+  } else {
+    bfs = new SerializedScheduler(job_cnxt->get_dag_root(),
+                                  get_stmt_exec_status());
+  }
+  assert(NULL != bfs);
   Environment::getInstance()->get_segment_exec_tracker()->RegisterSem(
       stmt_exec_status_->get_query_id());
   ret = bfs->Schedule();

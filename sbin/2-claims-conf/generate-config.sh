@@ -50,6 +50,8 @@ max_degree_of_parallelism=$max_degree_of_parallelism
 #初始单机算子并行度
 initial_degree_of_parallelism=$initial_degree_of_parallelism
 
+total_thread_num=$total_thread_num
+
 expander_adaptivity_check_frequency=$expander_adaptivity_check_frequency
 
 enable_expander_adaptivity=$enable_expander_adaptivity
@@ -69,6 +71,8 @@ memory_utilization = $memory_utilization
 hash_join_bucket_num = $hash_join_bucket_num
 
 hash_join_bucket_size = $hash_join_bucket_size
+
+scheduler = "$scheduler"
 
 EOF
 done

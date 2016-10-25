@@ -83,6 +83,7 @@ class Config {
   static int hash_join_bucket_size;
   static int hash_join_bucket_num;
   static int total_thread_num;
+  static std::string scheduler;
 
  private:
   static Config* instance_;

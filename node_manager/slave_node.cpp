@@ -381,8 +381,6 @@ RetCode SlaveNode::RegisterToMaster(bool isFirstRegister) {
   caf::scoped_actor self;
   LOG(INFO) << "slave just RegisterToMaster!!" << endl;
   try {
-    master_actor_ =
-        caf::io::remote_actor(master_addr_.first, master_addr_.second);
     self->sync_send(master_actor_, RegisterAtom::value, get_node_ip(),
                     get_node_port())
         .await([=](OkAtom, const unsigned int& id, const BaseNode& node) {
