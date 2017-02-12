@@ -252,7 +252,8 @@ class SlaveNodeActor : public event_based_actor {
         },
         [=](SkJobAtom, u_int64_t query_id, u_int16_t job_id) -> message {
           JobExpanderTracker* job_expander_tracker = NULL;
-          while (NULL == job_expander_tracker) {
+          int try_times = 0;
+          while (NULL == job_expander_tracker && try_times++ < 0) {
             job_expander_tracker =
                 ExpanderTracker::getInstance()->GetJobExpanderTracker(query_id,
                                                                       job_id);
@@ -269,7 +270,8 @@ class SlaveNodeActor : public event_based_actor {
         },
         [=](EpdJobAtom, u_int64_t query_id, u_int16_t job_id) -> message {
           JobExpanderTracker* job_expander_tracker = NULL;
-          while (NULL == job_expander_tracker) {
+          int try_times = 0;
+          while (NULL == job_expander_tracker && try_times++ < 3) {
             job_expander_tracker =
                 ExpanderTracker::getInstance()->GetJobExpanderTracker(query_id,
                                                                       job_id);

@@ -43,8 +43,8 @@ namespace claims {
 #define THRESHOLD_EMPTY (THRESHOLD)
 #define THRESHOLD_FULL (1 - THRESHOLD)
 #define Refine 0.05
-static atomic_ushort JobExpanderTracker::extra_cur_thread_num_(0);
-static atomic_ushort JobExpanderTracker::pivot_cur_thread_num_(0);
+static atomic_short JobExpanderTracker::extra_cur_thread_num_(0);
+static atomic_short JobExpanderTracker::pivot_cur_thread_num_(0);
 
 ExpanderStatus::~ExpanderStatus() {}
 
