@@ -194,11 +194,11 @@ class JobExpanderTracker {
   void set_is_pivot(const bool is_pivot);
   void AddOneCurThread();
   void DeleteOneCurThread();
-  static atomic_ushort extra_cur_thread_num_, pivot_cur_thread_num_;
+  static atomic_short extra_cur_thread_num_, pivot_cur_thread_num_;
 
  private:
   atomic_bool is_pivot_;
-  atomic_ushort thread_num_threshold_, cur_thread_num_;
+  atomic_short thread_num_threshold_, cur_thread_num_;
   Lock sch_lock_, lock_adapt_, map_lock_, thread_num_lock_;
   u_int64_t job_id_;
   actor job_expander_actor_;

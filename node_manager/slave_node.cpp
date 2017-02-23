@@ -262,10 +262,12 @@ class SlaveNodeActor : public event_based_actor {
                 << "query,job_id = " << query_id << " , " << job_id
                 << " job_expander_tracker is NULL, while continue to wait 1ms";
           }
-          this->send(job_expander_tracker->get_job_expander_actor(),
-                     ForceSchR::value);
-          LOG(INFO) << "query,job_id = " << query_id << " , " << job_id
-                    << " set shrink info successfully";
+          if (NULL != job_expander_tracker) {
+            this->send(job_expander_tracker->get_job_expander_actor(),
+                       ForceSchR::value);
+            LOG(INFO) << "query,job_id = " << query_id << " , " << job_id
+                      << " set shrink info successfully";
+          }
           return make_message(OkAtom::value);
         },
         [=](EpdJobAtom, u_int64_t query_id, u_int16_t job_id) -> message {
@@ -281,12 +283,13 @@ class SlaveNodeActor : public event_based_actor {
                            << " job_expander_tracker is NULL, while continue "
                               "to wait 1ms";
             } else {
+              job_expander_tracker->set_is_pivot(true);
+              LOG(INFO) << "query,job_id = " << query_id << " , " << job_id
+                        << " , "
+                        << " set expand (pivot) info successfully";
               break;
             }
           }
-          job_expander_tracker->set_is_pivot(true);
-          LOG(INFO) << "query,job_id = " << query_id << " , " << job_id << " , "
-                    << " set expand (pivot) info successfully";
           return make_message(OkAtom::value);
         },
         [=](OkAtom) {},
