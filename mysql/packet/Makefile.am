@@ -1,6 +1,11 @@
-AM_CPPFLAGS = -fPIC
+AM_CPPFLAGS= -fPIC -fpermissive \
+-I${BOOST_HOME} \
+-I${BOOST_HOME}/boost/asio \
+-I${BOOST_HOME}/boost/serialization \
+-I${THERON_HOME}/Include 
 
-AM_LDFLAGS = -pthread -g
+AM_LDFLAGS = -pthread -g -lboost_serialization
+
 
 noinst_LIBRARIES=libpacket.a
 

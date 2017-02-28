@@ -101,6 +101,8 @@ std::string Config::httpserver_doc_root;
 
 int Config::mysql_port;
 
+std::string Config::mysql_password;
+
 Config *Config::getInstance() {
   if (instance_ == 0) {
     instance_ = new Config();
@@ -173,6 +175,8 @@ void Config::initialize() {
   httpserver_doc_root = getString("httpserver_doc_root", "/home/imdb/doc_root");
 
   mysql_port = getInt("mysql_port",3306);
+
+  mysql_password = getString("mysql_password","imdb");
 #ifdef DEBUG_Config
   print_configure();
 #endif

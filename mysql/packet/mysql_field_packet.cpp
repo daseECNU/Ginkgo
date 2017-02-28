@@ -44,10 +44,11 @@ int MysqlFieldPacket::serialize(char *buf, int64_t len, int64_t& pos) {
   //std::cout << "serialize a mysql field packet!" << std::endl;
   CMysqlUtil::EMySQLFieldType type = claims::mysql::CMysqlUtil::MYSQL_TYPE_GEOMETRY;  // init with type unsupported
   int ret = C_SUCCESS;
+  column_type ttype = this->field_.type_;
   uint8_t num_decimals = field_.decimals_;
   uint32_t length = field_.length_;
   if (C_SUCCESS
-      != (ret = CMysqlUtil::get_mysql_type(type, num_decimals, length))) {
+      != (ret = CMysqlUtil::get_mysql_type(type, num_decimals, length, ttype))) {
     MySqlLog("get mysql type failed, mysql type is %d", type);
   } else if (C_SUCCESS
       != (ret = CMysqlUtil::store_str(buf, len, field_.catalog_, pos))) {

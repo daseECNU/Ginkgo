@@ -31,7 +31,7 @@
 #include <stdint.h>
 #include <string>
 #include <iostream>
-#include "../mysql_define.h"e
+#include "../mysql_define.h"
 #include "../mysql_util.h"
 using std::string;
 namespace claims {

@@ -29,7 +29,6 @@
 #include "mysql_util.h"
 
 #include "mysql_server.h"
-
 namespace claims {
 namespace mysql {
 #define UINT64_MAX 123413334
@@ -204,11 +203,12 @@ int CMysqlUtil::store_obstr_nzt(char *buf, int64_t len, string str, int64_t &pos
 	return ret;
 }
 
-int CMysqlUtil::get_mysql_type(EMySQLFieldType &field_type, uint8_t &num_decimals, uint32_t &length){
+int CMysqlUtil::get_mysql_type(EMySQLFieldType &field_type, uint8_t &num_decimals, uint32_t &length, column_type &type){
 	num_decimals=0;
 	//length=0;
-	field_type=MYSQL_TYPE_LONGLONG;
-	length = 20;
+	field_type =  CMysqlUtil::get_MysqlType(type);
+	//field_type=MYSQL_TYPE_VAR_STRING;
+	length = type.get_length();
 	return C_SUCCESS;
 }
 int CMysqlUtil::get_statement(char *buffer,char *statement)

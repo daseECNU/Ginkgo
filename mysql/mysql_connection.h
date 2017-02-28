@@ -13,6 +13,7 @@
 #include <netinet/in.h>
 
 #include "mysql_define.h"
+
 #include "mysql_util.h"
 using namespace std;
 namespace claims {

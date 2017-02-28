@@ -6,7 +6,7 @@ AM_CPPFLAGS= -fPIC -fpermissive\
 -I${BOOST_HOME}/boost/serialization \
 -I${GTEST_HOME}/include
 
-AM_LDFLAGS=-lc -lm -lrt -lboost_serialization -lxs
+AM_LDFLAGS=-lc -lm -lrt -lboost_serialization -lxs -lmysqlcppconn
 
 if OPT_TCMALLOC
 AM_CPPFLAGS+=-fno-builtin-malloc -fno-builtin-calloc -fno-builtin-realloc -fno-builtin-free
@@ -29,6 +29,7 @@ LDADD =	TestSuit/libtestsuit.a \
 		../common/types/libtypes.a \
 		../sql_parser/parser/libparser_test.a	\
 		../utility/libutility.a \
+		../mysql/libmysql.a\
 		${HADOOP_HOME}/lib/native/libhdfs.a\
 		${JAVA_HOME}/jre/lib/amd64/server/libjvm.so\
 		${BOOST_HOME}/stage/lib/libboost_serialization.a \

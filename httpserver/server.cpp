@@ -63,6 +63,7 @@ void server::InitResultString(){
 		rs.result_.push_back(resulttemp);
 		rs.command_packet_.push_back(command_temp_);
 	}
+	LOG(INFO) << "httpserver/ser.cpp 66: initResult is completed."<<endl;
 }
 
 void server::run()

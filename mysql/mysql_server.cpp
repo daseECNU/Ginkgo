@@ -71,6 +71,7 @@ int CMysqlServer::Start() {
 
 	Initialize();
 	pthread_t t_sendhandler;
+	sleep(100);
 	const int error1 = pthread_create(&t_sendhandler, NULL, SendHandler, this);
 	if (error1 != 0) {
 	std::cout << "cannot create receive thread!" << strerror(errno)
@@ -362,21 +363,24 @@ int CMysqlServer::CheckCommand(char* command){
 					} else
 						reqstr.push_back(request_[i]);
 				}
-	cout<<"mysql_server.cpp:343 command is:"<<command<<endl;
+	//cout<<"mysql_server.cpp:343 command is:"<<command<<endl;
 	if(request_.find("SHOW VARIABLES",0) != -1){
-		cout<<"mysql_server.cpp:344 SHOW VARIABLES."<<endl;
+		//cout<<"mysql_server.cpp:344 SHOW VARIABLES."<<endl;
 		return 1;
 	}
 	if(request_.find("SELECT @@session.auto",0) != -1){
-		cout<<"mysql_server.cpp:348 SELECT @@session.auto"<<endl;
+		//cout<<"mysql_server.cpp:348 SELECT @@session.auto"<<endl;
 		return 2;
 	}
 	if(request_.find("SHOW COLLATION",0) != -1){
-		cout<<"mysql_server.cpp:352 SHOW COLLATION."<<endl;
+		//cout<<"mysql_server.cpp:352 SHOW COLLATION."<<endl;
 		return 3;
 	}
-	if(request_.find("SET",0) != -1){
+	if(request_.find("SET",0) != -1 || request_.find("set",0) != -1){
 		return 4;
+	}
+	if(request_.find("SHOW SESSION VARIABLES LIKE 'lower_case_table_names'",0) != -1){
+		return 5;
 	}
 	return -1;
 }
@@ -387,9 +391,12 @@ int CMysqlServer::DoComQuery(int fd, MysqlCommandPacket* packet) {
 	char* q = packet->getSqlCommand();
 	char* version_query = "select @@version_comment limit 1;";
 	int temp = CheckCommand(q);
+	cout<<"msyql_server.cpp:393. sqlcommand is "<<q<<endl;
+//	sleep(3);
 	if (temp>0){
 		remote_command command;
 		command.socket_fd = fd;
+		cout<<"mysql_server.cpp 397. temp is "<<temp<<endl;
 		switch (temp){
 		case 1:
 			command.cmd = "select Variable_name, Valve from variables;";
@@ -398,11 +405,13 @@ int CMysqlServer::DoComQuery(int fd, MysqlCommandPacket* packet) {
 			command.cmd = "select increment from session;";
 			break;
 		case 3:
-			command.cmd = "select Collation,Charset,I_d,D_efault,Compiled,Sortlen from collation;";
+			command.cmd = "select Collation,Charset,I_d,D_efault,Compiled,Sortlen from collationA;";
 			break;
 		case 4:
 			command.cmd = "show tables;";
 			break;
+		case 5:
+			command.cmd = "select Variable_name, Valve from variables where Variable_name = 'lower_case_table_names';";
 		}
 
 		httpserver::ResultString& rs = httpserver::GetResultString();
@@ -697,6 +706,7 @@ int CMysqlServer::ProcessFieldPacket(int fd, char* buffer, int64_t& pos,
 	while (C_SUCCESS == result.next_field(field)) {
 		MysqlFieldPacket field_packet(field);
 		field_packet.set_seq(number_++);
+
 		//cout<<"number field is "<<(int)number_<<endl;
 		int64_t len = MAX_PACKET_SIZE;
 		//MysqlSQLPacket *packet = NULL;
@@ -890,7 +900,7 @@ int CMysqlServer::PostPacket(int fd, MysqlSQLPacket* packet, uint8_t seq) {
 	// 写入包的长度
 	pkt_len = static_cast<int32_t>(pos - C_MYSQL_PACKET_HEADER_SIZE);
 	CMysqlUtil::store_int3(buffer, size, pkt_len, len_pos);
-	cout<<"mysql_server.cpp:812: buffer is:"<<bytestohexstring(buffer,50)<<"and the pkt_len is:"<<pkt_len<<endl;
+	//cout<<"mysql_server.cpp:812: buffer is:"<<bytestohexstring(buffer,50)<<"and the pkt_len is:"<<pkt_len<<endl;
 
 	ret = ProcessSinglePacket(fd, buffer, pos);
 
@@ -938,7 +948,7 @@ CMysqlServer* CMysqlServer::GetInstance() {
 void *CMysqlServer::SendHandler(void * para){
 	//todu（此函数未做ret信号处理）
 	int fd = 0;
-	sleep(2);
+	//sleep(2);
 	CMysqlServer *server = (CMysqlServer*) para;
 	while(true){
 		usleep(100);
@@ -956,7 +966,7 @@ void *CMysqlServer::SendHandler(void * para){
 
 				httpserver::result_manage(buff_to_send,result_);
 
-				cout<<"mysql_server.cpp:871 now result is :"<<buff_to_send<<endl;
+				//cout<<"mysql_server.cpp:871 now result is :"<<buff_to_send<<endl;
 
 
 				if(rs.result_[i].status_ != NULL){

@@ -27,7 +27,7 @@
  */
 #include "mysql_field.h"
 
-#include "mysql_util.h"
+//#include "mysql_util.h"
 namespace claims {
 namespace mysql {
 MySQLField::MySQLField()

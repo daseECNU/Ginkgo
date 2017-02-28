@@ -38,7 +38,7 @@
 #include <string>
 #include <iostream>
 #include "mysql_define.h"
-
+#include "../common/data_type.h"
 using std::string;
 
 namespace claims {
@@ -79,6 +79,38 @@ class CMysqlUtil {
     MYSQL_TYPE_GEOMETRY = 255,
     MYSQL_TYPE_NOT_DEFINED = 65535
   };
+
+	static inline EMySQLFieldType get_MysqlType(column_type ttype) {
+	    switch (ttype.type) {
+	      case t_int:
+	        return MYSQL_TYPE_INT24;
+	      case t_float:
+	        return MYSQL_TYPE_FLOAT;
+	      case t_double:
+	        return MYSQL_TYPE_DOUBLE;
+	      case t_u_long:
+	        return MYSQL_TYPE_LONGLONG;
+	      case t_string:
+	        return MYSQL_TYPE_VAR_STRING;
+	      case t_date:
+	        return MYSQL_TYPE_DATE;
+	      case t_time:
+	        return MYSQL_TYPE_TIME;
+	      case t_datetime:
+	        return MYSQL_TYPE_DATETIME;
+	      case t_decimal:
+	        /* here the 1000 is the same as the  */
+	        return MYSQL_TYPE_DECIMAL;
+	      case t_smallInt:
+	        return MYSQL_TYPE_SHORT;
+	      case t_u_smallInt:
+	        return MYSQL_TYPE_TINY;
+	      case t_boolean:
+	        return MYSQL_TYPE_BIT;
+	      default:
+	    	  return MYSQL_TYPE_VARCHAR;
+	    }
+	}
   CMysqlUtil();
   virtual ~CMysqlUtil();
 
@@ -100,7 +132,7 @@ class CMysqlUtil {
   static void get_uint3(char *&pos, uint32_t &v);
   static void get_uint4(char *&pos, uint32_t &v);
   static void get_uint1(char *&pos, uint8_t &v);
-  static int get_mysql_type(EMySQLFieldType &, uint8_t &, uint32_t &);
+  static int get_mysql_type(EMySQLFieldType &, uint8_t &, uint32_t &, column_type &);
   static int get_statement(char *buffer, char *statement);
   static int store_obstr(char *buf, int64_t len, string str, int64_t &pos) {
     return store_str_v(buf, len, str.c_str(), str.length(), pos);

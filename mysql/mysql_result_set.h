@@ -87,6 +87,7 @@ public:
 	void setWarningCount(int64_t warningCount) {
 		warning_count_ = warningCount;
 	}
+	//const data_type gettpye();
 
 public:
 	int next_field(MySQLField& field);
@@ -98,9 +99,9 @@ private:
 	int64_t warning_count_ = 0;
 	std::string statement_name_;
 	std::string message_ = "message";
-//  std::vector<std::string> column_header_list_;
-//  double query_time_;
-//  Schema* schema_;
+  std::vector<std::string> column_header_list_;
+  double query_time_;
+  Schema* schema_;
 };
 }  // namespace mysql
 }  // namespace claims

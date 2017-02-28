@@ -29,7 +29,7 @@ int init(int iargc, std::string iargv[]){
 	try{
 		std::size_t num_threaders = boost::lexical_cast<std::size_t>(iargv[3]);
 		httpserver::server s(iargv[1], iargv[2], iargv[4], num_threaders);
-		std::cout<<"The httplistener is running!\r\nThe master ip is: "<<hargv[1]<<"\r\nThe master port is:"<<hargv[2]<<"\r\nThe doc_root is "<<hargv[4]<<std::endl;
+		std::cout<<"The httplistener is running!\r\nThe master ip is: "<<iargv[1]<<"\r\nThe master port is:"<<iargv[2]<<"\r\nThe doc_root is "<<iargv[4]<<std::endl;
 		s.run();
 	}
 	catch (std::exception& e)

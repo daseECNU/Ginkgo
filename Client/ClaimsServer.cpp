@@ -252,7 +252,7 @@ void *ClientListener::receiveHandler(void *para) {
               checkFdValid(clientSockFd);
 
               printf("open communication with client, %d\n", clientSockFd);
-              printf("wait 10 seconds");
+              //printf("wait 10 seconds");
               //						server->m_clientFds[server->m_num++]
               //= clientSockFd;
               server->addClient(clientSockFd);

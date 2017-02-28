@@ -58,7 +58,7 @@ if __name__ == '__main__':
 	#repeat_turns = raw_input('input the turns of: ')
 	#repeat_turns = int(repeat_turns) - int('0')
 	repeat_turns = 1
-	thread_numbers = 2
+	thread_numbers = 1
 	#thread_numbers = raw_input('input the thread_numbers: ')
 	#thread_numbers = int(thread_numbers) - int('0')
 	init_threads(thread_numbers, threads, repeat_turns, file_name)

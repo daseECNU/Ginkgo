@@ -49,10 +49,13 @@ using claims::StmtExecTracker;
 
 Environment* Environment::_instance = 0;
 
-void httpserver_run(int argc,std::string argv[]){
-	httpserver::init(argc,argv);
-}
-
+//void httpserver_run(int argc,std::string argv[]){
+//	httpserver::init(argc,argv);
+//}
+struct HttpserverInfo{
+	int hargc;
+	std::string hargv[5];
+};
 Environment::Environment(bool ismaster) : ismaster_(ismaster) {
   _instance = this;
   Config::getInstance();
@@ -109,7 +112,7 @@ Environment::Environment(bool ismaster) : ismaster_(ismaster) {
   exchangeTracker = new ExchangeTracker();
   expander_tracker_ = ExpanderTracker::getInstance();
   if(ismaster){
-  	  pthread_t t_cmysql;
+  	  pthread_t t_cmysql,t_httpserver;
   	  		//initializeClientListener();
   	  const int error1 = pthread_create(&t_cmysql, NULL, InitMysqlListener, NULL);
   	  	if (error1 != 0) {
@@ -117,8 +120,13 @@ Environment::Environment(bool ismaster) : ismaster_(ismaster) {
   	  				<< std::endl;
   	  	}
   	  //InitMysqlListener();
-  	  httpserver::httpserver_init();
-  	  boost::thread t1(httpserver_run,httpserver::hargc,httpserver::hargv);
+  	  	struct HttpserverInfo HttpserverInof_;
+  	  const int error2 = pthread_create(&t_httpserver, NULL, HttpserverRun, NULL);
+  	  	if (error2!= 0) {
+  	  		std::cout << "cannot create t_httpserver thread!" << strerror(errno)
+  	  				<< std::endl;
+  	  	}
+  	  //boost::thread t1(httpserver_run,httpserver::hargc,httpserver::hargv);
     }
 
 
@@ -261,4 +269,17 @@ IteratorExecutorSlave* Environment::getIteratorExecutorSlave() const {
 void *Environment::InitMysqlListener(void * null_) {
 	//claims::mysql::CMysqlServer::GetInstance()->Initialize();
 	claims::mysql::CMysqlServer::GetInstance()->Start();
+}
+
+void *Environment::HttpserverRun(void * null){
+	struct HttpserverInfo parg;
+	//httpserverinfo_.hargc
+	parg.hargc = 5;
+	parg.hargv[0] = "";
+	sleep(1);
+	parg.hargv[1] = Config::httpserver_master_ip;
+	parg.hargv[2] = Config::httpserver_master_port;
+	parg.hargv[3] = Config::httpserver_thread_num;
+	parg.hargv[4] = Config::httpserver_doc_root;
+	httpserver::init(parg.hargc,parg.hargv);
 }
