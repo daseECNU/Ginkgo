@@ -41,6 +41,8 @@ class FineGrainBackfillScheduler : public BackfillScheduler {
  public:
   FineGrainBackfillScheduler(PipelineJob* const dag_root,
                              StmtExecStatus* exec_status);
+  PipelineJob* GetPivotJob();
+  bool CouldSchedule(PipelineJob* pjob);
   virtual ~FineGrainBackfillScheduler();
   static void ScheduleJob(caf::event_based_actor* self,
                           FineGrainBackfillScheduler* scheduler);

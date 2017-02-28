@@ -482,19 +482,22 @@ void JobExpanderTracker::AddOneCurThread() {
 
 void JobExpanderTracker::set_is_pivot(const bool is_pivot) {
   thread_num_lock_.acquire();
-  u_int16_t thread_num = 0;
-  for (auto it = expander_id_to_expander_.begin();
-       it != expander_id_to_expander_.end(); ++it) {
-    thread_num += it->second->GetDegreeOfParallelism();
+  if (!is_pivot_ && is_pivot) {
+    u_int16_t thread_num = 0;
+    for (auto it = expander_id_to_expander_.begin();
+         it != expander_id_to_expander_.end(); ++it) {
+      thread_num += it->second->GetDegreeOfParallelism();
+    }
+    LOG(INFO) << "expander size= " << expander_id_to_expander_.size()
+              << " extra_num= " << extra_cur_thread_num_
+              << " pivot= " << pivot_cur_thread_num_
+              << " thread_num= " << thread_num << " is_pivot= " << is_pivot_
+              << " set is_pivot = " << is_pivot;
+    assert(extra_cur_thread_num_ >= thread_num);
+    pivot_cur_thread_num_ += thread_num;
+    extra_cur_thread_num_ -= thread_num;
+    is_pivot_ = is_pivot;
   }
-  LOG(INFO) << "expander size= " << expander_id_to_expander_.size()
-            << " extra_num= " << extra_cur_thread_num_
-            << " pivot= " << pivot_cur_thread_num_
-            << " thread_num= " << thread_num;
-  assert(extra_cur_thread_num_ >= thread_num);
-  pivot_cur_thread_num_ += thread_num;
-  extra_cur_thread_num_ -= thread_num;
-  is_pivot_ = is_pivot;
   thread_num_lock_.release();
 }
 

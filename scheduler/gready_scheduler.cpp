@@ -62,7 +62,11 @@ void GreadyScheduler::ScheduleJob(caf::event_based_actor* self,
                     << scheduler->stmt_exec_status_->get_query_id() << " , "
                     << pjob->get_job_id() << " will execute!";
           // execute the job
-          pjob->DirectExecuteJob(scheduler->stmt_exec_status_);
+          // pjob->DirectExecuteJob(scheduler->stmt_exec_status_);
+          pjob->set_job_status(PipelineJob::kPivot);
+          // execute the underlying job
+          pjob->CreatJobActor(scheduler);
+          self->send(pjob->get_job_actor(), ExceJobAtom::value);
         }
       },
       [=](DoneJobAtom, PipelineJob* pjob) {

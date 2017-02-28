@@ -54,8 +54,8 @@ void FineGrainBackfillScheduler::ScheduleJob(
   self->become(
       [=](SchPJobAtom) {
         scheduler->lock_.acquire();
-        PipelineJob* pjob = scheduler->GetPivotJob();
-        if (NULL != pjob) {
+        PipelineJob* pjob = NULL;
+        while ((pjob = scheduler->GetPivotJob()) != NULL) {
           LOG(INFO) << "query ,job id, status = "
                     << scheduler->stmt_exec_status_->get_query_id() << " , "
                     << pjob->get_job_id() << " , " << pjob->get_job_status()
@@ -81,8 +81,8 @@ void FineGrainBackfillScheduler::ScheduleJob(
             assert(false && "doesn't know the status of the pivot job");
           }
           // schedule one extra job
-          self->send(self, SchEJobAtom::value);
         }
+        self->send(self, SchEJobAtom::value);
         scheduler->lock_.release();
 
       },
@@ -93,11 +93,11 @@ void FineGrainBackfillScheduler::ScheduleJob(
         // naive method : schedule job among extra and ready jobs that's could
         // use the most free resource
         scheduler->lock_.acquire();
-
+        PipelineJob* ejob = NULL;
+        /*
         int tmp_score = 0;
         int max_score = 0;
         float max_rank = 0;
-        PipelineJob* ejob = NULL;
 
         for (auto it = scheduler->ready_jobs_.begin();
              it != scheduler->ready_jobs_.end(); ++it) {
@@ -116,32 +116,37 @@ void FineGrainBackfillScheduler::ScheduleJob(
             max_rank = (*it)->get_rank();
           }
         }
+*/
+        for (auto it = scheduler->ready_jobs_.begin();
+             it != scheduler->ready_jobs_.end(); ++it) {
+          ejob = *it;
+          if (NULL != ejob) {
+            LOG(INFO) << "query ,job id, status = "
+                      << scheduler->stmt_exec_status_->get_query_id() << " , "
+                      << ejob->get_job_id() << " , " << ejob->get_job_status()
+                      << " will be extra executed!";
+            //            scheduler->ready_jobs_.erase(ejob);
+            ejob->set_job_status(PipelineJob::kExtra);
+            scheduler->extra_jobs_.insert(ejob);
+            // execute the underlying job
+            /*
+                      for (auto it = ejob->node_task_num_.begin();
+                           it != ejob->node_task_num_.end(); ++it) {
+                        ejob->node_allocated_thread_[it->first] +=
+                            scheduler->thread_rest_[it->first];
+                        scheduler->thread_rest_[it->first] = 0;
+                      }
+            */
+            ejob->CreatJobActor(scheduler);
+            self->send(ejob->get_job_actor(), ExceJobAtom::value);
 
-        if (NULL != ejob) {
-          LOG(INFO) << "query ,job id, status = "
-                    << scheduler->stmt_exec_status_->get_query_id() << " , "
-                    << ejob->get_job_id() << " , " << ejob->get_job_status()
-                    << " will be extra executed!";
-          scheduler->ready_jobs_.erase(ejob);
-          ejob->set_job_status(PipelineJob::kExtra);
-          scheduler->extra_jobs_.insert(ejob);
-          // execute the underlying job
-          /*
-                    for (auto it = ejob->node_task_num_.begin();
-                         it != ejob->node_task_num_.end(); ++it) {
-                      ejob->node_allocated_thread_[it->first] +=
-                          scheduler->thread_rest_[it->first];
-                      scheduler->thread_rest_[it->first] = 0;
-                    }
-          */
-          ejob->CreatJobActor(scheduler);
-          self->send(ejob->get_job_actor(), ExceJobAtom::value);
-
-        } else {
-          LOG(INFO) << "query id= "
-                    << scheduler->stmt_exec_status_->get_query_id()
-                    << " couldn't found right job to expand or execute";
+          } else {
+            LOG(INFO) << "query id= "
+                      << scheduler->stmt_exec_status_->get_query_id()
+                      << " couldn't found right job to expand or execute";
+          }
         }
+        scheduler->ready_jobs_.clear();
         scheduler->lock_.release();
       },
 
@@ -191,6 +196,57 @@ void FineGrainBackfillScheduler::ScheduleJob(
                 << "FineGrainBackfillScheduler receives unkown message";
           });
   self->send(self, SchPJobAtom::value);
+}
+
+PipelineJob* FineGrainBackfillScheduler::GetPivotJob() {
+  auto rit = ready_jobs_.begin();
+  auto eit = extra_jobs_.begin();
+  PipelineJob* tmp_job = NULL;
+  for (; rit != ready_jobs_.end() && eit != extra_jobs_.end();) {
+    if ((*rit)->get_rank() > (*eit)->get_rank()) {
+      if (CouldSchedule(*rit)) {
+        tmp_job = *rit;
+        ready_jobs_.erase(rit);
+        return tmp_job;
+      } else {
+        ++rit;
+      }
+    } else {
+      if (CouldSchedule(*eit)) {
+        tmp_job = *eit;
+        extra_jobs_.erase(eit);
+        return tmp_job;
+      } else {
+        ++eit;
+      }
+    }
+  }
+  for (; rit != ready_jobs_.end(); ++rit) {
+    if (CouldSchedule(*rit)) {
+      tmp_job = *rit;
+      ready_jobs_.erase(rit);
+      return tmp_job;
+    }
+  }
+  for (; eit != extra_jobs_.end(); ++eit) {
+    if (CouldSchedule(*eit)) {
+      tmp_job = *eit;
+      extra_jobs_.erase(eit);
+      return tmp_job;
+    }
+  }
+  return NULL;
+}
+
+bool FineGrainBackfillScheduler::CouldSchedule(PipelineJob* pjob) {
+  bool could_sch = true;
+  for (auto it = pjob->node_task_num_.begin(); it != pjob->node_task_num_.end();
+       ++it) {
+    if (thread_rest_[it->first] == 0) {
+      could_sch = false;
+    }
+  }
+  return could_sch;
 }
 
 void FineGrainBackfillScheduler::CreateActor() {
