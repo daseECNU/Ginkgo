@@ -67,6 +67,7 @@ bool ResourceManagerMaster::ApplyMemoryBuget(NodeID target,
   }
   if (node_to_resourceinfo_[target]->memory.take(size_in_mb)) return true;
   LOG(ERROR) << "node :" << target << "no memory!!" << endl;
+
   return false;
 }
 

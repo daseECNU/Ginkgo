@@ -87,6 +87,7 @@ class MasterNodeActor : public event_based_actor {
                       << endl;
           }
           // add new slavenode info.
+
           unsigned id = master_node_->AddOneNode(ip, port);
           Environment::getInstance()
               ->getResourceManagerMaster()
@@ -150,6 +151,7 @@ class MasterNodeActor : public event_based_actor {
             is_losted = false;
           }
           delayed_send(this, std::chrono::seconds(kTimeout), Updatelist::value);
+
         },
         [&](StorageBudgetAtom, const StorageBudgetMessage& message) {
           Environment::getInstance()
@@ -164,6 +166,7 @@ class MasterNodeActor : public event_based_actor {
           return make_message(OkAtom::value);
         },
         /*[&](StorageBudgetAtom, const StorageBudgetMessage& message)
+
             -> caf::message {
               Environment::getInstance()
                   ->getResourceManagerMaster()
@@ -216,6 +219,7 @@ void MasterNode::CreateActor() {
     LOG(INFO) << "master ip port" << get_node_port() << " publish succeed!";
     caf::scoped_actor self;
     self->send(master_actor_, Updatelist::value);
+
   } catch (caf::bind_failure& e) {
     LOG(ERROR) << "the specified port " << get_node_port() << " is used!";
   } catch (caf::network_error& e) {
@@ -250,6 +254,7 @@ unsigned int MasterNode::AddOneNode(string node_ip, uint16_t node_port) {
   }
   BroastNodeInfo((unsigned int)node_id, node_ip, node_port);
   // should broadcast node info first
+
   node_id_to_addr_.insert(
       make_pair((unsigned int)node_id, make_pair(node_ip, node_port)));
   node_id_to_heartbeat_.insert(make_pair((unsigned int)node_id, 0));
@@ -263,6 +268,7 @@ unsigned int MasterNode::AddOneNode(string node_ip, uint16_t node_port) {
   }
   LOG(INFO) << "register one node( " << node_id << " < " << node_ip << " "
             << node_port << " > )" << std::endl;
+
   lock_.release();
   return node_id;
 }
@@ -294,6 +300,7 @@ void MasterNode::RemoveOneNode(unsigned int node_id, MasterNode* master_node) {
               for (auto partition_info : partition_info_list) {
                 if (partition_info->get_location() == node_id) {
                   LOG(INFO) << node_id << "'s partition is unbinding" << endl;
+
                   partition_info->unbind_all_blocks();
                 }
               }

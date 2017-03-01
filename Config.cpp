@@ -83,6 +83,7 @@ bool Config::local_disk_mode;
 int Config::client_listener_port;
 
 bool Config::enable_codegen;
+bool Config::enable_prune_column;
 
 std::string Config::catalog_file;
 
@@ -167,6 +168,7 @@ void Config::initialize() {
   total_thread_num = getInt("total_thread_num", 24);
 
   scheduler = getString("scheduler", "SerializedScheduler");
+  enable_prune_column = getBoolean("enable_prune_column", true);
 
 #ifdef DEBUG_Config
   print_configure();
@@ -226,6 +228,7 @@ void Config::print_configure() const {
   std::cout << "client_lisener_port:" << client_listener_port << std::endl;
   std::cout << "catalog_file:" << catalog_file << std::endl;
   std::cout << "codegen:" << enable_codegen << std::endl;
+  std::cout << "enable_prune_column: " << enable_prune_column << std::endl;
   std::cout << "load_thread_num:" << load_thread_num << std::endl;
   std::cout << "hash_join_bucket_num" << hash_join_bucket_num << std::endl;
   std::cout << "hash_join_bucket_size" << hash_join_bucket_size << std::endl;

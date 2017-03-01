@@ -192,6 +192,11 @@ RetCode SelectExec::Execute() {
       Environment::getInstance()->get_slave_node()->get_node_id();
   logic_plan = new LogicalQueryPlanRoot(collect_node_id, logic_plan, raw_sql_,
                                         LogicalQueryPlanRoot::kResultCollector);
+
+  if (Config::enable_prune_column) {
+    set<string> attrs;
+    logic_plan->PruneProj(attrs);
+  }
   logic_plan->GetPlanContext();
 #ifndef PRINTCONTEXT
   logic_plan->Print();

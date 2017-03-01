@@ -385,7 +385,10 @@ RetCode SlaveNode::RegisterToMaster(bool isFirstRegister) {
   RetCode ret = rSuccess;
   caf::scoped_actor self;
   LOG(INFO) << "slave just RegisterToMaster!!" << endl;
+
   try {
+    master_actor_ =
+        caf::io::remote_actor(master_addr_.first, master_addr_.second);
     self->sync_send(master_actor_, RegisterAtom::value, get_node_ip(),
                     get_node_port())
         .await([=](OkAtom, const unsigned int& id, const BaseNode& node) {
@@ -411,6 +414,7 @@ RetCode SlaveNode::RegisterToMaster(bool isFirstRegister) {
                    self1->send(slave_self, HeartBeatAtom::value);
                  }
                },
+
                [&](const caf::sync_exited_msg& msg) {
                  LOG(WARNING) << "register link fail";
                },
@@ -429,6 +433,7 @@ RetCode SlaveNode::RegisterToMaster(bool isFirstRegister) {
 } /* namespace claims */
 
 // RetCode SlaveNode::reRegisterToMaster() {
+
 //  RetCode ret = rSuccess;
 //  caf::scoped_actor self;
 //  LOG(INFO)<<"slave reRegisterToMaster!!"<<endl;
