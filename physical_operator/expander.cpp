@@ -227,7 +227,7 @@ void* Expander::ExpandedWork(void* arg) {
   LOG(INFO) << "expander_id_ = " << Pthis->expander_id_.first << " , "
             << Pthis->expander_id_.second << ", pid= " << pid
             << " begins to open child!" << std::endl;
-  ticks start_open = curtick();
+  //  ticks start_open = curtick();
 
   Pthis->state_.child_->Open(Pthis->exec_status_,
                              Pthis->state_.partition_offset_);

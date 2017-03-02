@@ -124,18 +124,18 @@ bool ResultCollector::Open(SegmentExecStatus* const exec_status,
 
 bool ResultCollector::Next(SegmentExecStatus* const exec_status,
                            BlockStreamBase* block) {
-  return false;
-}
-
-bool ResultCollector::Close(SegmentExecStatus* const exec_status) {
   if (0 != thread_id_) {
     pthread_join(thread_id_, NULL);
   }
-  state_.child_->Close(exec_status);
   sema_input_complete_.set_value(0);
   // register the result set to global place:SegmentExecTracker
   Environment::getInstance()->get_segment_exec_tracker()->RegisterResult(
       exec_status->get_node_segment_id().first, GetResultSet());
+  return false;
+}
+
+bool ResultCollector::Close(SegmentExecStatus* const exec_status) {
+  state_.child_->Close(exec_status);
   return true;
 }
 void ResultCollector::Print() {
