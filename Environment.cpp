@@ -9,6 +9,8 @@
 #include "caf/all.hpp"
 #include <map>
 #include <utility>
+
+#include "common/Expression/queryfunc.h"
 #include "common/Message.h"
 #include "exec_tracker/stmt_exec_tracker.h"
 #include "exec_tracker/segment_exec_tracker.h"
@@ -224,6 +226,9 @@ void Environment::initializeExpressionSystem() {
   InitAggAvgDivide();
   InitTypeCastFunc();
   InitpartitionValue();
+  initialize_type_cast_functions();
+  initialize_arithmetic_type_promotion_matrix();
+  initialize_operator_function();
 }
 
 void Environment::destoryClientListener() {

@@ -36,7 +36,7 @@
 #include "../Environment.h"
 #include "../scheduler/pipeline_job.h"
 #include "../scheduler/stage_task.h"
-
+#define CodeGen
 using claims::common::DataTypeOper;
 using claims::scheduler::PipelineJob;
 using claims::scheduler::StageTask;
@@ -135,6 +135,28 @@ bool PhysicalHashJoinProbe::Open(SegmentExecStatus* const exec_status,
          0)) {
       --bucket_num_mod_;
     }
+#ifdef CodeGen
+    QNode* expr = createEqualJoinExpression(
+        state_.hashtable_schema_, state_.input_schema_right_,
+        state_.join_index_left_, state_.join_index_right_);
+    ticks start = curtick();
+    if (Config::enable_codegen) {
+      eftt_ = getExprFuncTwoTuples(expr, state_.hashtable_schema_,
+                                   state_.input_schema_right_);
+      memcpy_ = getMemcpy(state_.hashtable_schema_->getTupleMaxSize());
+      memcat_ = getMemcat(state_.hashtable_schema_->getTupleMaxSize(),
+                          state_.input_schema_right_->getTupleMaxSize());
+    }
+    if (eftt_) {
+      cff_ = PhysicalHashJoinProbe::IsMatchCodegen;
+      LOG(INFO) << "Codegen(Join) succeed(" << setw(8) << fixed
+                << setprecision(3) << getMilliSecond(start) << endl;
+    } else {
+      cff_ = PhysicalHashJoinProbe::IsMatch;
+      LOG(INFO) << "Codegen(Join) failed!" << endl;
+    }
+    delete expr;
+#endif
   }
   JoinThreadContext* jtc = CreateOrReuseContext(crm_numa_sensitive);
 
