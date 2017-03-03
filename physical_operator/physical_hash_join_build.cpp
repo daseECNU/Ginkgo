@@ -141,8 +141,9 @@ bool PhysicalHashJoinBuild::Open(SegmentExecStatus* const exec_status,
   while (state_.child_left_->Next(exec_status, l_block_for_asking_)) {
     RETURN_IF_CANCELLED(exec_status);
     // TODO(fzh) should reuse the block_iterator, instead of doing create/delete
-    delete l_block_stream_iterator_;
-    l_block_stream_iterator_ = l_block_for_asking_->createIterator();
+    //    delete l_block_stream_iterator_;
+    //    l_block_stream_iterator_ = l_block_for_asking_->createIterator();
+    l_block_stream_iterator_->reUseIter(l_block_for_asking_);
     while (NULL != (cur = l_block_stream_iterator_->nextTuple())) {
       const void* key_addr =
           input_schema->getColumnAddess(state_.join_index_left_[0], cur);

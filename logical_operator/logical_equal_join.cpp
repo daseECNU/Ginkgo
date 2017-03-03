@@ -616,7 +616,15 @@ PhysicalOperatorBase* LogicalEqualJoin::GetPhysicalPlan(
    * very quickly and hence a * a relatively large bucket size could reduce the
    * number of overflowing buckets and avoid the random memory access caused by
    * acceesing overflowing buckets.
+   * appending by fzh
+   * due to there may be multi join in one sql, so the bucket_size should be
+   * different, which is decided by input schema size, and according to
+   * experiments, the bucket size = 2 * sizeof(input tuple) is optimal, at the
+   * same time, the bucket size should be aligned to 64
    */
+  Config::hash_join_bucket_size =
+      ((state_probe.input_schema_left_->getTupleMaxSize() * 2 - 1) / 64 + 1) *
+      64;
   state_probe.hashtable_bucket_size_ = Config::hash_join_bucket_size;
   state_probe.output_schema_ = GetSchema(plan_context_->attribute_list_);
 
