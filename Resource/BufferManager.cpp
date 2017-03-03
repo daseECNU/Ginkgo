@@ -14,8 +14,8 @@ using std::__basic_file;
 using std::basic_fstream;
 BufferManager* BufferManager::instance_ = NULL;
 BufferManager::BufferManager() {
-  totol_capacity_ = (unsigned long)1024 * 1024 * 1024 * 80;
-  storage_budget_max_ = (unsigned long)1024 * 1024 * 1024 * 60;
+  totol_capacity_ = (unsigned long)1024 * 1024 * 1024 * 80 * 2;
+  storage_budget_max_ = (unsigned long)1024 * 1024 * 1024 * 60 * 2;
   storage_budget_min_ = (unsigned long)1024 * 1024 * 1024 * 60;
   storage_used_ = 0;
   intermediate_buffer_budget_max_ = 896 * 1024 * 1024;
@@ -57,7 +57,8 @@ bool BufferManager::applyStorageDedget(unsigned long size) {
   }
   logging_->log("%d MB applied, %d MB left!", size / 1024 / 1024,
                 (storage_budget_max_ - storage_used_) / 1024 / 1024);
-  logging_->log("%d MB actucl left free memory", actucl_free_memory / 1024 / 1024);
+  logging_->log("%d MB actucl left free memory",
+                actucl_free_memory / 1024 / 1024);
   lock_.release();
   return ret;
 }

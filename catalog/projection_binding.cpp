@@ -33,6 +33,8 @@
 
 #include <glog/logging.h>
 #include <vector>
+
+#include "../Config.h"
 #include "../Environment.h"
 #include "../utility/maths.h"
 
@@ -62,9 +64,15 @@ bool ProjectionBinding::BindingEntireProjection(
         Environment::getInstance()->getResourceManagerMaster();
     std::vector<NodeID> node_id_list = rmm->getSlaveIDList();
     //    unsigned allocate_cur = 0;
-    allocate_cur_ = 0;
-    // allocate_cur_ = allocate_cur_ >= node_id_list.size() ? 0 : allocate_cur_;
-    //    allocate_cur = GetRandomInt(node_id_list.size());
+    if (Config::binding_mode == 1) {
+      // random
+      allocate_cur_ = GetRandomInt(node_id_list.size());
+    } else if (Config::binding_mode == 2) {
+      // round robin
+      allocate_cur_ = allocate_cur_ >= node_id_list.size() ? 0 : allocate_cur_;
+    } else {  // same for 0
+      allocate_cur_ = 0;
+    }
     for (unsigned i = 0; i < part->getNumberOfPartitions(); i++) {
       NodeID target = node_id_list[allocate_cur_];
 

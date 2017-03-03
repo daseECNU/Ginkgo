@@ -95,8 +95,10 @@ int Config::memory_utilization;
 int Config::hash_join_bucket_num;
 int Config::hash_join_bucket_size;
 int Config::total_thread_num;
+int Config::binding_mode;
 
 std::string Config::scheduler;
+std::string Config::tree_type;
 
 Config *Config::getInstance() {
   if (instance_ == 0) {
@@ -167,9 +169,11 @@ void Config::initialize() {
 
   total_thread_num = getInt("total_thread_num", 24);
 
+  binding_mode = getInt("binding_mode", 0);
+
   scheduler = getString("scheduler", "SerializedScheduler");
   enable_prune_column = getBoolean("enable_prune_column", true);
-
+  tree_type = getString("tree_type", "right_deep");
 #ifdef DEBUG_Config
   print_configure();
 #endif

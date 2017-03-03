@@ -308,6 +308,9 @@ RetCode AstFromList::GetLogicalPlan(LogicalOperator*& logic_plan) {
     next_->GetLogicalPlan(next_lplan);
   }
   if (NULL != next_lplan) {
+    if (Config::tree_type == "left_deep") {
+      std::swap(args_lplan, next_lplan);
+    }
     if (!equal_join_condition_.empty()) {
       vector<LogicalEqualJoin::JoinPair> join_pair;
       join_pair.clear();

@@ -30,6 +30,10 @@ class BlockStreamBase : public Block {
     /* get the current tuple of the iterator without increasing cur_
      * Usually, increase_cur_() is called after.
      */
+    inline void reUseIter(BlockStreamBase* block_stream_base) {
+      block_stream_base_ = block_stream_base;
+      cur = 0;
+    }
     inline void* currentTuple() const {
       return block_stream_base_->getTuple(cur);
     }
