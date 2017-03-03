@@ -141,8 +141,8 @@ PlanContext LogicalProject::GetPlanContext() {
   if (plan_context_ == NULL) {
     mid_table_id = MIDINADE_TABLE_ID++;
   } else {
-    mid_table_id =
-        plan_context_->plan_partitioner_.get_partition_key().table_id_;
+    mid_table_id = plan_context_->attribute_list_[0].table_id_;
+    DELETE_PTR(plan_context_);
   }
   GetColumnToId(child_plan_context.attribute_list_, licnxt.column_id0_);
   for (int i = 0; i < expr_list_.size(); ++i) {
@@ -151,7 +151,8 @@ PlanContext LogicalProject::GetPlanContext() {
     ret_attrs.push_back(expr_list_[i]->ExprNodeToAttr(i, mid_table_id));
 
     // update partition key
-    if (t_qcolcumns == expr_list_[i]->expr_node_type_) {
+    if (t_qcolcumns == expr_list_[i]->expr_node_type_ &&
+        ret.plan_partitioner_.get_partition_key().attrName != "*") {
       ExprColumn* column = reinterpret_cast<ExprColumn*>(expr_list_[i]);
       if (ret.plan_partitioner_.get_partition_key().attrName ==
           column->table_name_ + "." + column->column_name_) {
@@ -173,7 +174,9 @@ PlanContext LogicalProject::GetPlanContext() {
 // get PlanContext and child physical plan from child ,
 PhysicalOperatorBase* LogicalProject::GetPhysicalPlan(
     const unsigned& block_size) {
-  GetPlanContext();
+  if (NULL == plan_context_) {
+    GetPlanContext();
+  }
   const PlanContext child_plan_context = child_->GetPlanContext();
   PhysicalOperatorBase* child = child_->GetPhysicalPlan(block_size);
   PhysicalProject::State state;

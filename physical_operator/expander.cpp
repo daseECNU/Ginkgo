@@ -139,7 +139,7 @@ bool Expander::Close(SegmentExecStatus* const exec_status) {
            !being_called_bacl_expanded_thread_list_.empty()) {
       LOG(WARNING) << "there are thread working now when expander close(), so "
                       "waiting!!!";
-      usleep(300);
+      usleep(30);
     }
   } else {
     for (std::set<pthread_t>::iterator it =

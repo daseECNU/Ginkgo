@@ -125,14 +125,16 @@ PlanContext LogicalFilter::GetPlanContext() {
 
 PhysicalOperatorBase* LogicalFilter::GetPhysicalPlan(
     const unsigned& blocksize) {
-  PlanContext plan_context = GetPlanContext();
+  if (NULL == plan_context_) {
+    GetPlanContext();
+  }
   PhysicalOperatorBase* child_iterator = child_->GetPhysicalPlan(blocksize);
   PhysicalFilter::State state;  // Initial a state.
   state.block_size_ = blocksize;
   state.child_ = child_iterator;
   state.qual_ = condi_;
   state.condition_ = condition_;
-  state.schema_ = GetSchema(plan_context.attribute_list_);
+  state.schema_ = GetSchema(plan_context_->attribute_list_);
   PhysicalOperatorBase* filter = new PhysicalFilter(state);
   filter->agg_cardi_ = child_iterator->agg_cardi_ * 0.5;
   filter->total_agg_cardi_ =
