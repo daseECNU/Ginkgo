@@ -39,27 +39,46 @@ data="/home/zzh/data/sf-1-p4/"
 #data="/home/fish/data/test/"
 #data="/home/imdb/data/POC/"
 #data="/home/imdb/data/POC/"
-#hdfs主节点
 
+hdfs_master_ip = 10.11.1.192
 
-hdfs_master_ip="219.228.147.162"
+hdfs_master_port = 9000
 
-#hdfs主节点端口
-hdfs_master_port=9000
+max_degree_of_parallelism = 10
 
-#最大单机算子并行度
-max_degree_of_parallelism=4
+initial_degree_of_parallelism = 6
 
-#初始单机算子并行度
-initial_degree_of_parallelism=1
+total_thread_num = 36
 
-expander_adaptivity_check_frequency=5000
+expander_adaptivity_check_frequency = 1000
 
-enable_expander_adaptivity=0
+enable_expander_adaptivity = 1
 
-pipelined_exchange=1
+local_disk_mode = 0
 
-local_disk_mode=0
+client_listener_port = 20000
 
-scan_batch=100
+enable_codegen = 1
+
+load_thread_num = 12
+
+memory_utilization = 100
+
+hash_join_bucket_num = 1048576
+
+hash_join_bucket_size = 128
+# 1 for random
+# 2 for round-robin
+# else for from node 0
+
+binding_mode = 2
+
+tree_type = right_deep
+#tree_type = left_deep
+
+#scheduler = GreedyScheduler
+#scheduler = CoarseBackfillScheduler
+scheduler = CoarseBackfillScheduler
+#scheduler = SerializedScheduler
+
 

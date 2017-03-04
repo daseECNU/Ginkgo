@@ -23,16 +23,44 @@ master = 1
 #hadoop上的数据目录
 data = "/home/claims/data/ndbc-m/bin/350m/"
 
-#最大单机算子并行度
-max_degree_of_parallelism=1
+hdfs_master_ip = 10.11.1.192
 
-#初始单机算子并行度
-initial_degree_of_parallelism=1
+hdfs_master_port = 9000
 
-expander_adaptivity_check_frequency=1000
+max_degree_of_parallelism = 10
 
-enable_expander_adaptivity=0
+initial_degree_of_parallelism = 6
 
-#
-local_disk_mode = 1
+total_thread_num = 36
+
+expander_adaptivity_check_frequency = 1000
+
+enable_expander_adaptivity = 1
+
+local_disk_mode = 0
+
+client_listener_port = 20000
+
+enable_codegen = 1
+
+load_thread_num = 12
+
+memory_utilization = 100
+
+hash_join_bucket_num = 1048576
+
+hash_join_bucket_size = 128
+# 1 for random
+# 2 for round-robin
+# else for from node 0
+
+binding_mode = 2
+
+tree_type = right_deep
+#tree_type = left_deep
+
+#scheduler = GreedyScheduler
+#scheduler = CoarseBackfillScheduler
+scheduler = CoarseBackfillScheduler
+#scheduler = SerializedScheduler
 
