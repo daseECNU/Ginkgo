@@ -130,6 +130,9 @@ class MasterNodeActor : public event_based_actor {
                   is_losted = true;
                   LOG(WARNING) << "master : lost hearbeat from ( node "
                                << it->first << ")" << endl;
+                  assert(false &&
+                         "due to stmt_tracker couldn't solve the problem, so "
+                         "just quit it rudely!");
                   auto node_id = it->first;
                   auto tmp_it = it;
                   it++;
