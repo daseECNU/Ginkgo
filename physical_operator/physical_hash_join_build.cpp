@@ -184,11 +184,10 @@ bool PhysicalHashJoinBuild::Close(SegmentExecStatus* const exec_status) {
 void PhysicalHashJoinBuild::Print() {
   std::cout << "-----------------HashJoinBuild------------------" << std::endl;
   LOG(INFO) << "Join: buckets: (num= " << state_.hashtable_bucket_num_
-            << " , size= "
-            << get_aligned_space(state_.input_schema_left_->getTupleMaxSize())
+            << " , size= " << state_.hashtable_bucket_size_
             << ") join_id= " << state_.join_id_ << endl;
-  cout << "Join: buckets: (num= " << state_.hashtable_bucket_num_ << " , size= "
-       << get_aligned_space(state_.input_schema_left_->getTupleMaxSize())
+  cout << "Join: buckets: (num= " << state_.hashtable_bucket_num_
+       << " , size= " << state_.hashtable_bucket_size_
        << ") join_id= " << state_.join_id_ << endl;
   state_.child_left_->Print();
 }

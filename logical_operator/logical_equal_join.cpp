@@ -622,10 +622,14 @@ PhysicalOperatorBase* LogicalEqualJoin::GetPhysicalPlan(
    * experiments, the bucket size = 2 * sizeof(input tuple) is optimal, at the
    * same time, the bucket size should be aligned to 64
    */
-  Config::hash_join_bucket_size =
-      ((state_probe.input_schema_left_->getTupleMaxSize() * 2 - 1) / 64 + 1) *
+  int bucket_size = Config::hash_join_bucket_size;
+  bucket_size =
+      ((state_probe.input_schema_left_->getTupleMaxSize() * bucket_size - 1) /
+           64 +
+       1) *
       64;
-  state_probe.hashtable_bucket_size_ = Config::hash_join_bucket_size;
+
+  state_probe.hashtable_bucket_size_ = bucket_size;
   state_probe.output_schema_ = GetSchema(plan_context_->attribute_list_);
 
   state_probe.join_index_left_ = GetLeftJoinKeyIds();
@@ -831,7 +835,7 @@ PhysicalOperatorBase* LogicalEqualJoin::GetPhysicalPlan(
   state_build.block_size_ = block_size;
   state_build.child_left_ = state_probe.child_left_;  // note
   state_build.hashtable_bucket_num_ = Config::hash_join_bucket_num;
-  state_build.hashtable_bucket_size_ = Config::hash_join_bucket_size;
+  state_build.hashtable_bucket_size_ = bucket_size;
   state_build.hashtable_schema_ = GetSchema(dataflow_left.attribute_list_);
   state_build.input_schema_left_ = GetSchema(dataflow_left.attribute_list_);
   state_build.join_id_ = join_id;
