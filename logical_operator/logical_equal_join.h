@@ -63,7 +63,9 @@ class LogicalEqualJoin : public LogicalOperator {
     kNoRepartition,
     kLeftRepartition,
     kRightRepartition,
-    kCompleteRepartition
+    kCompleteRepartition,
+    kLeftBroadCast,
+    kRightBroadCast
   };
 
  public:

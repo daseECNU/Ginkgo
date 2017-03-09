@@ -46,10 +46,10 @@ using claims::physical_operator::ExchangeMerger;
 using claims::physical_operator::PhysicalProjectionScan;
 namespace claims {
 namespace logical_operator {
+
 static u_int64_t LogicalScan::TableAggeCardi[10][40] = {
     {200000, 0, 10000, 0, 800000, 0, 150000, 0, 1500000, 0, 6001215, 0, 25, 0,
      5}};
-
 LogicalScan::LogicalScan(std::vector<Attribute> attribute_list)
     : LogicalOperator(kLogicalScan),
       scan_attribute_list_(attribute_list),
@@ -191,7 +191,19 @@ PlanContext LogicalScan::GetPlanContext() {
   plan_context_->attribute_list_ = scan_attribute_list_;  // attribute_list_
 
   Partitioner* par = target_projection_->getPartitioner();
+  int part_num = par->getNumberOfPartitions();
   plan_context_->plan_partitioner_ = PlanPartitioner(*par);
+  unsigned long total_size = GetAggeCardi();
+  const unsigned kDatasize = total_size / part_num;
+  for (unsigned i = 0; i < part_num; ++i) {
+    /**
+     * @brief Currently, the join output size cannot be predicted due to the
+     * absence of data statistics.
+     * We just use the magic number as following
+     */
+    plan_context_->plan_partitioner_.GetPartition(i)
+        ->set_cardinality(kDatasize);
+  }
   plan_context_->plan_partitioner_.UpdateTableNameOfPartitionKey(table_alias_);
   plan_context_->commu_cost_ = 0;
   lock_->release();
