@@ -109,18 +109,22 @@ RetCode JobExpanderTracker::PeriodSchedule() {
     map_lock_.release();
     return ret;
   }
+  boost::unordered_map<ExpanderID, int> expander_id_to_decision_;
   for (auto it = expander_id_to_status_.begin();
        it != expander_id_to_status_.end(); ++it) {
     ExpanderID id = it->first;
     assert(!expander_id_to_expander_.empty());
-    LOG(INFO)
-        << "Instance throughput: "
-        << it->second->perf_info.report_instance_performance_in_millibytes()
-        << " Mbytes";
+    //    LOG(INFO)
+    //        << "Instance throughput: "
+    //        <<
+    //        it->second->perf_info.report_instance_performance_in_millibytes()
+    //        << " Mbytes";
     const unsigned int cur_parallelism =
         expander_id_to_expander_[it->first]->GetDegreeOfParallelism();
     cur_thread_num_ = cur_parallelism;
     int decision = DecideSchedule(it->second->current_stage, cur_parallelism);
+    // add <ExpanderID, decision> to map
+    expander_id_to_decision_[it->first] = decision;
     LOG(INFO)
         << "^^^ stage job_id= " << job_id_ << " is pivot = " << is_pivot_
         << "  "
@@ -130,18 +134,23 @@ RetCode JobExpanderTracker::PeriodSchedule() {
         << "  parallelism= " << cur_parallelism
         << " extra_cur_thread_num_= " << extra_cur_thread_num_
         << " pivot_cur_thread_num_= " << pivot_cur_thread_num_;
-    map_lock_.release();
-    lock_adapt_.acquire();
+  }
+  map_lock_.release();
+
+  lock_adapt_.acquire();
+  for (auto it = expander_id_to_decision_.begin();
+       it != expander_id_to_decision_.end(); ++it) {
     if (expander_id_to_expander_.find(it->first) ==
         expander_id_to_expander_.end()) {
       LOG(WARNING) << "expander_id= " << it->first.first << " , "
                    << it->first.second
                    << " has been erased from expander_id_to_expander_, so "
                       "coundn't expand or shrink it!";
-      lock_adapt_.release();
-      return rFailure;
+      continue;
     }
-    switch (decision) {
+    const unsigned int cur_parallelism =
+        expander_id_to_expander_[it->first]->GetDegreeOfParallelism();
+    switch (it->second) {
       case DECISION_EXPAND: {
         if (true == expander_id_to_expander_[it->first]->Expand()) {
           ++cur_thread_num_;
@@ -167,8 +176,8 @@ RetCode JobExpanderTracker::PeriodSchedule() {
         break;
       }
     }
-    lock_adapt_.release();
   }
+  lock_adapt_.release();
   return ret;
 }
 

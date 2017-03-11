@@ -964,6 +964,82 @@ PhysicalOperatorBase* LogicalEqualJoin::GetPhysicalPlan(
       state_probe.child_right_ = r_exchange;
       break;
     }
+    case kLeftBroadCast: {
+      Expander::State expander_state;
+      expander_state.block_count_in_buffer_ = EXPANDER_BUFFER_SIZE;
+      expander_state.block_size_ = block_size;
+      expander_state.init_thread_count_ = Config::initial_degree_of_parallelism;
+      expander_state.child_ = child_iterator_left;
+      expander_state.schema_ = GetSchema(dataflow_left.attribute_list_);
+      PhysicalOperatorBase* expander = new Expander(expander_state);
+      expander->agg_cardi_ = expander_state.child_->agg_cardi_;
+      expander->total_agg_cardi_ = expander_state.child_->total_agg_cardi_;
+
+      NodeTracker* node_tracker = NodeTracker::GetInstance();
+      ExchangeMerger::State exchange_state;
+      exchange_state.block_size_ = block_size;
+      exchange_state.child_ = expander;  // child_iterator_left;
+      exchange_state.exchange_id_ =
+          IDsGenerator::getInstance()->generateUniqueExchangeID();
+
+      std::vector<NodeID> upper_id_list =
+          GetInvolvedNodeID(plan_context_->plan_partitioner_);
+      exchange_state.upper_id_list_ = upper_id_list;
+
+      std::vector<NodeID> lower_id_list =
+          GetInvolvedNodeID(dataflow_left.plan_partitioner_);
+      exchange_state.lower_id_list_ = lower_id_list;
+      exchange_state.partition_schema_ =
+          partition_schema::set_broadcast_partition();
+
+      // exchange_state.schema=getSchema(dataflow_left.attribute_list_,
+      //                                 dataflow_right.attribute_list_);
+      exchange_state.schema_ = GetSchema(dataflow_left.attribute_list_);
+      PhysicalOperatorBase* exchange = new ExchangeMerger(exchange_state);
+      exchange->agg_cardi_ = exchange_state.child_->agg_cardi_;
+      exchange->total_agg_cardi_ =
+          exchange->agg_cardi_ + exchange_state.child_->total_agg_cardi_;
+      state_probe.child_left_ = exchange;
+      state_probe.child_right_ = child_iterator_right;
+    } break;
+    case kRightBroadCast: {
+      Expander::State expander_state;
+      expander_state.block_count_in_buffer_ = EXPANDER_BUFFER_SIZE;
+      expander_state.block_size_ = block_size;
+      expander_state.init_thread_count_ = Config::initial_degree_of_parallelism;
+      expander_state.child_ = child_iterator_right;
+      expander_state.schema_ = GetSchema(dataflow_right.attribute_list_);
+      PhysicalOperatorBase* expander = new Expander(expander_state);
+      expander->agg_cardi_ = expander_state.child_->agg_cardi_;
+      expander->total_agg_cardi_ = expander_state.child_->total_agg_cardi_;
+
+      NodeTracker* node_tracker = NodeTracker::GetInstance();
+      ExchangeMerger::State exchange_state;
+      exchange_state.block_size_ = block_size;
+      exchange_state.child_ = expander;
+      exchange_state.exchange_id_ =
+          IDsGenerator::getInstance()->generateUniqueExchangeID();
+
+      std::vector<NodeID> upper_id_list =
+          GetInvolvedNodeID(plan_context_->plan_partitioner_);
+      exchange_state.upper_id_list_ = upper_id_list;
+
+      std::vector<NodeID> lower_id_list =
+          GetInvolvedNodeID(dataflow_right.plan_partitioner_);
+      exchange_state.lower_id_list_ = lower_id_list;
+      exchange_state.partition_schema_ =
+          partition_schema::set_broadcast_partition();
+
+      exchange_state.schema_ = GetSchema(dataflow_right.attribute_list_);
+      PhysicalOperatorBase* exchange = new ExchangeMerger(exchange_state);
+      exchange->agg_cardi_ = exchange_state.child_->agg_cardi_;
+      exchange->total_agg_cardi_ =
+          exchange->agg_cardi_ + exchange_state.child_->total_agg_cardi_;
+
+      state_probe.child_left_ = child_iterator_left;
+      state_probe.child_right_ = exchange;
+    } break;
+
     default: { break; }
   }
   // create PhysicalHashJoinBuild

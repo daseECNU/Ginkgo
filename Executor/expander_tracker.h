@@ -75,7 +75,8 @@ class ExpanderTracker {
    */
   bool SetThreadStatusCallback(ExpandedThreadId id);
 
-  bool AddStageEndpoint(ExpandedThreadId, LocalStageEndPoint);
+  bool AddStageEndpoint(ExpandedThreadId thread_id,
+                        LocalStageEndPoint endpoint);
 
   PerformanceInfo* getPerformanceInfo(ExpandedThreadId);
 #ifdef OLD_TRACKER
