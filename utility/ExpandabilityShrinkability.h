@@ -16,6 +16,7 @@ class ExpandabilityShrinkability {
   virtual RetCode Expand() = 0;
   virtual RetCode Shrink() = 0;
   virtual unsigned GetDegreeOfParallelism() = 0;
+  virtual unsigned GetCallBackNum() = 0;
 };
 
 #endif /* EXPANDABILITYSHRINKABILITY_H_ */

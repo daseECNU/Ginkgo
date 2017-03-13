@@ -110,6 +110,7 @@ class Expander : public PhysicalOperatorBase,
   void AddIntoCalledBackThreadList(pthread_t pid);
   void RemoveFromCalledBackThreadList(pthread_t pid);
   unsigned GetDegreeOfParallelism();
+  unsigned GetCallBackNum();
 
  private:
   bool is_registered_;

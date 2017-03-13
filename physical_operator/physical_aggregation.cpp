@@ -164,6 +164,11 @@ bool PhysicalAggregation::Open(SegmentExecStatus *const exec_status,
     ExpanderTracker::getInstance()->AddStageEndpoint(
         pthread_self(), LocalStageEndPoint(stage_desc, "Aggregation", 0));
   }
+  if (ExpanderTracker::getInstance()->isExpandedThreadCallBack(
+          pthread_self())) {
+    UnregisterExpandedThreadToAllBarriers();
+    return true;
+  }
   BarrierArrive(0);
 
   if (ExpanderTracker::getInstance()->isExpandedThreadCallBack(

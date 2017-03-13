@@ -118,9 +118,21 @@ bool PhysicalHashJoinBuild::Open(SegmentExecStatus* const exec_status,
    * case, all the other threads must wait until the main thread finished
    * serialization, then continue processing. Tong
    */
-  LOG(INFO) << "join build begin to open left child" << endl;
+  if (ExpanderTracker::getInstance()->isExpandedThreadCallBack(
+          pthread_self())) {
+    UnregisterExpandedThreadToAllBarriers();
+    return true;
+  }
+  LOG(INFO) << pthread_self() << "join build begin to open left child" << endl;
   state_.child_left_->Open(exec_status, partition_offset);
-  LOG(INFO) << "join build finished opening left child" << endl;
+
+  LOG(INFO) << pthread_self() << "join build finished opening left child"
+            << endl;
+  if (ExpanderTracker::getInstance()->isExpandedThreadCallBack(
+          pthread_self())) {
+    UnregisterExpandedThreadToAllBarriers();
+    return true;
+  }
   BarrierArrive(0);
 
   void* cur;
@@ -137,7 +149,8 @@ bool PhysicalHashJoinBuild::Open(SegmentExecStatus* const exec_status,
 
   RETURN_IF_CANCELLED(exec_status);
 
-  LOG(INFO) << "join build begin to call left child's next()" << endl;
+  LOG(INFO) << pthread_self() << "join build begin to call left child's next()"
+            << endl;
   while (state_.child_left_->Next(exec_status, l_block_for_asking_)) {
     RETURN_IF_CANCELLED(exec_status);
     // TODO(fzh) should reuse the block_iterator, instead of doing create/delete
@@ -165,7 +178,7 @@ bool PhysicalHashJoinBuild::Open(SegmentExecStatus* const exec_status,
   }
 
   BarrierArrive(1);
-  LOG(INFO) << "join build finished" << endl;
+  LOG(INFO) << pthread_self() << "join build finished" << endl;
 
   return true;
 }

@@ -160,9 +160,18 @@ bool PhysicalHashJoinProbe::Open(SegmentExecStatus* const exec_status,
   }
   JoinThreadContext* jtc = CreateOrReuseContext(crm_numa_sensitive);
 
+  if (ExpanderTracker::getInstance()->isExpandedThreadCallBack(
+          pthread_self())) {
+    UnregisterExpandedThreadToAllBarriers();
+    return true;
+  }
   BarrierArrive(0);
-
   state_.child_right_->Open(exec_status, partition_offset);
+  if (ExpanderTracker::getInstance()->isExpandedThreadCallBack(
+          pthread_self())) {
+    UnregisterExpandedThreadToAllBarriers(1);
+    return true;
+  }
   BarrierArrive(1);
   return true;
 }

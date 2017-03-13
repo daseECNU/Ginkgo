@@ -90,7 +90,17 @@ bool PhysicalProject::Open(SegmentExecStatus* const exec_status,
   RegisterExpandedThreadToAllBarriers();
   ProjectThreadContext* ptc = reinterpret_cast<ProjectThreadContext*>(
       CreateOrReuseContext(crm_core_sensitive));
+  if (ExpanderTracker::getInstance()->isExpandedThreadCallBack(
+          pthread_self())) {
+    UnregisterExpandedThreadToAllBarriers();
+    return true;
+  }
   bool ret = state_.child_->Open(exec_status, kPartitionOffset);
+  if (ExpanderTracker::getInstance()->isExpandedThreadCallBack(
+          pthread_self())) {
+    UnregisterExpandedThreadToAllBarriers();
+    return true;
+  }
   SetReturnStatus(ret);
   BarrierArrive();  //  Synchronization point
   return GetReturnStatus();

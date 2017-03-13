@@ -107,10 +107,18 @@ bool PhysicalNestLoopJoin::Open(SegmentExecStatus *const exec_status,
                  "physical operator]" << std::endl;
   }
   RETURN_IF_CANCELLED(exec_status);
-
+  if (ExpanderTracker::getInstance()->isExpandedThreadCallBack(
+          pthread_self())) {
+    UnregisterExpandedThreadToAllBarriers();
+    return true;
+  }
   state_.child_left_->Open(exec_status, partition_offset);
   RETURN_IF_CANCELLED(exec_status);
-
+  if (ExpanderTracker::getInstance()->isExpandedThreadCallBack(
+          pthread_self())) {
+    UnregisterExpandedThreadToAllBarriers();
+    return true;
+  }
   BarrierArrive(0);
 
   NestLoopJoinContext *jtc = CreateOrReuseContext(crm_numa_sensitive);

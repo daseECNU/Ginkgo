@@ -125,6 +125,11 @@ bool PhysicalProjectionScan::Open(SegmentExecStatus* const exec_status,
         ExpanderTracker::getInstance()->getPerformanceInfo(pthread_self());
     perf_info_->initialize();
   }
+  if (ExpanderTracker::getInstance()->isExpandedThreadCallBack(
+          pthread_self())) {
+    UnregisterExpandedThreadToAllBarriers();
+    return true;
+  }
   BarrierArrive();
   return GetReturnStatus();
 }

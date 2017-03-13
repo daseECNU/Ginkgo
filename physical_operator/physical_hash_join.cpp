@@ -191,9 +191,19 @@ bool PhysicalHashJoin::Open(SegmentExecStatus* const exec_status,
    * case, all the other threads must wait until the main thread finished
    * serialization, then continue processing. Tong
    */
+  if (ExpanderTracker::getInstance()->isExpandedThreadCallBack(
+          pthread_self())) {
+    UnregisterExpandedThreadToAllBarriers();
+    return true;
+  }
   LOG(INFO) << "join operator begin to open left child" << endl;
   state_.child_left_->Open(exec_status, partition_offset);
   LOG(INFO) << "join operator finished opening left child" << endl;
+  if (ExpanderTracker::getInstance()->isExpandedThreadCallBack(
+          pthread_self())) {
+    UnregisterExpandedThreadToAllBarriers();
+    return true;
+  }
   BarrierArrive(0);
   BasicHashTable::Iterator tmp_it = hashtable_->CreateIterator();
 

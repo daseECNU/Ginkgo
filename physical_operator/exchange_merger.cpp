@@ -200,7 +200,11 @@ bool ExchangeMerger::Open(SegmentExecStatus* const exec_status,
   }
   /// A synchronization barrier, in case of multiple expanded threads
   RETURN_IF_CANCELLED(exec_status);
-
+  if (ExpanderTracker::getInstance()->isExpandedThreadCallBack(
+          pthread_self())) {
+    UnregisterExpandedThreadToAllBarriers();
+    return true;
+  }
   BarrierArrive();
   return true;
 }

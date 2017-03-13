@@ -483,6 +483,14 @@ unsigned Expander::GetDegreeOfParallelism() {
   lock_.release();
   return ret;
 }
+
+unsigned Expander::GetCallBackNum() {
+  unsigned ret;
+  lock_.acquire();
+  ret = being_called_bacl_expanded_thread_list_.size();
+  lock_.release();
+  return ret;
+}
 RetCode Expander::Expand() {
   if (input_data_complete_) {
     /*

@@ -34,6 +34,7 @@
 
 #include "../common/memory_handle.h"
 #include "../Config.h"
+#include "../utility/Timer.h"
 namespace claims {
 #define DECISION_SHRINK 0
 #define DECISION_EXPAND 1
@@ -127,7 +128,10 @@ RetCode JobExpanderTracker::PeriodSchedule() {
     expander_id_to_decision_[it->first] = decision;
     LOG(INFO)
         << "^^^ stage job_id= " << job_id_ << " is pivot = " << is_pivot_
-        << "  "
+        << " expander id =[ " << it->first.first << " , " << it->first.second
+        << " ] decision= " << decision << " stage type = "
+        << it->second->current_stage.get_type_name(
+               it->second->current_stage.type_) << " , "
         << it->second->current_stage.dataflow_src_.end_point_name_.c_str()
         << " ---->   "
         << it->second->current_stage.dataflow_desc_.end_point_name_.c_str()
@@ -152,20 +156,32 @@ RetCode JobExpanderTracker::PeriodSchedule() {
         expander_id_to_expander_[it->first]->GetDegreeOfParallelism();
     switch (it->second) {
       case DECISION_EXPAND: {
+        GETCURRENTTIME(start_time_expand);
         if (true == expander_id_to_expander_[it->first]->Expand()) {
           ++cur_thread_num_;
-          LOG(INFO) << "=========Expanding======== " << cur_parallelism
-                    << " --> " << cur_parallelism + 1;
+          double exec_time_ms = GetElapsedTime(start_time_expand);
+          LOG(INFO) << "expander id =[ " << it->first.first << " , "
+                    << it->first.second << " ] "
+                    << "=========Expanding======== " << cur_parallelism
+                    << " --> " << cur_parallelism + 1
+                    << " time: " << exec_time_ms / 1000.0;
+
         } else {
           LOG(WARNING) << "=========Expanding======== Failed to expand!";
         }
         break;
       }
       case DECISION_SHRINK: {
+        GETCURRENTTIME(start_time_shrink);
         if (true == expander_id_to_expander_[it->first]->Shrink()) {
           --cur_thread_num_;
-          LOG(INFO) << "=========Shrinking======== " << cur_parallelism
-                    << " --> " << cur_parallelism - 1;
+          double exec_time_ms = GetElapsedTime(start_time_shrink);
+          LOG(INFO) << " expander id =[ " << it->first.first << " , "
+                    << it->first.second << " ] "
+                    << "=========Shrinking======== " << cur_parallelism
+                    << " --> " << cur_parallelism - 1
+                    << " time: " << exec_time_ms / 1000.0;
+
         } else {
           LOG(WARNING) << "=========Shrinking======== Failed to shrink!";
         }
@@ -380,6 +396,13 @@ int JobExpanderTracker::DecideSchedule(LocalStage& current_stage,
       break;
     }
   }
+  // if there are idle cores, then expander it
+  if (ret == DECISION_KEEP) {
+    if (pivot_cur_thread_num_ + extra_cur_thread_num_ <
+        Config::total_thread_num) {
+      ret = DECISION_EXPAND;
+    }
+  }
 
   if (ret == DECISION_EXPAND) {
     if (cur_thread_num >= Config::max_degree_of_parallelism ||
@@ -496,6 +519,7 @@ void JobExpanderTracker::set_is_pivot(const bool is_pivot) {
     for (auto it = expander_id_to_expander_.begin();
          it != expander_id_to_expander_.end(); ++it) {
       thread_num += it->second->GetDegreeOfParallelism();
+      thread_num += it->second->GetCallBackNum();
     }
     LOG(INFO) << "expander size= " << expander_id_to_expander_.size()
               << " extra_num= " << extra_cur_thread_num_
@@ -517,8 +541,8 @@ void JobExpanderTracker::DeleteOneCurThread() {
   } else {
     --extra_cur_thread_num_;
   }
-  assert(pivot_cur_thread_num_ < 600);
-  assert(extra_cur_thread_num_ < 600);
+  assert(pivot_cur_thread_num_ >= 0);
+  assert(extra_cur_thread_num_ >= 0);
   thread_num_lock_.release();
 }
 

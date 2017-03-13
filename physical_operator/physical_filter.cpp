@@ -145,6 +145,11 @@ bool PhysicalFilter::Open(SegmentExecStatus* const exec_status,
 
   bool ret = state_.child_->Open(exec_status, kPartitiontOffset);
   SetReturnStatus(ret);
+  if (ExpanderTracker::getInstance()->isExpandedThreadCallBack(
+          pthread_self())) {
+    UnregisterExpandedThreadToAllBarriers();
+    return true;
+  }
   BarrierArrive();
   return GetReturnStatus();
 }
