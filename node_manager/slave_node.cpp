@@ -253,18 +253,17 @@ class SlaveNodeActor : public event_based_actor {
         [=](SkJobAtom, u_int64_t query_id, u_int16_t job_id) -> message {
           JobExpanderTracker* job_expander_tracker = NULL;
           int try_times = 0;
-          while (NULL == job_expander_tracker && try_times++ < 0) {
+          while (NULL == job_expander_tracker && try_times++ < 3) {
             job_expander_tracker =
                 ExpanderTracker::getInstance()->GetJobExpanderTracker(query_id,
                                                                       job_id);
             usleep(3);
             LOG(WARNING)
                 << "query,job_id = " << query_id << " , " << job_id
-                << " job_expander_tracker is NULL, while continue to wait 1ms";
+                << " job_expander_tracker is NULL, while continue to wait 3ms";
           }
           if (NULL != job_expander_tracker) {
-            this->send(job_expander_tracker->get_job_expander_actor(),
-                       ForceSchR::value);
+            job_expander_tracker->set_is_pivot(false);
             LOG(INFO) << "query,job_id = " << query_id << " , " << job_id
                       << " set shrink info successfully";
           }
@@ -281,7 +280,7 @@ class SlaveNodeActor : public event_based_actor {
               usleep(3);
               LOG(WARNING) << "query,job_id = " << query_id << " , " << job_id
                            << " job_expander_tracker is NULL, while continue "
-                              "to wait 1ms";
+                              "to wait 3ms";
             } else {
               job_expander_tracker->set_is_pivot(true);
               LOG(INFO) << "query,job_id = " << query_id << " , " << job_id

@@ -26,8 +26,8 @@
  *
  */
 
-#ifndef SCHEDULER_FINE_GRAIN_BACKFILL_SCHEDULER_H_
-#define SCHEDULER_FINE_GRAIN_BACKFILL_SCHEDULER_H_
+#ifndef SCHEDULER_LIST_SCHEDULER_H_
+#define SCHEDULER_LIST_SCHEDULER_H_
 
 #include "../exec_tracker/stmt_exec_status.h"
 #include "../scheduler/pipeline_job.h"
@@ -37,18 +37,17 @@
 namespace claims {
 namespace scheduler {
 
-class FineGrainBackfillScheduler : public BackfillScheduler {
+class ListScheduler : public BackfillScheduler {
  public:
-  FineGrainBackfillScheduler(PipelineJob* const dag_root,
-                             StmtExecStatus* exec_status);
+  ListScheduler(PipelineJob* const dag_root, StmtExecStatus* exec_status);
   PipelineJob* GetPivotJob();
   bool CouldSchedule(PipelineJob* pjob);
-  virtual ~FineGrainBackfillScheduler();
+  virtual ~ListScheduler();
   static void ScheduleJob(caf::event_based_actor* self,
-                          FineGrainBackfillScheduler* scheduler);
+                          ListScheduler* scheduler);
   void CreateActor();
 };
 }
 }  // namespace claims
 
-#endif  //  SCHEDULER_FINE_GRAIN_BACKFILL_SCHEDULER_H_
+#endif  //  SCHEDULER_LIST_SCHEDULER_H_

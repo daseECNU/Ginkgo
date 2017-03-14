@@ -25,7 +25,10 @@ LDADD = ../logical_operator/libscheduler.a \
 
 noinst_LIBRARIES=libscheduler.a
 libscheduler_a_SOURCES = \
-	fine_grain_backfill_scheduler.cpp	fine_grain_backfill_scheduler.h	\
+	list_filling_preemption_scheduler.cpp	list_filling_preemption_scheduler.h	\
+	list_filling_scheduler.cpp	list_filling_scheduler.h	\
+	list_preemption_scheduler.cpp	list_preemption_scheduler.h	\
+	list_scheduler.cpp  			list_scheduler.h	\
 	gready_scheduler.cpp		gready_scheduler.h		\
 	serialized_scheduler.cpp	serialized_scheduler.h	\
 	backfill_scheduler.cpp		backfill_scheduler.h	\

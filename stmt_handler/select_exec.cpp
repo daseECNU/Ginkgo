@@ -52,9 +52,12 @@
 #include "../scheduler/backfill_scheduler.h"
 #include "../scheduler/job_context.h"
 #include "../scheduler/serialized_scheduler.h"
-#include "../scheduler/fine_grain_backfill_scheduler.h"
 #include "../scheduler/gready_scheduler.h"
+#include "../scheduler/list_filling_scheduler.h"
 #include "../scheduler/scheduler_base.h"
+#include "../scheduler/list_filling_preemption_scheduler.h"
+#include "../scheduler/list_preemption_scheduler.h"
+#include "../scheduler/list_scheduler.h"
 using caf::io::remote_actor;
 using claims::logical_operator::LogicalQueryPlanRoot;
 using claims::physical_operator::ExchangeSender;
@@ -71,9 +74,12 @@ using std::make_pair;
 using claims::common::rStmtCancelled;
 using claims::scheduler::BackfillScheduler;
 using claims::scheduler::SerializedScheduler;
-using claims::scheduler::FineGrainBackfillScheduler;
+using claims::scheduler::ListFillingScheduler;
 using claims::scheduler::GreadyScheduler;
 using claims::scheduler::SchedulerBase;
+using claims::scheduler::ListFillingPreemptionScheduler;
+using claims::scheduler::ListScheduler;
+using claims::scheduler::ListPreemptionScheduler;
 namespace claims {
 namespace stmt_handler {
 //#define PRINTCONTEXT
@@ -271,9 +277,19 @@ RetCode SelectExec::Execute() {
   } else if (Config::scheduler == "CoarseBackfillScheduler") {
     bfs =
         new BackfillScheduler(job_cnxt->get_dag_root(), get_stmt_exec_status());
-  } else if (Config::scheduler == "FineGrainBackfillScheduler") {
-    bfs = new FineGrainBackfillScheduler(job_cnxt->get_dag_root(),
-                                         get_stmt_exec_status());
+  } else if (Config::scheduler == "ListFillingScheduler") {
+    bfs = new ListFillingScheduler(job_cnxt->get_dag_root(),
+                                   get_stmt_exec_status());
+  } else if (Config::scheduler == "ListScheduler") {
+    bfs = new ListScheduler(job_cnxt->get_dag_root(), get_stmt_exec_status());
+
+  } else if (Config::scheduler == "ListPreemptionScheduler") {
+    bfs = new ListPreemptionScheduler(job_cnxt->get_dag_root(),
+                                      get_stmt_exec_status());
+  } else if (Config::scheduler == "ListFillingPreemptionScheduler") {
+    bfs = new ListFillingPreemptionScheduler(job_cnxt->get_dag_root(),
+                                             get_stmt_exec_status());
+
   } else {
     bfs = new SerializedScheduler(job_cnxt->get_dag_root(),
                                   get_stmt_exec_status());

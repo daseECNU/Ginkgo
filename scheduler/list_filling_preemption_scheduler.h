@@ -16,9 +16,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * /Claims/scheduler/backfill_scheduler.h
+ * /Claims/scheduler/fine_grain_backfill_scheduler.h
  *
- *  Created on: Oct 6, 2016
+ *  Created on: Oct 17, 2016
  *      Author: fzh
  *		   Email: fzhedu@gmail.com
  *
@@ -26,40 +26,30 @@
  *
  */
 
-#ifndef SCHEDULER_BACKFILL_SCHEDULER_H_
-#define SCHEDULER_BACKFILL_SCHEDULER_H_
+#ifndef SCHEDULER_LIST_FILLING_PREEMPTION_SCHEDULER_H_
+#define SCHEDULER_LIST_FILLING_PREEMPTION_SCHEDULER_H_
 
-#include <set>
-#include "../common/error_define.h"
+#include "../exec_tracker/stmt_exec_status.h"
 #include "../scheduler/pipeline_job.h"
-#include "../utility/lock.h"
-#include "scheduler_base.h"
-
-using std::set;
+#include "backfill_scheduler.h"
+#include "caf/all.hpp"
 
 namespace claims {
 namespace scheduler {
 
-class BackfillScheduler : public SchedulerBase {
+class ListFillingPreemptionScheduler : public BackfillScheduler {
  public:
-  BackfillScheduler(PipelineJob* const dag_root, StmtExecStatus* exec_status);
-  virtual ~BackfillScheduler();
-  static void ScheduleJob(caf::event_based_actor* self,
-                          BackfillScheduler* scheduler);
+  ListFillingPreemptionScheduler(PipelineJob* const dag_root,
+                                 StmtExecStatus* exec_status);
   PipelineJob* GetPivotJob();
-  void InitThread();
-  virtual void CreateActor();
-
-  Lock lock_;
-  set<PipelineJob*> extra_jobs_;
-
-  set<PipelineJob*> pivot_jobs_;
-
- protected:
-  RetCode ComputeJobRank();
-  void ComputeTaskNum();
+  bool IsConflict(const boost::unordered_map<int, u_int16_t>& nodes1,
+                  const boost::unordered_map<int, u_int16_t>& nodes2);
+  virtual ~ListFillingPreemptionScheduler();
+  static void ScheduleJob(caf::event_based_actor* self,
+                          ListFillingPreemptionScheduler* scheduler);
+  void CreateActor();
 };
 }
 }  // namespace claims
 
-#endif  //  SCHEDULER_BACKFILL_SCHEDULER_H_
+#endif  //  SCHEDULER_LIST_FILLING_PREEMPTION_SCHEDULER_H_

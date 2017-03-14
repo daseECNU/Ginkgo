@@ -26,7 +26,7 @@
  *
  */
 
-#include "fine_grain_backfill_scheduler.h"
+#include "list_filling_scheduler.h"
 
 #include <glog/logging.h>
 
@@ -38,17 +38,17 @@
 namespace claims {
 namespace scheduler {
 
-FineGrainBackfillScheduler::FineGrainBackfillScheduler(
-    PipelineJob* const dag_root, StmtExecStatus* stmt_exec_status)
+ListFillingScheduler::ListFillingScheduler(PipelineJob* const dag_root,
+                                           StmtExecStatus* stmt_exec_status)
     : BackfillScheduler(dag_root, stmt_exec_status) {}
 
-FineGrainBackfillScheduler::~FineGrainBackfillScheduler() {
+ListFillingScheduler::~ListFillingScheduler() {
   // TODO Auto-generated destructor stub
 }
 
-void FineGrainBackfillScheduler::ScheduleJob(
-    caf::event_based_actor* self, FineGrainBackfillScheduler* scheduler) {
-  LOG(INFO) << "FineGrainBackfillScheduler starts up now!";
+void ListFillingScheduler::ScheduleJob(caf::event_based_actor* self,
+                                       ListFillingScheduler* scheduler) {
+  LOG(INFO) << "ListFillingScheduler starts up now!";
   scheduler->ComputeTaskNum();
   scheduler->InitThread();
   self->become(
@@ -192,13 +192,12 @@ void FineGrainBackfillScheduler::ScheduleJob(
       caf::others >>
 
           [=]() {
-            LOG(WARNING)
-                << "FineGrainBackfillScheduler receives unkown message";
+            LOG(WARNING) << "ListFillingScheduler receives unkown message";
           });
   self->send(self, SchPJobAtom::value);
 }
 
-PipelineJob* FineGrainBackfillScheduler::GetPivotJob() {
+PipelineJob* ListFillingScheduler::GetPivotJob() {
   auto rit = ready_jobs_.begin();
   auto eit = extra_jobs_.begin();
   PipelineJob* tmp_job = NULL;
@@ -238,7 +237,7 @@ PipelineJob* FineGrainBackfillScheduler::GetPivotJob() {
   return NULL;
 }
 
-bool FineGrainBackfillScheduler::CouldSchedule(PipelineJob* pjob) {
+bool ListFillingScheduler::CouldSchedule(PipelineJob* pjob) {
   bool could_sch = true;
   for (auto it = pjob->node_task_num_.begin(); it != pjob->node_task_num_.end();
        ++it) {
@@ -249,7 +248,7 @@ bool FineGrainBackfillScheduler::CouldSchedule(PipelineJob* pjob) {
   return could_sch;
 }
 
-void FineGrainBackfillScheduler::CreateActor() {
+void ListFillingScheduler::CreateActor() {
   scheduler_actor_ = caf::spawn(ScheduleJob, this);
 }
 }
