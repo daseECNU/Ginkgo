@@ -142,6 +142,10 @@ void LogicalEqualJoin::DecideJoinPolicy(const PlanContext& left_dataflow,
     int part_num = 100;
     int64_t left_data_size = left_dataflow.GetAggregatedDatasize();
     int64_t right_data_size = right_dataflow.GetAggregatedDatasize();
+    //    cout << "left : " << left_dataflow.attribute_list_[0].attrName
+    //         << " size= " << left_data_size << endl;
+    //    cout << "right: " << right_dataflow.attribute_list_[0].attrName
+    //         << " size = " << right_data_size << endl;
     if ((left_data_size < (right_data_size / part_num)) &&
         (right_data_size > 0)) {
       join_policy_ =

@@ -51,9 +51,9 @@ class BackfillScheduler : public SchedulerBase {
   virtual void CreateActor();
 
   Lock lock_;
-  set<PipelineJob*> extra_jobs_;
+  multiset<PipelineJob*, PipelineJob::PipelineJobGT> extra_jobs_;
 
-  set<PipelineJob*> pivot_jobs_;
+  multiset<PipelineJob*, PipelineJob::PipelineJobGT> pivot_jobs_;
 
  protected:
   RetCode ComputeJobRank();

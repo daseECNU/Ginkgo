@@ -30,7 +30,7 @@
 #include "caf/all.hpp"
 #include "../node_manager/base_node.h"
 #include "../scheduler/pipeline_job.h"
-#include "list_preemption_scheduler.h""
+#include "list_preemption_scheduler.h"
 #include "scheduler_base.h"
 namespace claims {
 namespace scheduler {
@@ -51,7 +51,7 @@ void ListPreemptionScheduler::ScheduleJob(caf::event_based_actor* self,
   self->become(
       [=](SchPJobAtom) {
 
-        set<PipelineJob*> ready_extra_job;
+        multiset<PipelineJob*, PipelineJob::PipelineJobGT> ready_extra_job;
         ready_extra_job.insert(scheduler->ready_jobs_.begin(),
                                scheduler->ready_jobs_.end());
         ready_extra_job.insert(scheduler->extra_jobs_.begin(),

@@ -28,8 +28,6 @@
 
 #ifndef SCHEDULER_PIPELINE_JOB_H_
 #define SCHEDULER_PIPELINE_JOB_H_
-#include "../scheduler/pipeline_job.h"
-
 #include <boost/unordered/unordered_map.hpp>
 #include <stdint.h>
 #include <set>
@@ -39,6 +37,7 @@
 #include "./stage_task.h"
 #include "caf/all.hpp"
 using caf::actor;
+using std::multiset;
 using std::pair;
 using std::set;
 using std::vector;
@@ -46,8 +45,14 @@ using std::vector;
 namespace claims {
 namespace scheduler {
 class SchedulerBase;
+
 class PipelineJob {
  public:
+  struct PipelineJobGT {
+    bool operator()(const PipelineJob* lp, const PipelineJob* rp) {
+      return lp->rank_ > rp->rank_;
+    }
+  };
   enum JobStatus { kQueued, kReady, kPivot, kExtra, kDone };
   PipelineJob(vector<StageTask*> stage_task, vector<PipelineJob*> parents,
               uint16_t job_id, float cost);
@@ -74,7 +79,8 @@ class PipelineJob {
   RetCode ComputeJobRank(float upper_rank = 0);
   RetCode ComputeJobRank(float& low_rank, float upper_rank = 0);
 
-  RetCode GetReadyJobs(set<PipelineJob*>& ready_jobs);
+  RetCode GetReadyJobs(
+      multiset<PipelineJob*, PipelineJob::PipelineJobGT>& ready_jobs);
   RetCode DirectExecuteJob(StmtExecStatus* const stmt_exec_status);
   bool IsReadyJob();
   float get_rank() const { return rank_; }

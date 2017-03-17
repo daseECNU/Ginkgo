@@ -118,7 +118,8 @@ RetCode PipelineJob::ComputeJobRank(float& low_rank, float upper_rank) {
   return ret;
 }
 
-RetCode PipelineJob::GetReadyJobs(set<PipelineJob*>& ready_jobs) {
+RetCode PipelineJob::GetReadyJobs(
+    multiset<PipelineJob*, PipelineJob::PipelineJobGT>& ready_jobs) {
   RetCode ret = rSuccess;
   if (parents_.empty()) {  // leaf job
     set_job_status(kReady);

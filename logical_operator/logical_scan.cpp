@@ -48,8 +48,9 @@ namespace claims {
 namespace logical_operator {
 
 static u_int64_t LogicalScan::TableAggeCardi[10][40] = {
+    {10000, 0, 150000, 0, 1500000, 0, 6001215, 0, 25, 0, 5, 0, 150000, 0},
     {200000, 0, 10000, 0, 800000, 0, 150000, 0, 1500000, 0, 6001215, 0, 25, 0,
-     5}};
+     5, 0}};
 LogicalScan::LogicalScan(std::vector<Attribute> attribute_list)
     : LogicalOperator(kLogicalScan),
       scan_attribute_list_(attribute_list),

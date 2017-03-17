@@ -58,11 +58,11 @@ class SchedulerBase {
 
  public:
   StmtExecStatus* stmt_exec_status_;
-  set<PipelineJob*> ready_jobs_;
+  multiset<PipelineJob*, PipelineJob::PipelineJobGT> ready_jobs_;
   vector<int> thread_num_, thread_rest_;
 
   virtual RetCode ComputeJobRank();
-  virtual RetCode GetReadyJobs(set<PipelineJob*>& ready_jobs);
+  virtual RetCode GetReadyJobs(multiset<PipelineJob*, PipelineJob::PipelineJobGT>& ready_jobs);
   virtual void PrintReadyJobs();
 
  protected:

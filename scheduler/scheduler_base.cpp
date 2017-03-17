@@ -29,8 +29,12 @@
 #include "scheduler_base.h"
 
 #include <glog/logging.h>
+#include <set>
+
 #include "../common/memory_handle.h"
 #include "../node_manager/base_node.h"
+
+using std::multiset;
 namespace claims {
 namespace scheduler {
 
@@ -44,7 +48,8 @@ SchedulerBase::SchedulerBase(PipelineJob* const dag_root,
                              StmtExecStatus* stmt_exec_status)
     : dag_root_(dag_root), stmt_exec_status_(stmt_exec_status) {}
 
-RetCode SchedulerBase::GetReadyJobs(set<PipelineJob*>& ready_jobs) {
+RetCode SchedulerBase::GetReadyJobs(
+    multiset<PipelineJob*, PipelineJob::PipelineJobGT>& ready_jobs) {
   RetCode ret = rSuccess;
   dag_root_->GetReadyJobs(ready_jobs);
   return ret;
