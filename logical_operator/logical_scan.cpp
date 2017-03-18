@@ -34,6 +34,7 @@
 #include <vector>
 
 #include "../catalog/catalog.h"
+#include "../Environment.h"
 #include "../IDsGenerator.h"
 #include "../logical_operator/logical_operator.h"
 #include "../logical_operator/plan_partition_info.h"
@@ -47,10 +48,8 @@ using claims::physical_operator::PhysicalProjectionScan;
 namespace claims {
 namespace logical_operator {
 
-static u_int64_t LogicalScan::TableAggeCardi[10][40] = {
-    {10000, 0, 150000, 0, 1500000, 0, 6001215, 0, 25, 0, 5, 0, 150000, 0},
-    {200000, 0, 10000, 0, 800000, 0, 150000, 0, 1500000, 0, 6001215, 0, 25, 0,
-     5, 0}};
+static boost::unordered_map<string, u_int64_t> LogicalScan::TableAggeCardi;
+
 LogicalScan::LogicalScan(std::vector<Attribute> attribute_list)
     : LogicalOperator(kLogicalScan),
       scan_attribute_list_(attribute_list),
@@ -74,6 +73,7 @@ LogicalScan::LogicalScan(ProjectionDescriptor* projection,
       plan_context_(NULL) {
   scan_attribute_list_ = projection->getAttributeList();
   target_projection_ = projection;
+  InitTableCardi();
 }
 LogicalScan::LogicalScan(ProjectionDescriptor* const projection,
                          string table_alias, const float sample_rate)
@@ -84,6 +84,7 @@ LogicalScan::LogicalScan(ProjectionDescriptor* const projection,
   scan_attribute_list_ = projection->getAttributeList();
   ChangeAliasAttr();
   target_projection_ = projection;
+  InitTableCardi();
 }
 LogicalScan::LogicalScan(
     const TableID& table_id,
@@ -99,6 +100,7 @@ LogicalScan::LogicalScan(
     scan_attribute_list_.push_back(
         table->getAttribute(selected_attribute_index_list[i]));
   }
+  InitTableCardi();
 }
 
 LogicalScan::~LogicalScan() {
@@ -348,10 +350,26 @@ void LogicalScan::Print(int level) const {
               ->getTableName() << "   alias: " << table_alias_ << endl;
 }
 
+void LogicalScan::InitTableCardi() {
+  TableAggeCardi["PART"] = 200000;
+  TableAggeCardi["SUPPLIER"] = 10000;
+  TableAggeCardi["PARTSUPP"] = 800000;
+  TableAggeCardi["CUSTOMER"] = 150000;
+  TableAggeCardi["CUSTOMER1"] = 150000;
+  TableAggeCardi["ORDERS"] = 1500000;
+  TableAggeCardi["LINEITEM"] = 6001215;
+  TableAggeCardi["NATION"] = 25;
+  TableAggeCardi["REGION"] = 5;
+}
+
 u_int64_t LogicalScan::GetAggeCardi() {
   u_int64_t ret = 0;
   TableID table_id = scan_attribute_list_[0].table_id_;
-  ret = TableAggeCardi[0][table_id];
+  string table_name = Environment::getInstance()
+                          ->getCatalog()
+                          ->getTable(table_id)
+                          ->getTableName();
+  ret = TableAggeCardi[table_name];
   return ret;
 }
 

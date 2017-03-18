@@ -29,7 +29,9 @@
 #ifndef LOGICAL_OPERATOR_LOGICAL_SCAN_H_
 #define LOGICAL_OPERATOR_LOGICAL_SCAN_H_
 
-#include <iosfwd>
+#include <boost/unordered/unordered_map.hpp>
+#include <sys/types.h>
+#include <string>
 #include <vector>
 #include "../common/ids.h"
 #include "../catalog/attribute.h"
@@ -37,7 +39,7 @@
 #include "../logical_operator/logical_operator.h"
 #include "../logical_operator/plan_context.h"
 #include "../physical_operator/physical_operator_base.h"
-
+using std::string;
 namespace claims {
 namespace logical_operator {
 
@@ -59,13 +61,14 @@ class LogicalScan : public LogicalOperator {
   LogicalScan(const TableID&,
               const std::vector<unsigned>& selected_attribute_index_list);
   virtual ~LogicalScan();
+  void InitTableCardi();
   PlanContext GetPlanContext();
   PhysicalOperatorBase* GetPhysicalPlan(const unsigned&);
   bool GetOptimalPhysicalPlan(Requirement requirement,
                               PhysicalPlanDescriptor& physical_plan_descriptor,
                               const unsigned& kBlock_size = 4096 * 1024);
   void ChangeAliasAttr();
-  static u_int64_t TableAggeCardi[10][40];
+  static boost::unordered_map<string, u_int64_t> TableAggeCardi;
 
  private:
   /**check whether all the involved attributes are in the same projection.*/
