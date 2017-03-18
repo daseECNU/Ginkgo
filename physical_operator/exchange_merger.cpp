@@ -233,6 +233,13 @@ bool ExchangeMerger::Next(SegmentExecStatus* const exec_status,
         perf_info_->processed_one_block();
         return true;
       }
+      // if there is no block, it will delay the Shrin(), so add this Check
+      if (this->CheckTerminateRequest()) {
+        LOG(INFO)
+            << "<<<<<<<<<<<<<Exchange detected call back, signal! get failed>>>"
+            << pthread_self() << ">>>>>>>>" << endl;
+        return false;
+      }
     }
     /*
      * Fix bug by checking whether the value of sem_new_block_or_eof_ is 0.
