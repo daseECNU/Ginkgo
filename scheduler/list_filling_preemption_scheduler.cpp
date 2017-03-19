@@ -48,6 +48,7 @@ void ListFillingPreemptionScheduler::ScheduleJob(
   LOG(INFO) << "ListFillingPreemption starts up now!";
   scheduler->ComputeTaskNum();
   scheduler->InitThread();
+  int delt_cost = 100;
   self->become(
       [=](SchPJobAtom) {
 
@@ -61,7 +62,7 @@ void ListFillingPreemptionScheduler::ScheduleJob(
           bool confilict = false;
           for (auto pit = scheduler->pivot_jobs_.begin();
                pit != scheduler->pivot_jobs_.end();) {
-            if ((*pit)->get_rank() >= (*it)->get_rank()) {
+            if ((*pit)->get_rank() >= (*it)->get_rank() - delt_cost) {
               // if resources conflict, break
               if (scheduler->IsConflict((*it)->node_task_num_,
                                         (*pit)->node_task_num_)) {
@@ -92,8 +93,8 @@ void ListFillingPreemptionScheduler::ScheduleJob(
                           << scheduler->stmt_exec_status_->get_query_id()
                           << " , " << (*pit)->get_job_id() << " , "
                           << (*pit)->get_job_status()
-                          << " will be extra due to conflict with job id = "
-                          << (*it)->get_job_id();
+                          << " will be changed to extra due to conflict with "
+                             "job id = " << (*it)->get_job_id();
                 self->send((*pit)->get_job_actor(), SkJobAtom::value);
                 (*pit)->set_job_status(PipelineJob::kExtra);
                 scheduler->extra_jobs_.insert(*pit);
@@ -108,7 +109,7 @@ void ListFillingPreemptionScheduler::ScheduleJob(
             LOG(INFO) << "query ,job id, status = "
                       << scheduler->stmt_exec_status_->get_query_id() << " , "
                       << (*it)->get_job_id() << " , " << (*it)->get_job_status()
-                      << " will be pivot";
+                      << " will be changed to pivot";
             scheduler->pivot_jobs_.insert((*it));
             // set resources for this it job
             for (auto rit = (*it)->node_task_num_.begin();
@@ -120,13 +121,13 @@ void ListFillingPreemptionScheduler::ScheduleJob(
             // run the underlying job
             if (PipelineJob::kReady == (*it)->get_job_status()) {
               (*it)->set_job_status(PipelineJob::kPivot);
-              scheduler->ready_jobs_.erase(*it);
+              scheduler->ready_jobs_.erase(scheduler->ready_jobs_.find(*it));
               // execute the underlying job
               (*it)->CreatJobActor(scheduler);
               self->send((*it)->get_job_actor(), ExceJobAtom::value);
 
             } else if (PipelineJob::kExtra == (*it)->get_job_status()) {
-              scheduler->extra_jobs_.erase(*it);
+              scheduler->extra_jobs_.erase(scheduler->extra_jobs_.find(*it));
               (*it)->set_job_status(PipelineJob::kPivot);
               // expand the underlying job
               self->send((*it)->get_job_actor(), EpdJobAtom::value);
@@ -199,7 +200,7 @@ void ListFillingPreemptionScheduler::ScheduleJob(
                       << " couldn't found right job to expand or execute ";
           }
         }
-        scheduler->ready_jobs_.clear();
+        //        scheduler->ready_jobs_.clear();
       },
 
       [=](DoneJobAtom, PipelineJob* pjob) {
@@ -207,9 +208,15 @@ void ListFillingPreemptionScheduler::ScheduleJob(
         // trigger SchEJobAtom
         // once complete a job, reduce the underling waiting parents and check
         // whether it's ready
+        LOG(INFO) << "query, job id, status = "
+                  << scheduler->stmt_exec_status_->get_query_id() << " , "
+                  << pjob->get_job_id() << " , " << pjob->get_job_status()
+                  << " has been Done";
         if (NULL != pjob->get_child()) {
           pjob->get_child()->ReduceWaitingParents();
           if (pjob->get_child()->IsReadyJob()) {
+            LOG(INFO) << "job id = " << pjob->get_child()->get_job_id()
+                      << " will be ready";
             scheduler->ready_jobs_.insert(pjob->get_child());
           }
         }
@@ -221,10 +228,6 @@ void ListFillingPreemptionScheduler::ScheduleJob(
           pjob->node_allocated_thread_[it->first] = 0;
         }
 
-        LOG(INFO) << "query, job id, status = "
-                  << scheduler->stmt_exec_status_->get_query_id() << " , "
-                  << pjob->get_job_id() << " , " << pjob->get_job_status()
-                  << " has been Done";
         if (PipelineJob::kPivot == pjob->get_job_status()) {
           scheduler->pivot_jobs_.erase(pjob);
           self->send(self, SchPJobAtom::value);
@@ -236,7 +239,44 @@ void ListFillingPreemptionScheduler::ScheduleJob(
         self->send(pjob->get_job_actor(), ExitAtom::value);
 
       },
+      [=](UpdateRPAtom) {
+        bool flag = false;
+        multiset<PipelineJob*, PipelineJob::PipelineJobGT> jobs;
+        for (auto it = scheduler->extra_jobs_.begin();
+             it != scheduler->extra_jobs_.end(); ++it) {
+          (*it)->RecomputeRank(jobs);
+          flag = true;
+        }
+        // if there are extra jobs, then recompute rank for extra and pivot jobs
+        if (flag) {
+          scheduler->extra_jobs_.clear();
+          scheduler->extra_jobs_.insert(jobs.begin(), jobs.end());
+          jobs.clear();
+          for (auto it = scheduler->extra_jobs_.begin();
+               it != scheduler->extra_jobs_.end(); ++it) {
+            LOG(INFO) << "extra job: id, status " << (*it)->get_job_id()
+                      << " , " << (*it)->get_job_status() << " , "
+                      << (*it)->get_rank();
+          }
 
+          for (auto it = scheduler->pivot_jobs_.begin();
+               it != scheduler->pivot_jobs_.end(); ++it) {
+            (*it)->RecomputeRank(jobs);
+          }
+          scheduler->pivot_jobs_.clear();
+          scheduler->pivot_jobs_.insert(jobs.begin(), jobs.end());
+          jobs.clear();
+          for (auto it = scheduler->pivot_jobs_.begin();
+               it != scheduler->pivot_jobs_.end(); ++it) {
+            LOG(INFO) << "pivot job: id, status " << (*it)->get_job_id()
+                      << " , " << (*it)->get_job_status() << " , "
+                      << (*it)->get_rank();
+          }
+          self->send(self, SchPJobAtom::value);
+          self->delayed_send(self, std::chrono::milliseconds(300),
+                             UpdateRPAtom::value);
+        }
+      },
       [=](ExitAtom) { self->quit(); },
 
       caf::others >>
@@ -245,6 +285,8 @@ void ListFillingPreemptionScheduler::ScheduleJob(
             LOG(WARNING) << "ListFillingPreemption receives unkown message";
           });
   self->send(self, SchPJobAtom::value);
+  self->delayed_send(self, std::chrono::milliseconds(1000),
+                     UpdateRPAtom::value);
 }
 
 PipelineJob* ListFillingPreemptionScheduler::GetPivotJob() { return NULL; }

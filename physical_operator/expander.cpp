@@ -364,6 +364,7 @@ bool Expander::CreateWorkingThread() {
   }
   ExpanderContext para;
   para.pthis_ = this;
+  LOG(INFO) << "create thread try to get exclusive_expanding lock";
   if (exclusive_expanding_.try_acquire()) {
     if (true == g_thread_pool_used) {
       Environment::getInstance()->getThreadPool()->AddTask(ExpandedWork, &para);
@@ -374,6 +375,7 @@ bool Expander::CreateWorkingThread() {
         return false;
       }
     }
+    LOG(INFO) << "create thread get lock and create thread successfully";
     para.sem_.wait();
     exclusive_expanding_.release();
     if (true == g_thread_pool_used) {
@@ -382,7 +384,7 @@ bool Expander::CreateWorkingThread() {
                 << expander_id_.second << " New expanded thread " << tid
                 << " created!" << std::endl;
     }
-
+    LOG(INFO) << "expand on thread successfully";
     lock_.acquire();
     thread_count_++;
     lock_.release();

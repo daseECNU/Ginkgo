@@ -38,6 +38,8 @@
 #include "caf/all.hpp"
 
 #include "caf/io/all.hpp"
+
+#include "../utility/Timer.h"
 using boost::chrono::seconds;
 using caf::io::remote_actor;
 using std::make_pair;
@@ -183,10 +185,21 @@ bool StmtExecStatus::UpdateSegExecStatus(
       lock_.release();
       return false;
     } else {
+      GETCURRENTTIME(starta);
       it->second->UpdateStatus(exec_status, exec_info, logic_time);
       if (SegmentExecStatus::ExecStatus::kDone == exec_status) {
         CheckJobIsDone(node_segment_id.second);
+      } else if (exec_info[0] == 'A') {
+        int nextid = exec_info.find_first_of('A', 1);
+        string rest_progress = exec_info.substr(1, nextid);
+        istringstream iss(rest_progress);
+        float rest = 0;
+        iss >> rest;
+        LOG(INFO) << "receive one progress info " << exec_info << " " << rest;
+        UpdateRestProgress(node_segment_id.second, rest);
       }
+      LOG(INFO) << "stmt tracker update status use time: "
+                << GetElapsedTime(starta);
       lock_.release();
       return true;
     }
@@ -206,6 +219,27 @@ void StmtExecStatus::AddOneJob(u_int16_t job_id, u_int16_t part_num) {
     // (job_id,task_id=0,part_num)
     stage_id = job_id * kMaxTaskIdNum * kMaxPartNum + i;
     stage_id_to_sem_.insert(make_pair(stage_id, new semaphore()));
+  }
+}
+bool StmtExecStatus::UpdateRestProgress(u_int64_t node_stage_id,
+                                        float rest_process) {
+  u_int16_t job_id =
+      (node_stage_id / kMaxNodeNum / kMaxPartNum / kMaxTaskIdNum) %
+      kMaxJobIdNum;
+  u_int16_t task_id =
+      (node_stage_id / kMaxNodeNum / kMaxPartNum) % kMaxTaskIdNum;
+  map_lock_.acquire();
+  auto it = job_id_to_job_.find(job_id);
+  if (job_id_to_job_.end() == it) {
+    map_lock_.release();
+    return false;
+  } else {
+    bool rs = it->second->UpdateRestProgress(
+        (node_stage_id / kMaxNodeNum) % kMaxPartNum, rest_process);
+    LOG(INFO) << "job, task = " << job_id << " , " << task_id
+              << " update rest_progress successfully! " << rest_process;
+    map_lock_.release();
+    return rs;
   }
 }
 
@@ -271,5 +305,5 @@ void StmtExecStatus::JobWaitingDone(u_int16_t job_id, u_int16_t part_num = 1) {
     LOG(INFO) << "%%% (job,task,partition)= " << stage_id << " waiting Done!";
   }
 }
-
-}  // namespace claims
+}
+// namespace claims

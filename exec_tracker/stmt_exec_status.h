@@ -79,6 +79,7 @@ class StmtExecStatus {
   void AddOneJob(u_int16_t job_id, u_int16_t part_num);
   void RegisterOneJob(u_int16_t job_id, PipelineJob* const pjob);
   bool CheckJobIsDone(u_int64_t stage_id);
+  bool UpdateRestProgress(u_int64_t stage_id, float rest_process);
   void JobWaitingDone(u_int16_t job_id, u_int16_t times = 1);
 
  private:

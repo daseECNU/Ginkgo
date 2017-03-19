@@ -164,7 +164,7 @@ RetCode JobExpanderTracker::PeriodSchedule() {
                     << it->first.second << " ] "
                     << "=========Expanding======== " << cur_parallelism
                     << " --> " << cur_parallelism + 1
-                    << " time: " << exec_time_ms / 1000.0;
+                    << " time (ms): " << exec_time_ms;
 
         } else {
           LOG(WARNING) << "=========Expanding======== Failed to expand!";
@@ -180,7 +180,7 @@ RetCode JobExpanderTracker::PeriodSchedule() {
                     << it->first.second << " ] "
                     << "=========Shrinking======== " << cur_parallelism
                     << " --> " << cur_parallelism - 1
-                    << " time: " << exec_time_ms / 1000.0;
+                    << " time (ms): " << exec_time_ms;
 
         } else {
           LOG(WARNING) << "=========Shrinking======== Failed to shrink!";

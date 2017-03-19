@@ -143,7 +143,7 @@ class ExchangeSenderPipeline : public ExchangeSender {
   friend class boost::serialization::access;
   template <class Archive>
   void serialize(Archive& ar, const unsigned int version) {
-    ar& boost::serialization::base_object<PhysicalOperatorBase>(*this) & state_;
+    ar& boost::serialization::base_object<ExchangeSender>(*this) & state_;
   }
 };
 }  // namespace physical_operator

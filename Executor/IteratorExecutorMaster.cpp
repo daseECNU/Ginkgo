@@ -47,7 +47,9 @@ bool IteratorExecutorMaster::ExecuteBlockStreamIteratorsOnSite(
   string str = PhysicalQueryPlan::TextSerializePlan(*physical_plan);
   caf::scoped_actor self;
 
-  LOG(INFO) << "!!!!!Master send Plan!!!!" << endl;
+  LOG(INFO) << "!Master send Plan! query_id, segment_id, part_offset = "
+            << query_id << " , " << segment_id << " , " << partition_offset
+            << " plan size = " << str.size() << endl;
   try {
     auto target_actor =
         Environment::getInstance()->get_master_node()->GetNodeActorFromId(
@@ -62,7 +64,8 @@ bool IteratorExecutorMaster::ExecuteBlockStreamIteratorsOnSite(
   }
   DELETE_PTR(physical_plan);
   LOG(INFO) << "master send serialized plan to target slave : " << target_id
-            << " succeed!" << endl;
+            << " succeed! query_id, segment_id, part_offset = " << query_id
+            << " , " << segment_id << " , " << partition_offset << endl;
   return true;
 }
 bool IteratorExecutorMaster::Propogation(const int count, std::string target) {

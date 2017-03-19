@@ -50,7 +50,6 @@ void ListPreemptionScheduler::ScheduleJob(caf::event_based_actor* self,
   scheduler->InitThread();
   self->become(
       [=](SchPJobAtom) {
-
         multiset<PipelineJob*, PipelineJob::PipelineJobGT> ready_extra_job;
         ready_extra_job.insert(scheduler->ready_jobs_.begin(),
                                scheduler->ready_jobs_.end());
@@ -120,13 +119,13 @@ void ListPreemptionScheduler::ScheduleJob(caf::event_based_actor* self,
             // run the underlying job
             if (PipelineJob::kReady == (*it)->get_job_status()) {
               (*it)->set_job_status(PipelineJob::kPivot);
-              scheduler->ready_jobs_.erase(*it);
+              scheduler->ready_jobs_.erase(scheduler->ready_jobs_.find(*it));
               // execute the underlying job
               (*it)->CreatJobActor(scheduler);
               self->send((*it)->get_job_actor(), ExceJobAtom::value);
 
             } else if (PipelineJob::kExtra == (*it)->get_job_status()) {
-              scheduler->extra_jobs_.erase(*it);
+              scheduler->extra_jobs_.erase(scheduler->extra_jobs_.find(*it));
               (*it)->set_job_status(PipelineJob::kPivot);
               // expand the underlying job
               self->send((*it)->get_job_actor(), EpdJobAtom::value);
@@ -135,7 +134,6 @@ void ListPreemptionScheduler::ScheduleJob(caf::event_based_actor* self,
             }
           }
         }
-
         // schedule one extra job
         //  self->send(self, SchEJobAtom::value);
 
@@ -200,7 +198,7 @@ void ListPreemptionScheduler::ScheduleJob(caf::event_based_actor* self,
                       << " couldn't found right job to expand or execute ";
           }
         }
-        scheduler->ready_jobs_.clear();
+        //        scheduler->ready_jobs_.clear();
       },
 
       [=](DoneJobAtom, PipelineJob* pjob) {

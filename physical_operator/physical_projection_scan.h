@@ -33,6 +33,7 @@
 
 #ifndef PHYSICAL_OPERATOR_PHYSICAL_PROJECTION_SCAN_H_
 #define PHYSICAL_OPERATOR_PHYSICAL_PROJECTION_SCAN_H_
+#include <atomic>
 #include <stack>
 
 #define GLOG_NO_ABBREVIATED_SEVERITIES
@@ -140,6 +141,8 @@ class PhysicalProjectionScan : public PhysicalOperator {
   RetCode GetAllSegments(stack<Segment*>* all_segments);
   RetCode GetJobDAG(JobContext* const job_cnxt);
 
+  atomic_ulong processed_blocks_;
+
  private:
   bool PassSample() const;
 
@@ -152,7 +155,6 @@ class PhysicalProjectionScan : public PhysicalOperator {
   input_dataset input_dataset_;
 
   PerformanceInfo* perf_info_;
-
   // The following code is for boost serialization.
  private:
   friend class boost::serialization::access;

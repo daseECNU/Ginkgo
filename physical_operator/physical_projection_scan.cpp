@@ -27,15 +27,16 @@
  */
 
 #include "../physical_operator/physical_projection_scan.h"
-
 #include <memory.h>
 #include <malloc.h>
 #include <glog/logging.h>
 #include <sys/mman.h>
 #include <errno.h>
 #include <limits.h>
+#include <iosfwd>
 #include <stack>
-
+#include <sstream>
+#include <string>
 #include "../common/rename.h"
 #include "../storage/BlockManager.h"
 #include "../Config.h"
@@ -43,20 +44,24 @@
 #include "../storage/ChunkStorage.h"
 #include "../Executor/expander_tracker.h"
 #include "../storage/PartitionStorage.h"
+#include "../utility/Timer.h"
 using claims::common::rNoPartitionIdScan;
 using claims::common::rSuccess;
 using claims::common::rCodegenFailed;
-
+using std::string;
 namespace claims {
 namespace physical_operator {
 PhysicalProjectionScan::PhysicalProjectionScan(State state)
-    : state_(state), partition_reader_iterator_(NULL), perf_info_(NULL) {
+    : state_(state),
+      partition_reader_iterator_(NULL),
+      perf_info_(NULL),
+      processed_blocks_(0) {
   set_phy_oper_type(kPhysicalScan);
   InitExpandedStatus();
 }
 
 PhysicalProjectionScan::PhysicalProjectionScan()
-    : partition_reader_iterator_(NULL), perf_info_(NULL) {
+    : partition_reader_iterator_(NULL), perf_info_(NULL), processed_blocks_(0) {
   set_phy_oper_type(kPhysicalScan);
   InitExpandedStatus();
 }
@@ -106,7 +111,7 @@ bool PhysicalProjectionScan::Open(SegmentExecStatus* const exec_status,
           partition_handle_->CreateAtomicReaderIterator();
       SetReturnStatus(true);
     }
-
+    processed_blocks_ = 0;
 #ifdef AVOID_CONTENTION_IN_SCAN
     unsigned long long start = curtick();
 
@@ -198,8 +203,24 @@ bool PhysicalProjectionScan::Next(SegmentExecStatus* const exec_status,
   //  perf_info_->processed_one_block();
   // case(2)
   RETURN_IF_CANCELLED(exec_status);
-  return partition_reader_iterator_->NextBlock(block);
+  bool ret = partition_reader_iterator_->NextBlock(block);
+  processed_blocks_ += (ret);
+  // update rest progress in status every 3 processed blocks
 
+  if (processed_blocks_ % 1000 == 0 || !ret) {
+    GETCURRENTTIME(start);
+    ostringstream buffer;
+    long total_block =
+        processed_blocks_ > 1000 ? processed_blocks_ + 10000 : 1000;
+    buffer << (1 - (processed_blocks_ * 1.0 / total_block));
+    string exec_info = "A" + buffer.str() + "A scan update progress succeed";
+    exec_status->UpdateStatus(exec_status->get_exec_status(), exec_info, 0,
+                              false);
+    LOG(INFO) << "scan update progress " << GetElapsedTime(start) << " "
+              << exec_info;
+  }
+
+  return ret;
 #endif
 }
 

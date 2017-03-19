@@ -104,6 +104,19 @@ RetCode PipelineJob::ComputeJobRank(float upper_rank) {
 #endif
   return ret;
 }
+void PipelineJob::RecomputeRank(
+    multiset<PipelineJob*, PipelineJob::PipelineJobGT>& jobs) {
+  float avg_rest = 0;
+  u_int64_t part_num = stage_tasks_[stage_tasks_.size() - 1]->GetPartNum();
+  lock_.acquire();
+  for (auto i = 0; i < part_num; ++i) {
+    avg_rest += task_rest_progress_[i];
+  }
+  lock_.release();
+  avg_rest = avg_rest / part_num;
+  rank_ = child_rank_ + cost_ * avg_rest;
+  jobs.insert(this);
+}
 RetCode PipelineJob::ComputeJobRank(float& low_rank, float upper_rank) {
   RetCode ret = rSuccess;
   set_waiting_parents(parents_.size());
@@ -113,6 +126,7 @@ RetCode PipelineJob::ComputeJobRank(float& low_rank, float upper_rank) {
     (*it)->ComputeJobRank(rank, upper_rank + 1);
     max_rank = max(max_rank, rank);
   }
+  child_rank_ = max_rank;
   rank_ = max_rank + cost_;
   low_rank = rank_;
   return ret;
@@ -286,6 +300,18 @@ void PipelineJob::InitTopTaskStatus() {
   for (auto i = 0; i < part_num; ++i) {
     top_task_is_done_[i] = false;
   }
+  part_num = stage_tasks_[stage_tasks_.size() - 1]->GetPartNum();
+  for (auto i = 0; i < part_num; ++i) {
+    task_rest_progress_[i] = 1.0;
+  }
+}
+bool PipelineJob::UpdateRestProgress(u_int64_t part_id, float rest_pregress) {
+  u_int64_t part_num = stage_tasks_[stage_tasks_.size() - 1]->GetPartNum();
+  assert(part_id < part_num);
+  lock_.acquire();
+  task_rest_progress_[part_id] = rest_pregress;
+  lock_.release();
+  return true;
 }
 
 bool PipelineJob::CheckTopTaskIsDone(u_int64_t part_id) {

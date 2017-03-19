@@ -36,6 +36,8 @@
 
 #include "./stage_task.h"
 #include "caf/all.hpp"
+
+#include "../utility/lock.h"
 using caf::actor;
 using std::multiset;
 using std::pair;
@@ -105,10 +107,13 @@ class PipelineJob {
 
   void InitTopTaskStatus();
   bool CheckTopTaskIsDone(u_int64_t node_stage_id);
+  bool UpdateRestProgress(u_int64_t part_id, float rest_pregress);
+
   SchedulerBase*& get_scheduler() {
     assert(NULL != scheduler_);
     return scheduler_;
   }
+  void RecomputeRank(multiset<PipelineJob*, PipelineJob::PipelineJobGT>& jobs);
   void set_scheduler(SchedulerBase* const scheduler) { scheduler_ = scheduler; }
   void ComputeNodeTask();
 
@@ -117,14 +122,16 @@ class PipelineJob {
  private:
   // for every instance of each partition
   boost::unordered_map<u_int16_t, bool> top_task_is_done_;
+  boost::unordered_map<u_int16_t, float> task_rest_progress_;
   JobStatus job_status_;
+  Lock lock_;
   actor job_actor_;
   vector<StageTask*> stage_tasks_;
   vector<PipelineJob*> parents_;
   PipelineJob* child_;
   uint16_t job_id_;
   int waiting_parents_;
-  float rank_, cost_;
+  float rank_, cost_, child_rank_;
   SchedulerBase* scheduler_;
 };
 }

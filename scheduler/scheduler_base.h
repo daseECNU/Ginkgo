@@ -42,6 +42,8 @@ using SchPJobAtom = caf::atom_constant<caf::atom("SchPJob")>;
 using SkJobAtom = caf::atom_constant<caf::atom("ShrinkJob")>;
 using ExceJobAtom = caf::atom_constant<caf::atom("ExecuteJob")>;
 using DoneJobAtom = caf::atom_constant<caf::atom("DoneJob")>;
+// update rest progress for each task in job
+using UpdateRPAtom = caf::atom_constant<caf::atom("UpdateRP")>;
 
 class SchedulerBase {
  public:
@@ -62,7 +64,8 @@ class SchedulerBase {
   vector<int> thread_num_, thread_rest_;
 
   virtual RetCode ComputeJobRank();
-  virtual RetCode GetReadyJobs(multiset<PipelineJob*, PipelineJob::PipelineJobGT>& ready_jobs);
+  virtual RetCode GetReadyJobs(
+      multiset<PipelineJob*, PipelineJob::PipelineJobGT>& ready_jobs);
   virtual void PrintReadyJobs();
 
  protected:
