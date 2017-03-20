@@ -121,13 +121,15 @@ void ListFillingPreemptionScheduler::ScheduleJob(
             // run the underlying job
             if (PipelineJob::kReady == (*it)->get_job_status()) {
               (*it)->set_job_status(PipelineJob::kPivot);
-              scheduler->ready_jobs_.erase(scheduler->ready_jobs_.find(*it));
+              scheduler->EraseJobFromMultiset(scheduler->ready_jobs_,
+                                              (*it)->get_job_id());
               // execute the underlying job
               (*it)->CreatJobActor(scheduler);
               self->send((*it)->get_job_actor(), ExceJobAtom::value);
 
             } else if (PipelineJob::kExtra == (*it)->get_job_status()) {
-              scheduler->extra_jobs_.erase(scheduler->extra_jobs_.find(*it));
+              scheduler->EraseJobFromMultiset(scheduler->extra_jobs_,
+                                              (*it)->get_job_id());
               (*it)->set_job_status(PipelineJob::kPivot);
               // expand the underlying job
               self->send((*it)->get_job_actor(), EpdJobAtom::value);
@@ -200,7 +202,7 @@ void ListFillingPreemptionScheduler::ScheduleJob(
                       << " couldn't found right job to expand or execute ";
           }
         }
-        //        scheduler->ready_jobs_.clear();
+        scheduler->ready_jobs_.clear();
       },
 
       [=](DoneJobAtom, PipelineJob* pjob) {
@@ -229,10 +231,12 @@ void ListFillingPreemptionScheduler::ScheduleJob(
         }
 
         if (PipelineJob::kPivot == pjob->get_job_status()) {
-          scheduler->pivot_jobs_.erase(pjob);
+          scheduler->EraseJobFromMultiset(scheduler->pivot_jobs_,
+                                          pjob->get_job_id());
           self->send(self, SchPJobAtom::value);
         } else if (PipelineJob::kExtra == pjob->get_job_status()) {
-          scheduler->extra_jobs_.erase(pjob);
+          scheduler->EraseJobFromMultiset(scheduler->extra_jobs_,
+                                          pjob->get_job_id());
           self->send(self, SchEJobAtom::value);
         }
         pjob->set_job_status(PipelineJob::kDone);
@@ -296,7 +300,7 @@ bool ListFillingPreemptionScheduler::IsConflict(
     const boost::unordered_map<int, u_int16_t>& nodes2) {
   bool is_conflict = false;
   for (auto it = nodes1.begin(); it != nodes1.end() && !is_conflict; ++it) {
-    is_conflict = (nodes2[it->first] != 0 && it->second != 0);
+    is_conflict = (nodes2.find(it->first) != nodes2.end());
   }
   return is_conflict;
 }

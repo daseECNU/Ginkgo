@@ -183,7 +183,7 @@ void ListScheduler::ScheduleJob(caf::event_based_actor* self,
         if (PipelineJob::kPivot == pjob->get_job_status()) {
           self->send(self, SchPJobAtom::value);
         } else if (PipelineJob::kExtra == pjob->get_job_status()) {
-          scheduler->extra_jobs_.erase(pjob);
+          // scheduler->extra_jobs_.erase(pjob);
           // self->send(self, SchEJobAtom::value);
         }
         pjob->set_job_status(PipelineJob::kDone);

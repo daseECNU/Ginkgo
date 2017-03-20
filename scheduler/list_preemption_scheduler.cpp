@@ -119,13 +119,15 @@ void ListPreemptionScheduler::ScheduleJob(caf::event_based_actor* self,
             // run the underlying job
             if (PipelineJob::kReady == (*it)->get_job_status()) {
               (*it)->set_job_status(PipelineJob::kPivot);
-              scheduler->ready_jobs_.erase(scheduler->ready_jobs_.find(*it));
+              scheduler->EraseJobFromMultiset(scheduler->ready_jobs_,
+                                              (*it)->get_job_id());
               // execute the underlying job
               (*it)->CreatJobActor(scheduler);
               self->send((*it)->get_job_actor(), ExceJobAtom::value);
 
             } else if (PipelineJob::kExtra == (*it)->get_job_status()) {
-              scheduler->extra_jobs_.erase(scheduler->extra_jobs_.find(*it));
+              scheduler->EraseJobFromMultiset(scheduler->extra_jobs_,
+                                              (*it)->get_job_id());
               (*it)->set_job_status(PipelineJob::kPivot);
               // expand the underlying job
               self->send((*it)->get_job_actor(), EpdJobAtom::value);
@@ -225,10 +227,12 @@ void ListPreemptionScheduler::ScheduleJob(caf::event_based_actor* self,
                   << pjob->get_job_id() << " , " << pjob->get_job_status()
                   << " has been Done";
         if (PipelineJob::kPivot == pjob->get_job_status()) {
-          scheduler->pivot_jobs_.erase(pjob);
+          scheduler->EraseJobFromMultiset(scheduler->pivot_jobs_,
+                                          pjob->get_job_id());
           self->send(self, SchPJobAtom::value);
         } else if (PipelineJob::kExtra == pjob->get_job_status()) {
-          scheduler->extra_jobs_.erase(pjob);
+          scheduler->EraseJobFromMultiset(scheduler->extra_jobs_,
+                                          pjob->get_job_id());
           self->send(self, SchEJobAtom::value);
         }
         pjob->set_job_status(PipelineJob::kDone);

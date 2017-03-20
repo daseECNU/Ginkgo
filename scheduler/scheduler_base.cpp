@@ -92,6 +92,17 @@ RetCode SchedulerBase::ComputeJobRank() {
 void SchedulerBase::CreateActor() {
   scheduler_actor_ = caf::spawn(ScheduleJob, this);
 }
+bool SchedulerBase::EraseJobFromMultiset(
+    multiset<PipelineJob*, PipelineJob::PipelineJobGT>& jobs,
+    u_int16_t job_id) {
+  for (auto it = jobs.begin(); it != jobs.end(); ++it) {
+    if ((*it)->get_job_id() == job_id) {
+      jobs.erase(it);
+      return true;
+    }
+  }
+  return false;
+}
 
 }  // namespace scheduler
 }  // namespace claims

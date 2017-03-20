@@ -62,7 +62,9 @@ class SchedulerBase {
   StmtExecStatus* stmt_exec_status_;
   multiset<PipelineJob*, PipelineJob::PipelineJobGT> ready_jobs_;
   vector<int> thread_num_, thread_rest_;
-
+  bool EraseJobFromMultiset(
+      multiset<PipelineJob*, PipelineJob::PipelineJobGT>& jobs,
+      u_int16_t job_id);
   virtual RetCode ComputeJobRank();
   virtual RetCode GetReadyJobs(
       multiset<PipelineJob*, PipelineJob::PipelineJobGT>& ready_jobs);
