@@ -120,6 +120,7 @@ void PipelineJob::RecomputeRank(
 RetCode PipelineJob::ComputeJobRank(float& low_rank, float upper_rank) {
   RetCode ret = rSuccess;
   set_waiting_parents(parents_.size());
+#ifdef LOW_RANK
   float rank = 0;
   float max_rank = 0;
   for (auto it = parents_.begin(); it != parents_.end(); ++it) {
@@ -129,6 +130,12 @@ RetCode PipelineJob::ComputeJobRank(float& low_rank, float upper_rank) {
   child_rank_ = max_rank;
   rank_ = max_rank + cost_;
   low_rank = rank_;
+#else
+  rank_ = max(rank_, upper_rank + cost_);
+  for (auto it = parents_.begin(); it != parents_.end(); ++it) {
+    (*it)->ComputeJobRank(low_rank, rank_);
+  }
+#endif
   return ret;
 }
 

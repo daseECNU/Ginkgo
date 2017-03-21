@@ -85,7 +85,8 @@ class SlaveNodeActor : public event_based_actor {
               ->createNewThreadAndRun(new_plan);
 
           string log_message =
-              "Slave: received plan segment and create new thread and run it! ";
+              "Slave: received plan segment and create new thread and run "
+              "it! ";
           LOG(INFO) << log_message << query_id << " , " << segment_id
                     << " , createNewThreadAndRun:" << getMilliSecond(start);
         },
@@ -257,17 +258,20 @@ class SlaveNodeActor : public event_based_actor {
             job_expander_tracker =
                 ExpanderTracker::getInstance()->GetJobExpanderTracker(query_id,
                                                                       job_id);
-            usleep(3);
-            LOG(WARNING)
-                << "query,job_id = " << query_id << " , " << job_id
-                << " job_expander_tracker is NULL, while continue to wait 3ms";
+
+            if (NULL == job_expander_tracker) {
+              usleep(3);
+              LOG(WARNING) << "query,job_id = " << query_id << " , " << job_id
+                           << " job_expander_tracker is NULL, while continue "
+                              "to wait 3ms";
+            } else {
+              job_expander_tracker->set_is_pivot(false);
+              LOG(INFO) << "query,job_id = " << query_id << " , " << job_id
+                        << " set shrink info successfully";
+              return make_message(OkAtom::value);
+            }
           }
-          if (NULL != job_expander_tracker) {
-            job_expander_tracker->set_is_pivot(false);
-            LOG(INFO) << "query,job_id = " << query_id << " , " << job_id
-                      << " set shrink info successfully";
-          }
-          return make_message(OkAtom::value);
+          return make_message(ExitAtom::value);
         },
         [=](EpdJobAtom, u_int64_t query_id, u_int16_t job_id) -> message {
           JobExpanderTracker* job_expander_tracker = NULL;
@@ -286,18 +290,16 @@ class SlaveNodeActor : public event_based_actor {
               LOG(INFO) << "query,job_id = " << query_id << " , " << job_id
                         << " , "
                         << " set expand (pivot) info successfully";
-              break;
+              return make_message(OkAtom::value);
             }
           }
-          return make_message(OkAtom::value);
+          return make_message(ExitAtom::value);
         },
         [=](OkAtom) {},
         caf::others >> [=]() {
                          LOG(WARNING) << "unknown message at slave node!!!"
                                       << endl;
-                       }
-
-    };
+                       }};
   }
 
   SlaveNode* slave_node_;

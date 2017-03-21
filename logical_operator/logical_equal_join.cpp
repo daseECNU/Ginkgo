@@ -139,7 +139,7 @@ void LogicalEqualJoin::DecideJoinPolicy(const PlanContext& left_dataflow,
       join_policy_ = kCompleteRepartition;
   }
   if (join_policy_ != kNoRepartition) {
-    int part_num = 100;
+    int part_num = 40;
     int64_t left_data_size = left_dataflow.GetAggregatedDatasize();
     int64_t right_data_size = right_dataflow.GetAggregatedDatasize();
     //    cout << "left : " << left_dataflow.attribute_list_[0].attrName
@@ -249,7 +249,7 @@ PlanContext LogicalEqualJoin::GetPlanContext() {
           right_dataflow.plan_partitioner_.get_partition_func());
       ret.plan_partitioner_.set_partition_key(
           right_dataflow.plan_partitioner_.get_partition_key());
-      //  ret.property_.partitioner.addShadowPartitionKey(right_partition_key);
+      //      ret.plan_partitioner_.AddShadowPartitionKey(right_partition_key);
       /* set the generated data size*/
       const unsigned left_total_size =
           left_dataflow.plan_partitioner_.GetAggregatedDataSize();

@@ -515,6 +515,9 @@ void JobExpanderTracker::AddOneCurThread() {
 void JobExpanderTracker::set_is_pivot(const bool is_pivot) {
   thread_num_lock_.acquire();
   u_int16_t thread_num = 0;
+  // during expanding, the thread is added into work_thread_list but the
+  // pivot_cur_thread_num_ don't update, so use delt_thread
+  int delt_thread = 2;
   for (auto it = expander_id_to_expander_.begin();
        it != expander_id_to_expander_.end(); ++it) {
     thread_num += it->second->GetDegreeOfParallelism();
@@ -527,14 +530,14 @@ void JobExpanderTracker::set_is_pivot(const bool is_pivot) {
             << " set is_pivot = " << is_pivot;
   if (is_pivot) {
     if (!is_pivot_) {
-      assert(extra_cur_thread_num_ >= thread_num);
+      assert(extra_cur_thread_num_ >= thread_num - delt_thread);
       pivot_cur_thread_num_ += thread_num;
       extra_cur_thread_num_ -= thread_num;
       is_pivot_ = is_pivot;
     }
   } else {
     if (is_pivot_) {
-      assert(pivot_cur_thread_num_ >= thread_num);
+      assert(pivot_cur_thread_num_ >= thread_num - delt_thread);
       pivot_cur_thread_num_ -= thread_num;
       extra_cur_thread_num_ += thread_num;
       is_pivot_ = is_pivot;

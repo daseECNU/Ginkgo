@@ -1,0 +1,15 @@
+select  i_item_id
+       ,i_item_desc
+       ,i_current_price
+ from store_sales, item, date_dim, inventory
+ where i_current_price between 65 and 95
+ and inv_item_sk = i_item_sk
+ and d_date_sk=inv_date_sk
+ and d_date between '1998-02-13'  and DATE_ADD('1998-02-13'  ,INTERVAL 60 day)  
+and i_manufact_id in (83,277,515,721)
+ and inv_quantity_on_hand between 100 and 500
+ and ss_item_sk = i_item_sk
+ group by i_item_id,i_item_desc,i_current_price
+ order by i_item_id
+ limit 100;
+ exit;
