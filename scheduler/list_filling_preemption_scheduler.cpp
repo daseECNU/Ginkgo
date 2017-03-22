@@ -62,7 +62,11 @@ void ListFillingPreemptionScheduler::ScheduleJob(
           bool confilict = false;
           for (auto pit = scheduler->pivot_jobs_.begin();
                pit != scheduler->pivot_jobs_.end();) {
+#ifndef REAL-PREEMPTION
             if ((*pit)->get_rank() >= (*it)->get_rank() - delt_cost) {
+#else
+            if ((*pit)->get_rank() < 0) {
+#endif
               // if resources conflict, break
               if (scheduler->IsConflict((*it)->node_task_num_,
                                         (*pit)->node_task_num_)) {
@@ -244,7 +248,6 @@ void ListFillingPreemptionScheduler::ScheduleJob(
 
       },
       [=](UpdateRPAtom) {
-#ifdef REAL_PREEMPTION
         bool flag = false;
         multiset<PipelineJob*, PipelineJob::PipelineJobGT> jobs;
         for (auto it = scheduler->extra_jobs_.begin();
@@ -278,27 +281,10 @@ void ListFillingPreemptionScheduler::ScheduleJob(
                       << (*it)->get_rank();
           }
           self->send(self, SchPJobAtom::value);
-          self->delayed_send(self, std::chrono::milliseconds(300),
+          self->delayed_send(self, std::chrono::milliseconds(500),
                              UpdateRPAtom::value);
         }
-#else
-        // fake preemption
-        if (scheduler->extra_jobs_.size() == 1 &&
-            scheduler->pivot_jobs_.size() == 1) {
-          auto ejob = *scheduler->extra_jobs_.begin();
-          auto pjob = *scheduler->pivot_jobs_.begin();
-          scheduler->extra_jobs_.clear();
-          scheduler->pivot_jobs_.clear();
-          ejob->set_job_status(PipelineJob::kPivot);
-          self->send(ejob->get_job_actor(), EpdJobAtom::value);
-          scheduler->pivot_jobs_.insert(ejob);
-          pjob->set_job_status(PipelineJob::kExtra);
-          self->send(pjob->get_job_actor(), SkJobAtom::value);
-          scheduler->extra_jobs_.insert(pjob);
-        }
-        self->delayed_send(self, std::chrono::milliseconds(100),
-                           UpdateRPAtom::value);
-#endif
+
       },
       [=](ExitAtom) { self->quit(); },
 
@@ -308,7 +294,7 @@ void ListFillingPreemptionScheduler::ScheduleJob(
             LOG(WARNING) << "ListFillingPreemption receives unkown message";
           });
   self->send(self, SchPJobAtom::value);
-  self->delayed_send(self, std::chrono::milliseconds(100), UpdateRPAtom::value);
+  self->delayed_send(self, std::chrono::milliseconds(500), UpdateRPAtom::value);
 }
 
 PipelineJob* ListFillingPreemptionScheduler::GetPivotJob() { return NULL; }
