@@ -53,6 +53,7 @@ public:
 			 	 	 	 	 	 	 	  int & total_read_num);
 	 RetCode GetFromHdfs(const string& file_name,int & length);
 	 RetCode OpenHdfsFile(string & file_name);
+	 RetCode CloseHdfsFile();
 private:
 	//AstLoadTable* load_ast_;
 	hdfsFS fs_;

@@ -41,7 +41,16 @@ namespace loader{
 
 	}
 	HdfsLoader::~HdfsLoader(){
-		hdfsDisconnect(fs_);
+		if(NULL == file_){
+			LOG(INFO) <<"hdfs file for load from hdfs has been closed."<<endl;
+		}
+		assert(NULL != fs_ && "failed to connect hdfs");
+		if (0 != hdfsCloseFile(fs_, file_)){
+			PLOG(ERROR) << "failed to close hdfs file for load from hdfs."<<endl;
+			return ;
+		}
+		file_ = NULL;
+		LOG(INFO) << "The hdfs for load from hdfs has been closed."<<endl;
 	}
 	RetCode HdfsLoader::CheckHdfsFile(string file_name){
 		int ret = rSuccess;
@@ -59,6 +68,11 @@ namespace loader{
 		if (NULL == fs_)
 			ret = rFailure;
 		return ret;
+	}
+
+	RetCode HdfsLoader::CloseHdfsFile(){
+		  hdfsCloseFile(fs_, file_);
+
 	}
 
 	int HdfsLoader::GetCharFromBuffer(void*& buffer, int & pos, int & read_num, const int & length,

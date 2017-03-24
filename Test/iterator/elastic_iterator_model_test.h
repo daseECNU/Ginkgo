@@ -43,7 +43,50 @@ class ElasticIteratorModelTest : public ::testing::Test {
 
 std::string ElasticIteratorModelTest::ip_;
 int ElasticIteratorModelTest::port_;
+/*
+TEST_F(ElasticIteratorModelTest, LoadFromHdfs){
+	  EXPECT_TRUE(client_.connected());
+	  ResultSet rs;
+	  std::string command ;
+	  command = "load table PART from ";
+	  command += '"';
+	  command +="HDFS:/test/claims/part.tbl";
+	  command +='"';
+	  command +=" with '|','\\n';";
+	  std::string message;
+	  client_.submit(command, message, rs);
+	  message = message.substr(0,22);
+	  EXPECT_STREQ("load data successfully", message.c_str());
+}*/
 
+TEST_F(ElasticIteratorModelTest, LoadFromHdfs_part){
+	  EXPECT_TRUE(client_.connected());
+	  ResultSet rs;
+	  std::string command;
+	  command = "load table PART from ";
+	  command += '"';
+	  command +="HDFS:/test/claims/part.tbl";
+	  command +='"';
+	  command +=" with '|','\\n';";
+	  std::string message;
+	  client_.submit(command, message, rs);
+	  message = message.substr(0,22);
+	  EXPECT_STREQ("load data successfully", message.c_str());
+}
+TEST_F(ElasticIteratorModelTest, LoadFromHdfs_customer){
+	  EXPECT_TRUE(client_.connected());
+	  ResultSet rs;
+	  std::string command;
+	  command = "load table CUSTOMER from ";
+	  command += '"';
+	  command +="HDFS:/test/claims/customer.tbl";
+	  command +='"';
+	  command +=" with '|','\\n';";
+	  std::string message;
+	  client_.submit(command, message, rs);
+	  message = message.substr(0,22);
+	  EXPECT_STREQ("load data successfully", message.c_str());
+}
 TEST_F(ElasticIteratorModelTest, Scan) {
   EXPECT_TRUE(client_.connected());
   ResultSet rs;
