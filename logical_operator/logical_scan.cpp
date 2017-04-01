@@ -361,8 +361,8 @@ void LogicalScan::InitTableCardi() {
   TableAggeCardi["LINEITEM"] = 6001215;
   TableAggeCardi["NATION"] = 25;
   TableAggeCardi["REGION"] = 5;
-  TableAggeCardi["store"] = 102;
   // tpc-ds sf10
+  TableAggeCardi["store"] = 102;
   TableAggeCardi["household_demographics"] = 7200;
   TableAggeCardi["time_dim"] = 86400;
   TableAggeCardi["store_sales"] = 28800991;
@@ -383,6 +383,9 @@ void LogicalScan::InitTableCardi() {
   TableAggeCardi["web_returns"] = 719217;
   TableAggeCardi["web_page"] = 200;
   TableAggeCardi["reason"] = 45;
+  TableAggeCardi["income_band"] = 20;
+  TableAggeCardi["catalog_page"] = 12000;
+  TableAggeCardi["catalog_returns"] = 1439749;
 }
 
 u_int64_t LogicalScan::GetAggeCardi() {
