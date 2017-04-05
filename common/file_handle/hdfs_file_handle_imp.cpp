@@ -161,7 +161,11 @@ RetCode HdfsFileHandleImp::Close() {
     LOG(INFO) << "hdfs file:" << file_name_ << " have been closed " << endl;
     return rSuccess;
   }
-  assert(NULL != fs_ && "failed to connect hdfs");
+  if (NULL == fs_) {
+    LOG(INFO) << "failed to close hdfs file:" << file_name_ << endl;
+    assert(NULL != fs_ && "failed to connect hdfs");
+    return rCloseHdfsFileFail;
+  }
 
   if (0 != hdfsCloseFile(fs_, file_)) {
     PLOG(ERROR) << "failed to close hdfs file: " << file_name_;
@@ -224,8 +228,8 @@ RetCode HdfsFileHandleImp::Read(void* buffer, size_t length) {
     }
     total_read_num += read_num;
   }
-  ::LOG(INFO) << "read total " << total_read_num << " from hdfs file "
-              << file_name_ << endl;
+  LOG(INFO) << "read total " << total_read_num << " from hdfs file "
+            << file_name_ << endl;
   return rSuccess;
 }
 

@@ -410,7 +410,7 @@ RetCode DataInjector::CheckFiles(vector<string> input_file_names,
                                  ExecutedResult* result, HdfsLoader * hdfsloader_) {
   int ret = rSuccess;
   for (auto &file_name : input_file_names) {
-	  //add the load from hdfs by hurry.huang 22/feb/2017
+	  //add the load from hdfs by hcs 22/feb/2017
 	  if(file_name.find(hdfs_name) == 0){
 		  file_name = file_name.substr(hdfs_name.length());
 		  ret = hdfsloader_->CheckHdfsFile(file_name);
@@ -509,7 +509,7 @@ RetCode DataInjector::LoadFromFileMultiThread(vector<string> input_file_names,
   int ret = rSuccess;
   int file_count = 0;
   //HdfsLoader* hdfsloader_ = new HdfsLoader();
-  LOG(INFO)<<"enter the loadfromfilemultithread and create the hdfsloader_"<<std::endl;
+  //LOG(INFO)<<"enter the loadfromfilemultithread and create the hdfsloader_"<<std::endl;
   uint64_t row_id_in_file = 0;
   uint64_t inserted_tuples_in_file = 0;
   uint64_t total_tuple_count = 0;
