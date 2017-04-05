@@ -65,7 +65,7 @@ TEST_F(ElasticIteratorModelTest, LoadFromHdfs_part){
 	  std::string command;
 	  command = "load table PART from ";
 	  command += '"';
-	  command +="HDFS:/test/claims/part.tbl";
+	  command +="/home/imdb/hcs/tpch_sf1/part.tbl";
 	  command +='"';
 	  command +=" with '|','\\n';";
 	  std::string message;
