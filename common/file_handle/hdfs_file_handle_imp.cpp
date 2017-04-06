@@ -38,9 +38,11 @@
 #include "../../Config.h"
 #include "../memory_handle.h"
 #include "../../utility/lock_guard.h"
+#include "snappy.h"
 
 using std::endl;
 using claims::utility::LockGuard;
+using snappy::Compress;
 
 namespace claims {
 namespace common {
@@ -88,16 +90,53 @@ RetCode HdfsFileHandleImp::SwitchStatus(FileStatus status_to_be) {
   }
 }
 
+// RetCode HdfsFileHandleImp::Write(const void* buffer, const size_t length) {
+//  assert(NULL != fs_ && "failed to connect hdfs");
+//  assert(NULL != file_ && "make sure file is opened");
+//  //  RefHolder holder(reference_count_);
+//  size_t total_write_num = 0;
+//  while (total_write_num < length) {
+//    int32_t write_num = hdfsWrite(
+//        fs_, file_, static_cast<const char*>(buffer) + total_write_num,
+//        length - total_write_num);
+//    if (-1 == write_num) {
+//      PLOG(ERROR) << "failed to write buffer(" << buffer
+//                  << ") to file: " << file_name_ << endl;
+//      return rWriteDiskFileFail;
+//    }
+//    total_write_num += write_num;
+//  }
+//  if (length > 100) {
+//    LOG(INFO) << "write " << length << " length data from " << buffer
+//              << " into hdfs file:" << file_name_ << endl;
+//  } else {
+//    LOG(INFO) << "write " << length
+//              << " length data :" << static_cast<const char*>(buffer)
+//              << " from " << buffer << " into  hdfs file:" << file_name_
+//              << endl;
+//  }
+//  delete result;
+//  return rSuccess;
+//}
+
 RetCode HdfsFileHandleImp::Write(const void* buffer, const size_t length) {
   assert(NULL != fs_ && "failed to connect hdfs");
   assert(NULL != file_ && "make sure file is opened");
   //  RefHolder holder(reference_count_);
+  string* result = new string;
+  size_t compress_length =
+      Compress(static_cast<const char*>(buffer), length, result);
+  LOG(INFO) << "Compress length: " << compress_length << endl;
+  char head[100];
+  sprintf(head, "%d", compress_length);
+
+  // total_write_num <compress_length + sizeof(head); //by Han compression
 
   size_t total_write_num = 0;
-  while (total_write_num < length) {
-    int32_t write_num = hdfsWrite(
-        fs_, file_, static_cast<const char*>(buffer) + total_write_num,
-        length - total_write_num);
+  int32_t write_num = hdfsWrite(fs_, file_, head, sizeof(head));
+  while (total_write_num < compress_length) {
+    write_num = hdfsWrite(fs_, file_, result->data() + total_write_num,
+                          compress_length - total_write_num);
     if (-1 == write_num) {
       PLOG(ERROR) << "failed to write buffer(" << buffer
                   << ") to file: " << file_name_ << endl;
@@ -105,18 +144,18 @@ RetCode HdfsFileHandleImp::Write(const void* buffer, const size_t length) {
     }
     total_write_num += write_num;
   }
-  //  if (length > 100) {
-  //    DLOG(INFO) << "write " << length << " length data from " << buffer
-  //               << " into hdfs file:" << file_name_ << endl;
-  //  } else {
-  //    DLOG(INFO) << "write " << length
-  //               << " length data :" << static_cast<const char*>(buffer)
-  //               << " from " << buffer << " into  hdfs file:" << file_name_
-  //               << endl;
-  //  }
+  if (length > 100) {
+    LOG(INFO) << "write " << length << " length data from " << buffer
+              << " into hdfs file:" << file_name_ << endl;
+  } else {
+    LOG(INFO) << "write " << length
+              << " length data :" << static_cast<const char*>(buffer)
+              << " from " << buffer << " into  hdfs file:" << file_name_
+              << endl;
+  }
+  delete result;
   return rSuccess;
 }
-
 RetCode HdfsFileHandleImp::Close() {
   if (NULL == file_) {
     LOG(INFO) << "hdfs file:" << file_name_ << " have been closed " << endl;
@@ -185,8 +224,8 @@ RetCode HdfsFileHandleImp::Read(void* buffer, size_t length) {
     }
     total_read_num += read_num;
   }
-  LOG(INFO) << "read total " << total_read_num << " from hdfs file "
-            << file_name_ << endl;
+  ::LOG(INFO) << "read total " << total_read_num << " from hdfs file "
+              << file_name_ << endl;
   return rSuccess;
 }
 
@@ -273,6 +312,55 @@ RetCode HdfsFileHandleImp::DeleteFile() {
     LOG(WARNING) << "The file " << file_name_ << "is not exits!\n" << std::endl;
   }
   return rSuccess;
+}
+
+RetCode HdfsFileHandleImp::WriteNoCompress(const void* buffer,
+                                           const size_t length) {
+  assert(NULL != fs_ && "failed to connect hdfs");
+  assert(NULL != file_ && "make sure file is opened");
+  //  RefHolder holder(reference_count_);
+  size_t total_write_num = 0;
+  while (total_write_num < length) {
+    int32_t write_num = hdfsWrite(
+        fs_, file_, static_cast<const char*>(buffer) + total_write_num,
+        length - total_write_num);
+    if (-1 == write_num) {
+      PLOG(ERROR) << "failed to write buffer(" << buffer
+                  << ") to file: " << file_name_ << endl;
+      return rWriteDiskFileFail;
+    }
+    total_write_num += write_num;
+  }
+  if (length > 100) {
+    LOG(INFO) << "write " << length << " length data from " << buffer
+              << " into hdfs file:" << file_name_ << endl;
+  } else {
+    LOG(INFO) << "write " << length
+              << " length data :" << static_cast<const char*>(buffer)
+              << " from " << buffer << " into  hdfs file:" << file_name_
+              << endl;
+  }
+  return rSuccess;
+}
+
+RetCode HdfsFileHandleImp::OverWriteNoCompress(const void* buffer,
+                                               const size_t length) {
+  //  RefHolder holder(reference_count_);
+  assert(NULL != fs_ && "failed to connect hdfs");
+  int ret = rSuccess;
+  EXEC_AND_RETURN_ERROR(ret, SwitchStatus(kInOverWriting),
+                        "failed to switch status");
+  return WriteNoCompress(buffer, length);
+}
+RetCode HdfsFileHandleImp::AppendNoCompress(const void* buffer,
+                                            const size_t length) {
+  //  RefHolder holder(reference_count_);
+  assert(NULL != fs_ && "failed to connect hdfs");
+  int ret = rSuccess;
+  EXEC_AND_RETURN_ERROR(ret, SwitchStatus(kInAppending),
+                        "failed to switch status");
+
+  return WriteNoCompress(buffer, length);
 }
 
 }  // namespace common

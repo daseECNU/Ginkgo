@@ -5,7 +5,7 @@ AM_CPPFLAGS= -fPIC -fpermissive\
 -I${BOOST_HOME} \
 -I${BOOST_HOME}/boost/serialization
 
-AM_LDFLAGS=-lc -lm -lrt  -lxs
+AM_LDFLAGS=-lc -lm -lrt  -lxs -lsnappy
 
 if OPT_TCMALLOC
 AM_CPPFLAGS+=-fno-builtin-malloc -fno-builtin-calloc -fno-builtin-realloc -fno-builtin-free
