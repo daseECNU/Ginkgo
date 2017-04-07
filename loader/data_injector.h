@@ -20,7 +20,7 @@
  *
  *  Created on: Oct 22, 2015
  *      Author: yukai
- *		   Email: yukai2014@gmail.com
+ *       Email: yukai2014@gmail.com
  *
  * Description: class for injecting data from files or string
  *
@@ -166,7 +166,7 @@ class DataInjector {
 
   RetCode SetTableState(FileOpenFlag open_flag, ExecutedResult* result);
   RetCode CheckFiles(vector<string> input_file_names, ExecutedResult* result
-		  	  	  	  	  	  	  	  	  	  	  , HdfsLoader * hdfsloader_);
+                                              , HdfsLoader * hdfsloader_);
   RetCode PrepareEverythingForLoading(vector<string> input_file_names,
                                       FileOpenFlag open_flag,
                                       ExecutedResult* result,HdfsLoader * hdfsloader_);
@@ -180,7 +180,7 @@ class DataInjector {
   static istream& GetTupleTerminatedBy(ifstream& ifs, string& res,
                                        const string& terminator);
   static bool GetTupleTerminatedByFromHdfs(void*& buffer, HdfsLoader* hdfsloader_, string & file_name, string& res,
-		  	  	  	  	  	  	  	  	  	  	  const string& terminator, int & pos, int & read_num, const int & length);
+                                              const string& terminator, int & pos, int & read_num, const int & length);
 
  private:
   TableDescriptor* table_;

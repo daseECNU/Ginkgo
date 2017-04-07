@@ -42,13 +42,17 @@ client_listener_port = 10012
 #data = "/home/claims/hcs/data/"
 #data = "/home/imdb/data/"
 data = "/test/claims/"
+<<<<<<< HEAD
+=======
+#data="/home/zzh/Desktop/test_data_old/"
+>>>>>>> check the blank space
 #data="/home/fish/data/test/"
 #data="/home/imdb/data/POC/"
 #data="/home/imdb/data/POC/"
 #hdfs主节点
 #data="/home/claims/zzh/4-partiton/"
 
-hdfs_master_ip="58.198.176.92"
+hdfs_master_ip="219.228.147.162"
 
 #hdfs主节点端口
 hdfs_master_port=9000

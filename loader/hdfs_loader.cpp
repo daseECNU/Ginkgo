@@ -37,73 +37,73 @@ using namespace claims::common;
 namespace claims{
 namespace loader{
 
-	HdfsLoader::HdfsLoader(){
+  HdfsLoader::HdfsLoader(){
 
-	}
-	HdfsLoader::~HdfsLoader(){
-		if(NULL == file_){
-			LOG(INFO) <<"hdfs file for load from hdfs has been closed."<<endl;
-		}
-		assert(NULL != fs_ && "failed to connect hdfs");
-		if (0 != hdfsCloseFile(fs_, file_)){
-			PLOG(ERROR) << "failed to close hdfs file for load from hdfs."<<endl;
-			return ;
-		}
-		file_ = NULL;
-		LOG(INFO) << "The hdfs for load from hdfs has been closed."<<endl;
-	}
-	RetCode HdfsLoader::CheckHdfsFile(string file_name){
-		int ret = rSuccess;
-		hdfsFileInfo* hdfsfile = hdfsGetPathInfo(fs_,file_name.c_str());
-		if(NULL == hdfsfile){
-			ret = rFailure;
-		}
-		return ret;
+  }
+  HdfsLoader::~HdfsLoader(){
+    if(NULL == file_){
+      LOG(INFO) <<"hdfs file for load from hdfs has been closed."<<endl;
+    }
+    assert(NULL != fs_ && "failed to connect hdfs");
+    if (0 != hdfsCloseFile(fs_, file_)){
+      PLOG(ERROR) << "failed to close hdfs file for load from hdfs."<<endl;
+      return ;
+    }
+    file_ = NULL;
+    LOG(INFO) << "The hdfs for load from hdfs has been closed."<<endl;
+  }
+  RetCode HdfsLoader::CheckHdfsFile(string file_name){
+    int ret = rSuccess;
+    hdfsFileInfo* hdfsfile = hdfsGetPathInfo(fs_,file_name.c_str());
+    if(NULL == hdfsfile){
+      ret = rFailure;
+    }
+    return ret;
 
-	}
+  }
 
-	RetCode HdfsLoader::PrepareForLoadFromHdfs(){
-		int ret = rSuccess;
-		fs_ = claims::common::HdfsConnector::Instance();
-		if (NULL == fs_)
-			ret = rFailure;
-		return ret;
-	}
+  RetCode HdfsLoader::PrepareForLoadFromHdfs(){
+    int ret = rSuccess;
+    fs_ = claims::common::HdfsConnector::Instance();
+    if (NULL == fs_)
+      ret = rFailure;
+    return ret;
+  }
 
-	RetCode HdfsLoader::CloseHdfsFile(){
-		  hdfsCloseFile(fs_, file_);
+  RetCode HdfsLoader::CloseHdfsFile(){
+      hdfsCloseFile(fs_, file_);
 
-	}
+  }
 
-	int HdfsLoader::GetCharFromBuffer(void*& buffer, int & pos, int & read_num, const int & length,
-													int & total_read_num){
-		if(pos == read_num){
-			read_num = hdfsRead(fs_,file_,static_cast<char*>(buffer),length);
-			pos = 0;
-			if(read_num == 0){
-				pos = 0;
+  int HdfsLoader::GetCharFromBuffer(void*& buffer, int & pos, int & read_num, const int & length,
+                          int & total_read_num){
+    if(pos == read_num){
+      read_num = hdfsRead(fs_,file_,static_cast<char*>(buffer),length);
+      pos = 0;
+      if(read_num == 0){
+        pos = 0;
 
-				return -1;
+        return -1;
 
-			}
-		}
-		total_read_num++;
-		return *((char*)buffer + pos++);
-		//return ' ';
+      }
+    }
+    total_read_num++;
+    return *((char*)buffer + pos++);
+    //return ' ';
 
-	}
+  }
 
-	RetCode HdfsLoader::OpenHdfsFile(string & file_name){
-		int ret = rSuccess;
-		file_ = hdfsOpenFile(fs_, file_name.c_str(),O_RDONLY,0,0,0);
-		if (!file_) {
-			ret = rFailure;
-	  }
-		return ret;
+  RetCode HdfsLoader::OpenHdfsFile(string & file_name){
+    int ret = rSuccess;
+    file_ = hdfsOpenFile(fs_, file_name.c_str(),O_RDONLY,0,0,0);
+    if (!file_) {
+      ret = rFailure;
+    }
+    return ret;
 
 
 
-	}
+  }
 
 
 

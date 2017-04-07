@@ -20,7 +20,7 @@
  *
  *  Created on: feb 22, 2017
  *      Author: hurry_huang
- *	     Email: hurry.huang@infosys.com
+ *       Email: hurry.huang@infosys.com
  *
  * Description:
  *      this file contains one class about load data from hdfs.
@@ -44,21 +44,21 @@ namespace loader{
  */
 class HdfsLoader{
 public:
-	HdfsLoader();
-	virtual ~HdfsLoader();
-	//RetCode Execute (ExecutedResult* exec_result);
-	 RetCode CheckHdfsFile(string file_name);
-	 RetCode PrepareForLoadFromHdfs();
-	 int GetCharFromBuffer(void*& buffer, int & pos, int & read_num, const int & length,
-			 	 	 	 	 	 	 	  int & total_read_num);
-	 RetCode GetFromHdfs(const string& file_name,int & length);
-	 RetCode OpenHdfsFile(string & file_name);
-	 RetCode CloseHdfsFile();
+  HdfsLoader();
+  virtual ~HdfsLoader();
+  //RetCode Execute (ExecutedResult* exec_result);
+   RetCode CheckHdfsFile(string file_name);
+   RetCode PrepareForLoadFromHdfs();
+   int GetCharFromBuffer(void*& buffer, int & pos, int & read_num, const int & length,
+                             int & total_read_num);
+   RetCode GetFromHdfs(const string& file_name,int & length);
+   RetCode OpenHdfsFile(string & file_name);
+   RetCode CloseHdfsFile();
 private:
-	//AstLoadTable* load_ast_;
-	hdfsFS fs_;
-	hdfsFile file_;
-	//common::FileHandleImp* imp_;
+  //AstLoadTable* load_ast_;
+  hdfsFS fs_;
+  hdfsFile file_;
+  //common::FileHandleImp* imp_;
 
 };
 

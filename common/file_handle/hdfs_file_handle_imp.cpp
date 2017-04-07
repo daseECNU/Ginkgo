@@ -20,7 +20,7 @@
  *
  *  Created on: Oct 20, 2015
  *      Author: yukai
- *		   Email: yukai2014@gmail.com
+ *       Email: yukai2014@gmail.com
  *
  * Description:
  *
@@ -123,6 +123,7 @@ RetCode HdfsFileHandleImp::Write(const void* buffer, const size_t length) {
   assert(NULL != fs_ && "failed to connect hdfs");
   assert(NULL != file_ && "make sure file is opened");
   //  RefHolder holder(reference_count_);
+
   string* result = new string;
   size_t compress_length =
       Compress(static_cast<const char*>(buffer), length, result);
