@@ -144,15 +144,15 @@ RetCode HdfsFileHandleImp::Write(const void* buffer, const size_t length) {
     }
     total_write_num += write_num;
   }
-  if (length > 100) {
-    LOG(INFO) << "write " << length << " length data from " << buffer
-              << " into hdfs file:" << file_name_ << endl;
-  } else {
-    LOG(INFO) << "write " << length
-              << " length data :" << static_cast<const char*>(buffer)
-              << " from " << buffer << " into  hdfs file:" << file_name_
-              << endl;
-  }
+  //  if (length > 100) {
+  //    LOG(INFO) << "write " << length << " length data from " << buffer
+  //              << " into hdfs file:" << file_name_ << endl;
+  //  } else {
+  //    LOG(INFO) << "write " << length
+  //              << " length data :" << static_cast<const char*>(buffer)
+  //              << " from " << buffer << " into  hdfs file:" << file_name_
+  //              << endl;
+  //  }
   delete result;
   return rSuccess;
 }
