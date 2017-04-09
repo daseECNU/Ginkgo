@@ -39,8 +39,9 @@ client_listener_port = 10012
 #data="/home/zzh/data/1partition/"
 #data="/claimsdata/"
 #data="/home/zzh/data/sf-1-p4/"
-data="/home/zzh/Desktop/test_data/"
-#data="/home/zzh/Desktop/test_data_old/"
+#data = "/home/claims/hcs/data/"
+#data = "/home/imdb/data/"
+data = "/test/claims/"
 #data="/home/fish/data/test/"
 #data="/home/imdb/data/POC/"
 #data="/home/imdb/data/POC/"
@@ -64,7 +65,7 @@ enable_expander_adaptivity=0
 
 pipelined_exchange=1
 
-local_disk_mode=1
+local_disk_mode=0
 
 scan_batch=100
 
