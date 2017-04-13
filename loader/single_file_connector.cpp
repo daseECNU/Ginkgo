@@ -71,10 +71,10 @@ SingleFileConnector::SingleFileConnector(FilePlatform platform,
   imp_ = common::FileHandleImpFactory::Instance().CreateFileHandleImp(
       platform_, file_name_);
   if (common::FileOpenFlag::kCreateFile == open_flag_) {
-    flush_function = std::bind(&FileHandleImp::OverWrite, imp_,
+    flush_function = std::bind(&FileHandleImp::OverWriteNoCompress, imp_,
                                std::placeholders::_1, std::placeholders::_2);
   } else if (common::FileOpenFlag::kAppendFile == open_flag_) {
-    flush_function = std::bind(&FileHandleImp::Append, imp_,
+    flush_function = std::bind(&FileHandleImp::AppendNoCompress, imp_,
                                std::placeholders::_1, std::placeholders::_2);
   } else {
     flush_function = [](const void* source, const size_t length) -> RetCode {

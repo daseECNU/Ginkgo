@@ -64,12 +64,15 @@ class HdfsFileHandleImp : public FileHandleImp {
   //  virtual RetCode Open(std::string file_name, FileOpenFlag open_flag);
   // see more in FileHandleImp class
   virtual RetCode Append(const void* buffer, const size_t length);
+  virtual RetCode AppendNoCompress(const void* buffer, const size_t length);
 
   virtual RetCode AtomicAppend(const void* buffer, const size_t length,
                                function<void()> lock_func,
                                function<void()> unlock_func);
 
   virtual RetCode OverWrite(const void* buffer, const size_t length);
+
+  virtual RetCode OverWriteNoCompress(const void* buffer, const size_t length);
 
   virtual RetCode AtomicOverWrite(const void* buffer, const size_t length,
                                   function<void()> lock_func,
@@ -94,6 +97,7 @@ class HdfsFileHandleImp : public FileHandleImp {
 
  private:
   RetCode Write(const void* buffer, const size_t length);
+  RetCode WriteNoCompress(const void* buffer, const size_t length);
 
  private:
   hdfsFS fs_;

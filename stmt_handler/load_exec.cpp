@@ -121,7 +121,7 @@ RetCode LoadExec::Execute(ExecutedResult *exec_result) {
 #ifdef NEW_LOADER
   DataInjector *injector =
       new DataInjector(table, column_separator, tuple_separator);
-
+LOG(INFO) << "complete create new DataInjector for test."<<std::endl;
   // cout << endl << "load mode is: " << load_ast_->mode_;
   ret = injector->LoadFromFile(path_names,
                                static_cast<FileOpenFlag>(load_ast_->mode_),
