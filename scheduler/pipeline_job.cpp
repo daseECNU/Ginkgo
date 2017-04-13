@@ -35,6 +35,7 @@
 #include "../exec_tracker/stmt_exec_tracker.h"
 #include "caf/all.hpp"
 
+#include "../Config.h"
 #include "../Environment.h"
 #include "scheduler_base.h"
 using caf::scoped_actor;
@@ -131,9 +132,41 @@ RetCode PipelineJob::ComputeJobRank(float& low_rank, float upper_rank) {
   rank_ = max_rank + cost_;
   low_rank = rank_;
 #else
-  rank_ = max(rank_, upper_rank + cost_);
-  for (auto it = parents_.begin(); it != parents_.end(); ++it) {
-    (*it)->ComputeJobRank(low_rank, rank_);
+  if (Config::rank_computation > 3 || Config::rank_computation < 0) {
+    Config::rank_computation = 0;
+  }
+  if (Config::rank_computation == 0) {
+    // rank_up
+    rank_ = max(rank_, upper_rank + cost_);
+    for (auto it = parents_.begin(); it != parents_.end(); ++it) {
+      (*it)->ComputeJobRank(low_rank, rank_);
+    }
+  } else if (Config::rank_computation == 1) {
+    // rank_down
+    float rank = 0;
+    float max_rank = 0;
+    for (auto it = parents_.begin(); it != parents_.end(); ++it) {
+      (*it)->ComputeJobRank(rank, upper_rank + 1);
+      max_rank = max(max_rank, rank);
+    }
+    rank_ = max_rank + cost_;
+    low_rank = rank_;
+  } else if (Config::rank_computation == 2) {
+    // level_up
+    rank_ = max(rank_, upper_rank + 1);
+    for (auto it = parents_.begin(); it != parents_.end(); ++it) {
+      (*it)->ComputeJobRank(low_rank, rank_);
+    }
+  } else if (Config::rank_computation == 3) {
+    // level_down
+    float rank = 0;
+    float max_rank = 0;
+    for (auto it = parents_.begin(); it != parents_.end(); ++it) {
+      (*it)->ComputeJobRank(rank, upper_rank + 1);
+      max_rank = max(max_rank, rank);
+    }
+    rank_ = max_rank + 1;
+    low_rank = rank_;
   }
 #endif
   return ret;

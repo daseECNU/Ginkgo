@@ -131,7 +131,8 @@ bool ExpanderTracker::isExpandedThreadCallBack(
     LOG(ERROR) << "the thread = " << thread_id
                << " isn't in thread_id_to_status_";
     lock_.release();
-    return false;
+    // as if the underlying thread has been called back
+    return true;
   }
 }
 bool ExpanderTracker::SetThreadStatusCallback(ExpandedThreadId thread_id) {

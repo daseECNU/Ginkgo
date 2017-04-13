@@ -17,10 +17,11 @@ select    s_store_name
                  (sr_returned_date_sk - ss_sold_date_sk <= 120) then 1 else 0 end)  as dday
   ,sum(case when (sr_returned_date_sk - ss_sold_date_sk  > 120) then 1 else 0 end)  eday
 from  
+ store
+  ,date_dim d1 ,
  (date_dim d2
 ,store_returns)
-  ,store
-  ,date_dim d1
+
  ,store_sales
 where
     d2.d_year = 2002

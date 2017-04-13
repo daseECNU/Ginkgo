@@ -84,14 +84,15 @@ bool Expander::Open(SegmentExecStatus* const exec_status,
 
   in_work_expanded_thread_list_.clear();
   RETURN_IF_CANCELLED(exec_status);
-
+  // should before the register, otherwise, it will core dump due to the unknown
+  // value
+  exec_status_ = exec_status;
   expander_id_ = exec_status->GetSegmentID();
   ExpanderTracker::getInstance()->RegisterExpander(
       block_stream_buffer_, this, expander_id_, exec_status->is_pivot_);
   is_registered_ = true;
   LOG(INFO) << expander_id_.first << " , " << expander_id_.second
             << "Expander open, thread count= " << state_.init_thread_count_;
-  exec_status_ = exec_status;
 
   // for extra job, init_thread_count_=1
   if (!exec_status->is_pivot_) {

@@ -361,6 +361,7 @@ void LogicalScan::InitTableCardi() {
   TableAggeCardi["LINEITEM"] = 6001215;
   TableAggeCardi["NATION"] = 25;
   TableAggeCardi["REGION"] = 5;
+#ifdef SF10
   // tpc-ds sf10
   TableAggeCardi["store"] = 102;
   TableAggeCardi["household_demographics"] = 7200;
@@ -386,6 +387,34 @@ void LogicalScan::InitTableCardi() {
   TableAggeCardi["income_band"] = 20;
   TableAggeCardi["catalog_page"] = 12000;
   TableAggeCardi["catalog_returns"] = 1439749;
+#else
+  // tpc-ds sf100
+  TableAggeCardi["store"] = 402;
+  TableAggeCardi["household_demographics"] = 7200;
+  TableAggeCardi["time_dim"] = 86400;
+  TableAggeCardi["store_sales"] = 287997024;
+  TableAggeCardi["customer_demographics"] = 1920800;
+  TableAggeCardi["date_dim"] = 73049;
+  TableAggeCardi["item"] = 204000;
+  TableAggeCardi["promotion"] = 1000;
+  TableAggeCardi["customer"] = 2000000;
+  TableAggeCardi["customer_address"] = 1000000;
+  TableAggeCardi["store_returns"] = 28795080;
+  TableAggeCardi["catalog_sales"] = 143997065;
+  TableAggeCardi["call_center"] = 30;
+  TableAggeCardi["web_sales"] = 72001237;
+  TableAggeCardi["warehouse"] = 15;
+  TableAggeCardi["ship_mode"] = 20;
+  TableAggeCardi["web_site"] = 24;
+  TableAggeCardi["inventory"] = 399330000;
+  TableAggeCardi["web_returns"] = 719217;
+  TableAggeCardi["web_page"] = 200;
+  TableAggeCardi["reason"] = 45;
+  TableAggeCardi["income_band"] = 20;
+  TableAggeCardi["catalog_page"] = 12000;
+  TableAggeCardi["catalog_returns"] = 14404374;
+
+#endif
 }
 
 u_int64_t LogicalScan::GetAggeCardi() {

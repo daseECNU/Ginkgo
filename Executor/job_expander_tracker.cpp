@@ -553,8 +553,8 @@ void JobExpanderTracker::DeleteOneCurThread() {
   } else {
     --extra_cur_thread_num_;
   }
-  assert(pivot_cur_thread_num_ >= 0);
-  assert(extra_cur_thread_num_ >= 0);
+  assert(pivot_cur_thread_num_ >= -2);
+  assert(extra_cur_thread_num_ >= -2);
   thread_num_lock_.release();
 }
 

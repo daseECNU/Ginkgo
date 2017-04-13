@@ -29,6 +29,8 @@
 
 #ifndef PARTITIONSTORAGE_H_
 #define PARTITIONSTORAGE_H_
+#include <sys/types.h>
+
 #include "ChunkStorage.h"
 #include "StorageLevel.h"
 #include "./PartitionReaderIterator.h"
@@ -144,6 +146,7 @@ class PartitionStorage {
    * one by one, just using the block_accessor that store the point of block.
    */
   PartitionStorage::PartitionReaderIterator* CreateAtomicReaderIterator();
+  u_int64_t get_number_of_chunks() { return number_of_chunks_; }
 
  protected:
   PartitionID partition_id_;

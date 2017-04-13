@@ -31,6 +31,8 @@
 #include "../node_manager/base_node.h"
 #include "../scheduler/pipeline_job.h"
 #include "list_filling_preemption_scheduler.h"
+
+#include "../Config.h"
 #include "scheduler_base.h"
 namespace claims {
 namespace scheduler {
@@ -144,7 +146,9 @@ void ListFillingPreemptionScheduler::ScheduleJob(
         }
 
         // schedule one extra job
-        self->send(self, SchEJobAtom::value);
+        if (scheduler->extra_jobs_.size() < Config::extra_job_num) {
+          self->send(self, SchEJobAtom::value);
+        }
       },
 
       [=](SchEJobAtom) {

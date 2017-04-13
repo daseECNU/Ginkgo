@@ -33,6 +33,7 @@
 
 #ifndef PHYSICAL_OPERATOR_PHYSICAL_PROJECTION_SCAN_H_
 #define PHYSICAL_OPERATOR_PHYSICAL_PROJECTION_SCAN_H_
+#include <sys/types.h>
 #include <atomic>
 #include <stack>
 
@@ -142,6 +143,7 @@ class PhysicalProjectionScan : public PhysicalOperator {
   RetCode GetJobDAG(JobContext* const job_cnxt);
 
   atomic_ulong processed_blocks_;
+  u_int64_t partition_total_blocks_;
 
  private:
   bool PassSample() const;

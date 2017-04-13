@@ -26,30 +26,31 @@
  *
  */
 
-#include "list_filling_scheduler.h"
-
 #include <glog/logging.h>
 
 #include "caf/all.hpp"
 
-#include "../Config.h"
 #include "../node_manager/base_node.h"
 #include "../scheduler/pipeline_job.h"
+#include "list_static_scheduler.h"
+
+#include <algorithm>
+#include "../Config.h"
 #include "scheduler_base.h"
 namespace claims {
 namespace scheduler {
 
-ListFillingScheduler::ListFillingScheduler(PipelineJob* const dag_root,
-                                           StmtExecStatus* stmt_exec_status)
+ListStaticScheduler::ListStaticScheduler(PipelineJob* const dag_root,
+                                         StmtExecStatus* stmt_exec_status)
     : BackfillScheduler(dag_root, stmt_exec_status) {}
 
-ListFillingScheduler::~ListFillingScheduler() {
+ListStaticScheduler::~ListStaticScheduler() {
   // TODO Auto-generated destructor stub
 }
-
-void ListFillingScheduler::ScheduleJob(caf::event_based_actor* self,
-                                       ListFillingScheduler* scheduler) {
-  LOG(INFO) << "ListFillingScheduler starts up now!";
+// modified from FineGrainBackfillScheduler, just remove scheduling extra jobs
+void ListStaticScheduler::ScheduleJob(caf::event_based_actor* self,
+                                      ListStaticScheduler* scheduler) {
+  LOG(INFO) << "ListStaticScheduler starts up now!";
   scheduler->ComputeTaskNum();
   scheduler->InitThread();
   self->become(
@@ -65,8 +66,13 @@ void ListFillingScheduler::ScheduleJob(caf::event_based_actor* self,
           for (auto it = pjob->node_task_num_.begin();
                it != pjob->node_task_num_.end(); ++it) {
             pjob->node_allocated_thread_[it->first] +=
-                scheduler->thread_rest_[it->first];
-            scheduler->thread_rest_[it->first] = 0;
+                std::min(scheduler->thread_rest_[it->first],
+                         Config::max_degree_of_parallelism);
+            scheduler->thread_rest_[it->first] -=
+                Config::max_degree_of_parallelism;
+            if (scheduler->thread_rest_[it->first] < 0) {
+              scheduler->thread_rest_[it->first] = 0;
+            }
           }
           if (PipelineJob::kReady == pjob->get_job_status()) {
             pjob->set_job_status(PipelineJob::kPivot);
@@ -81,76 +87,80 @@ void ListFillingScheduler::ScheduleJob(caf::event_based_actor* self,
           } else {
             assert(false && "doesn't know the status of the pivot job");
           }
-          // schedule one extra job
         }
-        if (scheduler->extra_jobs_.size() < Config::extra_job_num) {
-          self->send(self, SchEJobAtom::value);
-        }
+        // needn't schedule one extra job
+        // self->send(self, SchEJobAtom::value);
         scheduler->lock_.release();
 
       },
 
       [=](SchEJobAtom) {
-        // according to the free resource decide to execute one new job or
-        // expand an extra job
-        // naive method : schedule job among extra and ready jobs that's could
-        // use the most free resource
-        scheduler->lock_.acquire();
-        PipelineJob* ejob = NULL;
-        /*
-        int tmp_score = 0;
-        int max_score = 0;
-        float max_rank = 0;
-
-        for (auto it = scheduler->ready_jobs_.begin();
-             it != scheduler->ready_jobs_.end(); ++it) {
-          tmp_score = 0;
-          for (auto nit = (*it)->node_task_num_.begin();
-               nit != (*it)->node_task_num_.end(); ++nit) {
-            if (scheduler->thread_rest_[nit->first] > 0) {
-              tmp_score += scheduler->thread_rest_[nit->first];
-            } else {
-              // tmp_score -= 100;
-            }
-          }
-          if (tmp_score >= max_score && (*it)->get_rank() > max_rank) {
-            max_score = tmp_score;
-            ejob = *it;
-            max_rank = (*it)->get_rank();
-          }
-        }
-*/
-        for (auto it = scheduler->ready_jobs_.begin();
-             it != scheduler->ready_jobs_.end(); ++it) {
-          ejob = *it;
-          if (NULL != ejob) {
-            LOG(INFO) << "query ,job id, status = "
-                      << scheduler->stmt_exec_status_->get_query_id() << " , "
-                      << ejob->get_job_id() << " , " << ejob->get_job_status()
-                      << " will be extra executed!";
-            //            scheduler->ready_jobs_.erase(ejob);
-            ejob->set_job_status(PipelineJob::kExtra);
-            scheduler->extra_jobs_.insert(ejob);
-            // execute the underlying job
-            /*
-                      for (auto it = ejob->node_task_num_.begin();
-                           it != ejob->node_task_num_.end(); ++it) {
-                        ejob->node_allocated_thread_[it->first] +=
-                            scheduler->thread_rest_[it->first];
-                        scheduler->thread_rest_[it->first] = 0;
-                      }
-            */
-            ejob->CreatJobActor(scheduler);
-            self->send(ejob->get_job_actor(), ExceJobAtom::value);
-
-          } else {
-            LOG(INFO) << "query id= "
-                      << scheduler->stmt_exec_status_->get_query_id()
-                      << " couldn't found right job to expand or execute";
-          }
-        }
-        scheduler->ready_jobs_.clear();
-        scheduler->lock_.release();
+        //        // according to the free resource decide to execute one new
+        //        job or
+        //        // expand an extra job
+        //        // naive method : schedule job among extra and ready jobs
+        //        that's could
+        //        // use the most free resource
+        //        scheduler->lock_.acquire();
+        //        PipelineJob* ejob = NULL;
+        //        /*
+        //        int tmp_score = 0;
+        //        int max_score = 0;
+        //        float max_rank = 0;
+        //
+        //        for (auto it = scheduler->ready_jobs_.begin();
+        //             it != scheduler->ready_jobs_.end(); ++it) {
+        //          tmp_score = 0;
+        //          for (auto nit = (*it)->node_task_num_.begin();
+        //               nit != (*it)->node_task_num_.end(); ++nit) {
+        //            if (scheduler->thread_rest_[nit->first] > 0) {
+        //              tmp_score += scheduler->thread_rest_[nit->first];
+        //            } else {
+        //              // tmp_score -= 100;
+        //            }
+        //          }
+        //          if (tmp_score >= max_score && (*it)->get_rank() > max_rank)
+        //          {
+        //            max_score = tmp_score;
+        //            ejob = *it;
+        //            max_rank = (*it)->get_rank();
+        //          }
+        //        }
+        //*/
+        //        for (auto it = scheduler->ready_jobs_.begin();
+        //             it != scheduler->ready_jobs_.end(); ++it) {
+        //          ejob = *it;
+        //          if (NULL != ejob) {
+        //            LOG(INFO) << "query ,job id, status = "
+        //                      << scheduler->stmt_exec_status_->get_query_id()
+        //                      << " , "
+        //                      << ejob->get_job_id() << " , " <<
+        //                      ejob->get_job_status()
+        //                      << " will be extra executed!";
+        //            //            scheduler->ready_jobs_.erase(ejob);
+        //            ejob->set_job_status(PipelineJob::kExtra);
+        //            scheduler->extra_jobs_.insert(ejob);
+        //            // execute the underlying job
+        //            /*
+        //                      for (auto it = ejob->node_task_num_.begin();
+        //                           it != ejob->node_task_num_.end(); ++it) {
+        //                        ejob->node_allocated_thread_[it->first] +=
+        //                            scheduler->thread_rest_[it->first];
+        //                        scheduler->thread_rest_[it->first] = 0;
+        //                      }
+        //            */
+        //            ejob->CreatJobActor(scheduler);
+        //            self->send(ejob->get_job_actor(), ExceJobAtom::value);
+        //
+        //          } else {
+        //            LOG(INFO) << "query id= "
+        //                      << scheduler->stmt_exec_status_->get_query_id()
+        //                      << " couldn't found right job to expand or
+        //                      execute";
+        //          }
+        //        }
+        //        scheduler->ready_jobs_.clear();
+        //        scheduler->lock_.release();
       },
 
       [=](DoneJobAtom, PipelineJob* pjob) {
@@ -181,9 +191,8 @@ void ListFillingScheduler::ScheduleJob(caf::event_based_actor* self,
         if (PipelineJob::kPivot == pjob->get_job_status()) {
           self->send(self, SchPJobAtom::value);
         } else if (PipelineJob::kExtra == pjob->get_job_status()) {
-          scheduler->EraseJobFromMultiset(scheduler->extra_jobs_,
-                                          pjob->get_job_id());
-          self->send(self, SchEJobAtom::value);
+          // scheduler->extra_jobs_.erase(pjob);
+          // self->send(self, SchEJobAtom::value);
         }
         pjob->set_job_status(PipelineJob::kDone);
         self->send(pjob->get_job_actor(), ExitAtom::value);
@@ -196,12 +205,12 @@ void ListFillingScheduler::ScheduleJob(caf::event_based_actor* self,
       caf::others >>
 
           [=]() {
-            LOG(WARNING) << "ListFillingScheduler receives unkown message";
+            LOG(WARNING) << "ListStaticScheduler receives unkown message";
           });
   self->send(self, SchPJobAtom::value);
 }
 
-PipelineJob* ListFillingScheduler::GetPivotJob() {
+PipelineJob* ListStaticScheduler::GetPivotJob() {
   auto rit = ready_jobs_.begin();
   auto eit = extra_jobs_.begin();
   PipelineJob* tmp_job = NULL;
@@ -241,18 +250,24 @@ PipelineJob* ListFillingScheduler::GetPivotJob() {
   return NULL;
 }
 
-bool ListFillingScheduler::CouldSchedule(PipelineJob* pjob) {
+bool ListStaticScheduler::CouldSchedule(PipelineJob* pjob) {
   bool could_sch = true;
+  int max_degree = Config::max_degree_of_parallelism;
+  int total_degree = Config::total_thread_num;
+
   for (auto it = pjob->node_task_num_.begin(); it != pjob->node_task_num_.end();
        ++it) {
-    if (thread_rest_[it->first] == 0) {
+    if (max_degree * it->second > total_degree) {
+      max_degree = total_degree / it->second;
+    }
+    if (thread_rest_[it->first] < max_degree * it->second) {
       could_sch = false;
     }
   }
   return could_sch;
 }
 
-void ListFillingScheduler::CreateActor() {
+void ListStaticScheduler::CreateActor() {
   scheduler_actor_ = caf::spawn(ScheduleJob, this);
 }
 }

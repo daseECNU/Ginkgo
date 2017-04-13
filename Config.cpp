@@ -96,7 +96,8 @@ int Config::hash_join_bucket_num;
 int Config::hash_join_bucket_size;
 int Config::total_thread_num;
 int Config::binding_mode;
-
+int Config::extra_job_num;
+int Config::rank_computation;
 std::string Config::scheduler;
 std::string Config::tree_type;
 
@@ -168,9 +169,9 @@ void Config::initialize() {
   hash_join_bucket_size = getInt("hash_join_bucket_size", 1024);
 
   total_thread_num = getInt("total_thread_num", 24);
-
+  rank_computation = getInt("rank_computation", 0);
   binding_mode = getInt("binding_mode", 0);
-
+  extra_job_num = getInt("extra_job_num", 100);
   scheduler = getString("scheduler", "SerializedScheduler");
   enable_prune_column = getBoolean("enable_prune_column", true);
   tree_type = getString("tree_type", "right_deep");
@@ -237,6 +238,8 @@ void Config::print_configure() const {
   std::cout << "hash_join_bucket_num" << hash_join_bucket_num << std::endl;
   std::cout << "hash_join_bucket_size" << hash_join_bucket_size << std::endl;
   std::cout << "scheduler: " << scheduler << std::endl;
+  std::cout << "extra_job_num: " << extra_job_num << std::endl;
+  std::cout << "rank_computation: " << rank_computation << std::endl;
 }
 
 void Config::setConfigFile(std::string file_name) { config_file = file_name; }

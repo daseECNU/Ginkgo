@@ -58,6 +58,7 @@
 #include "../scheduler/list_filling_preemption_scheduler.h"
 #include "../scheduler/list_preemption_scheduler.h"
 #include "../scheduler/list_scheduler.h"
+#include "../scheduler/list_static_scheduler.h"
 using caf::io::remote_actor;
 using claims::logical_operator::LogicalQueryPlanRoot;
 using claims::physical_operator::ExchangeSender;
@@ -80,6 +81,7 @@ using claims::scheduler::SchedulerBase;
 using claims::scheduler::ListFillingPreemptionScheduler;
 using claims::scheduler::ListScheduler;
 using claims::scheduler::ListPreemptionScheduler;
+using claims::scheduler::ListStaticScheduler;
 namespace claims {
 namespace stmt_handler {
 //#define PRINTCONTEXT
@@ -289,7 +291,9 @@ RetCode SelectExec::Execute() {
   } else if (Config::scheduler == "ListFillingPreemptionScheduler") {
     bfs = new ListFillingPreemptionScheduler(job_cnxt->get_dag_root(),
                                              get_stmt_exec_status());
-
+  } else if (Config::scheduler == "ListStaticScheduler") {
+    bfs = new ListStaticScheduler(job_cnxt->get_dag_root(),
+                                  get_stmt_exec_status());
   } else {
     bfs = new SerializedScheduler(job_cnxt->get_dag_root(),
                                   get_stmt_exec_status());

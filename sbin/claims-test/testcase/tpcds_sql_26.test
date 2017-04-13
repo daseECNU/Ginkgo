@@ -3,7 +3,7 @@ select i_item_id,
         avg(cs_list_price) agg2,
         avg(cs_coupon_amt) agg3,
         avg(cs_sales_price) agg4
- from  customer_demographics, date_dim, item, promotion,catalog_sales
+ from   promotion,date_dim, item, customer_demographics,catalog_sales
  where cs_sold_date_sk = d_date_sk and
        cs_item_sk = i_item_sk and
        cs_bill_cdemo_sk = cd_demo_sk and

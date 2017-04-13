@@ -10,7 +10,7 @@ select  c_last_name
           ,ca_city bought_city
           ,sum(ss_coupon_amt) amt
           ,sum(ss_net_profit) profit
-    from date_dim,store,household_demographics,customer_address,store_sales
+    from store,household_demographics,date_dim,customer_address,store_sales
     where store_sales.ss_sold_date_sk = date_dim.d_date_sk
     and store_sales.ss_store_sk = store.s_store_sk
     and store_sales.ss_hdemo_sk = household_demographics.hd_demo_sk
@@ -20,7 +20,7 @@ select  c_last_name
     and date_dim.d_dow in (6,0)
     and date_dim.d_year in (1999, 2000, 2001)
     and store.s_city in ('Pleasant Hill','Fairview','Liberty','Oakland','Bethel')
-    group by ss_ticket_number,ss_customer_sk,ss_addr_sk,ca_city) dn,customer,customer_address current_addr
+    group by ss_ticket_number,ss_customer_sk,ss_addr_sk,ca_city) dn,customer_address current_addr,customer
     where ss_customer_sk = c_customer_sk
       and customer.c_current_addr_sk = current_addr.ca_address_sk
       and current_addr.ca_city <> bought_city

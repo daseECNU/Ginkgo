@@ -4,14 +4,13 @@ select
         cc_manager Manager,
         sum(cr_net_loss) Returns_Loss
 from
-        call_center,
-        date_dim,
-        catalog_returns,
-        
+                (date_dim,
+        (call_center,
+        catalog_returns)),        
         customer_address,
-        customer_demographics,
         household_demographics,
-customer
+        customer_demographics,
+		customer
 where
         cr_call_center_sk       = cc_call_center_sk
 and     cr_returned_date_sk     = d_date_sk

@@ -6,13 +6,13 @@ select  i_item_id
     ,avg(sr_return_quantity) as store_returns_quantity
     ,avg(cs_quantity)        as catalog_sales_quantity
  from
- ((store_returns
- ,date_dim d2)
- ,(date_dim d3
- ,catalog_sales))
-,date_dim d1
- ,store
+store
+ ,date_dim d1
  ,item
+  ,(date_dim d3
+ ,catalog_sales)
+ ,(store_returns
+ ,date_dim d2)
 ,store_sales
  where
      d1.d_moy               = 4

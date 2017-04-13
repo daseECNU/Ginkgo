@@ -55,13 +55,17 @@ PhysicalProjectionScan::PhysicalProjectionScan(State state)
     : state_(state),
       partition_reader_iterator_(NULL),
       perf_info_(NULL),
+      partition_total_blocks_(0),
       processed_blocks_(0) {
   set_phy_oper_type(kPhysicalScan);
   InitExpandedStatus();
 }
 
 PhysicalProjectionScan::PhysicalProjectionScan()
-    : partition_reader_iterator_(NULL), perf_info_(NULL), processed_blocks_(0) {
+    : partition_reader_iterator_(NULL),
+      perf_info_(NULL),
+      partition_total_blocks_(0),
+      processed_blocks_(0) {
   set_phy_oper_type(kPhysicalScan);
   InitExpandedStatus();
 }
@@ -111,6 +115,7 @@ bool PhysicalProjectionScan::Open(SegmentExecStatus* const exec_status,
           partition_handle_->CreateAtomicReaderIterator();
       SetReturnStatus(true);
     }
+    partition_total_blocks_ = partition_handle_->get_number_of_chunks() * 1024;
     processed_blocks_ = 0;
 #ifdef AVOID_CONTENTION_IN_SCAN
     unsigned long long start = curtick();
@@ -153,7 +158,6 @@ bool PhysicalProjectionScan::Next(SegmentExecStatus* const exec_status,
                                   BlockStreamBase* block) {
   RETURN_IF_CANCELLED(exec_status);
 
-  unsigned long long total_start = curtick();
   if (!block->isIsReference()) {
     block->setIsReference(false);
   }
@@ -204,22 +208,24 @@ bool PhysicalProjectionScan::Next(SegmentExecStatus* const exec_status,
   // case(2)
   RETURN_IF_CANCELLED(exec_status);
   bool ret = partition_reader_iterator_->NextBlock(block);
-  processed_blocks_ += (ret);
-  // update rest progress in status every 3 processed blocks
 
-  if (processed_blocks_ % 1000 == 0 || !ret) {
-    GETCURRENTTIME(start);
-    ostringstream buffer;
-    long total_block =
-        processed_blocks_ > 1000 ? processed_blocks_ + 10000 : 1000;
-    buffer << (1 - (processed_blocks_ * 1.0 / total_block));
-    string exec_info = "A" + buffer.str() + "A scan update progress succeed";
-    exec_status->UpdateStatus(exec_status->get_exec_status(), exec_info, 0,
-                              false);
-    LOG(INFO) << "scan update progress " << GetElapsedTime(start) << " "
-              << exec_info;
+  if (Config::scheduler == "ListFillingPreemptionScheduler") {
+    processed_blocks_ += (ret);
+    // update rest progress in status every 1000 processed blocks
+
+    if (processed_blocks_ % 1000 == 0 || !ret) {
+      GETCURRENTTIME(start);
+      ostringstream buffer;
+      // 50 * (ret) stands for the effect of block in progress
+      buffer << (1 - ((processed_blocks_ * 1.0 + 50 * (ret)) /
+                      partition_total_blocks_));
+      string exec_info = "A" + buffer.str() + "A scan update progress succeed";
+      exec_status->UpdateStatus(exec_status->get_exec_status(), exec_info, 0,
+                                false);
+      LOG(INFO) << "scan update progress " << GetElapsedTime(start) << " "
+                << exec_info;
+    }
   }
-
   return ret;
 #endif
 }

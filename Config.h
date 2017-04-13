@@ -23,6 +23,7 @@ class Config {
   static Config* getInstance();
   void print_configure() const;
   virtual ~Config();
+  void ReLoad() { initialize(); }
 
  private:
   Config();
@@ -87,6 +88,8 @@ class Config {
   static int binding_mode;
   static std::string scheduler;
   static std::string tree_type;
+  static int extra_job_num;
+  static int rank_computation;
 
  private:
   static Config* instance_;

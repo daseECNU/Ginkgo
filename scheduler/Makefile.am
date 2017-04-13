@@ -29,6 +29,7 @@ libscheduler_a_SOURCES = \
 	list_filling_scheduler.cpp	list_filling_scheduler.h	\
 	list_preemption_scheduler.cpp	list_preemption_scheduler.h	\
 	list_scheduler.cpp  			list_scheduler.h	\
+	list_static_scheduler.cpp       list_static_scheduler.h		\
 	gready_scheduler.cpp		gready_scheduler.h		\
 	serialized_scheduler.cpp	serialized_scheduler.h	\
 	backfill_scheduler.cpp		backfill_scheduler.h	\

@@ -38,6 +38,7 @@
 #include "../stmt_handler/show_exec.h"
 #include "../utility/Timer.h"
 #include "../common/error_define.h"
+#include "../Config.h"
 
 using boost::algorithm::to_lower;
 using boost::algorithm::trim;
@@ -134,6 +135,7 @@ RetCode StmtHandler::Execute(ExecutedResult* exec_result) {
   if (rSuccess != ret) {
     return ret;
   }
+  Config::getInstance()->ReLoad();
   ret = stmt_exec_->Execute(exec_result);
   if (rSuccess != ret) {
     return ret;
