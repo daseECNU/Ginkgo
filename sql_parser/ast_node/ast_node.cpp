@@ -482,6 +482,46 @@ RetCode SemanticContext::AddGroupByAttrs(AstNode* groupby_node) {
   }
   return rSuccess;
 }
+RetCode SemanticContext::AddOrderByAttrs(AstNode* orderby_node) {
+  bool exist = false;
+  for (auto it = orderby_attrs_.begin(); it != orderby_attrs_.end(); ++it) {
+    if (orderby_node->expr_str_ == "") {
+      ELOG(rOrderbyNodeExprStrIsNULL, "");
+      return rOrderbyNodeExprStrIsNULL;
+    }
+    if (orderby_node->expr_str_ == (*it)->expr_str_) {
+      exist = true;
+      break;
+    }
+  }
+  if (exist) {
+    LOG(INFO) << "eliminate one groupby node" << endl;
+  } else {
+    orderby_attrs_.push_back(orderby_node);
+  }
+  return rSuccess;
+}
+
+RetCode SemanticContext::AddDistinctAttrs(AstNode* distinct_node) {
+  bool exist = false;
+  for (auto it = distinct_attrs_.begin(); it != distinct_attrs_.end(); ++it) {
+    if (distinct_node->expr_str_ == "") {
+      ELOG(rDistinctNodeExprStrIsNULL, "");
+      return rDistinctNodeExprStrIsNULL;
+    }
+    if (distinct_node->expr_str_ == (*it)->expr_str_) {
+      exist = true;
+      break;
+    }
+  }
+  if (exist) {
+    LOG(INFO) << "eliminate one groupby node" << endl;
+  } else {
+    distinct_attrs_.push_back(distinct_node);
+  }
+  return rSuccess;
+}
+
 RetCode SemanticContext::AddSelectAttrs(AstNode* select_node) {
   if (select_attrs_.count(select_node) > 0) {
     return rSuccess;
@@ -511,6 +551,14 @@ vector<AstNode*> SemanticContext::get_groupby_attrs() {
   //  GetUniqueAggAttr(groupby_attrs_);
   return groupby_attrs_;
 }
+vector<AstNode*> SemanticContext::get_orderpby_attrs() {
+  return orderby_attrs_;
+}
+
+vector<AstNode*> SemanticContext::get_distinct_attrs() {
+  return distinct_attrs_;
+}
+
 set<AstNode*> SemanticContext::get_select_attrs() { return select_attrs_; }
 multimap<string, string> SemanticContext::get_column_to_table() {
   return column_to_table_;

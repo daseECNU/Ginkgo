@@ -328,6 +328,43 @@ class AstColumn : public AstNode {
   string column_name_;
   AstNode* next_;
 };
+
+/**
+ * @brief The AST of distinct list.
+ */
+class AstDistinctList : public AstNode {
+ public:
+  AstDistinctList(AstNodeType ast_node_type, AstNode* expr, AstNode* next);
+  ~AstDistinctList();
+  void Print(int level = 0) const;
+  RetCode SemanticAnalisys(SemanticContext* sem_cnxt);
+  void RecoverExprName(string& name);
+  RetCode SolveSelectAlias(SelectAliasSolver* const select_alias_solver);
+  RetCode SetScanAttrList(SemanticContext* sem_cnxt);  AstNode* expr_;
+  AstNode* next_;
+};
+
+class AstDistinctClause : public AstNode {
+ public:
+  enum SelectOpts {
+    SELECT_ALL,
+    SELECT_DISTINCT,
+    SELECT_DISTINCTROW,
+  };
+  AstDistinctClause(AstNodeType ast_node_type, AstNode* distinct_list,
+                   int select_opts);
+  ~AstDistinctClause();
+  void Print(int level = 0) const;
+  RetCode SemanticAnalisys(SemanticContext* sem_cnxt);
+  void RecoverExprName(string& name);
+  RetCode GetLogicalPlan(LogicalOperator*& logic_plan);
+  RetCode SolveSelectAlias(SelectAliasSolver* const select_alias_solver);
+  RetCode SetScanAttrList(SemanticContext* sem_cnxt);
+  AstDistinctList* distinct_list_;
+  SelectOpts select_opts_;
+
+};
+
 /**
  * @brief The AST of select statement.
  * @details AstSelectStmt is the beginning of a SQL AST. So it has pointers to
@@ -338,12 +375,7 @@ class AstColumn : public AstNode {
  */
 class AstSelectStmt : public AstNode {
  public:
-  enum SelectOpts {
-    SELECT_ALL,
-    SELECT_DISTINCT,
-    SELECT_DISTINCTROW,
-  };
-  AstSelectStmt(AstNodeType ast_node_type, int select_opts,
+  AstSelectStmt(AstNodeType ast_node_type, AstNode* distinct_clause,
                 AstNode* select_list, AstNode* from_list, AstNode* where_clause,
                 AstNode* groupby_clause, AstNode* having_clause,
                 AstNode* orderby_clause, AstNode* limit_clause,
@@ -356,13 +388,13 @@ class AstSelectStmt : public AstNode {
   RetCode GetLogicalPlanOfAggeration(LogicalOperator*& logic_plan);
   RetCode GetLogicalPlanOfProject(LogicalOperator*& logic_plan);
   RetCode SetScanAttrList(SemanticContext* sem_cnxt);
-  SelectOpts select_opts_;
   AstNode* select_list_;
   AstNode* from_list_;
   AstNode* where_clause_;
   AstNode* groupby_clause_;
   AstNode* having_clause_;
   AstNode* orderby_clause_;
+  AstNode* distinct_clause_;
   AstNode* limit_clause_;
   AstNode* select_into_clause_;
   vector<AstNode*> groupby_attrs_;

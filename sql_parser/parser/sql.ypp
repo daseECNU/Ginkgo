@@ -399,9 +399,9 @@ should replace YYLEX with the following clause in sql.tab.cpp, why so? I don't k
 %token FMAX
 
 
-%type <intval> select_opts opt_with_rollup opt_asc_desc opt_inner_cross left_right_full 
+%type <intval> opt_with_rollup opt_asc_desc opt_inner_cross left_right_full 
 %type <intval> opt_left_or_right_outer opt_outer  
-%type <ast_node> stmt_list  select_expr_list
+%type <ast_node> stmt_list  select_expr_list distinct_list select_opts
 %type <ast_node>  opt_where select_stmt stmt opt_groupby select_expr
 %type <ast_node>  opt_having opt_orderby expr
 %type <ast_node> groupby_list  table_reference table_factor orderby_list opt_limit
@@ -549,6 +549,7 @@ column_list:
   	| NAME ',' column_list 	{ $$ = new AstColumn(AST_COLUMN, string("NULL"), string($1), $3);}
   	;
 
+/*
 select_opts:							{ $$ = 0; }
 	| select_opts ALL					{ if($$ & 1) yyerror(result,"duplicate ALL option"); $$ = $1 | 1; }
 	| select_opts DISTINCT				{ if($$ & 2) yyerror(result,"duplicate DISTINCT option"); $$ = $1 | 2; }
@@ -559,7 +560,18 @@ select_opts:							{ $$ = 0; }
 	| select_opts SQL_BIG_RESULT      	{ if($$ & 64) yyerror(result,"duplicate SQL_BIG_RESULT option"); $$ = $1 | 64; }
 	| select_opts SQL_CALC_FOUND_ROWS 	{ if($$ & 128) yyerror(result,"duplicate SQL_CALC_FOUND_ROWS option"); $$ = $1 | 128; }
     ;
-
+*/
+select_opts:                      { $$ = NULL; }
+	|DISTINCT                      { $$ = new AstDistinctClause(AST_DISTINCT_CLAUSE, NULL, 1); }           
+	| DISTINCT ON '(' distinct_list ')'	{ $$ = new AstDistinctClause(AST_DISTINCT_CLAUSE, $4, 2); }
+	| ALL { $$ = new AstDistinctClause(AST_DISTINCT_CLAUSE, NULL, 0); }
+	;
+	
+distinct_list: 
+	expr 					{ $$ = new AstDistinctList(AST_DISTINCT_LIST, $1, NULL); }
+	| expr ',' distinct_list { $$ = new AstDistinctList(AST_DISTINCT_LIST, $1, $3); }
+	;
+	
 select_expr_list:
 	select_expr							{ $$ = new AstSelectList(AST_SELECT_LIST, 0,$1,NULL);}
     | select_expr ',' select_expr_list	{ $$ = new AstSelectList(AST_SELECT_LIST, 0,$1,$3);}
