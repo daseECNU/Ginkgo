@@ -1,4 +1,3 @@
-
 **Ginkgo** is a parallel in-memory database prototype, which runs on clusters of commodity servers and aims to provide real-time data analytics on relational dataset. 
 
 #### Highlights
