@@ -27,8 +27,8 @@ Parallel query processing imposes high burdens on network communication, which u
 
 
 #### Quick Start
-Try our Ginkgo, please follow [Quick Start](http://58.198.176.124/lizhif/Ginkgo/wikis/Installation-steps).
+Try our Ginkgo, please follow [Quick Start](https://github.com/daseECNU/Ginkgo/wiki/Installation-steps).
 
 #### More 
-Learn more information, please go to [Wiki](http://58.198.176.124/lizhif/Ginkgo/wikis/home).
+Learn more information, please go to [Wiki](https://github.com/daseECNU/Ginkgo/wiki/home).
 
