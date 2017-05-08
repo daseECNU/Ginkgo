@@ -10,7 +10,7 @@
 Ginkgo relies on highly parallel query processing engine to dramatically accelerate data analysis speed. Query evaluations are not only distributed across the cluster to leverage the computation power of the cluster, but are also executed in a multi-threaded fashion to unleash the power of modern multi-core hardware.
 
 ##### 2. Real-time data ingestion without blocking.
-The majority of analytic systems perform long running bulk load data with days delay. This imperfection makes query scan stale tables. Ginkgo employs a real-time data ingestion engine, which continuously fetches records from external data sources and then shuffle to update partitions among cluster. Incoming data is inserted into memory to be scanned and then asynchronously flush to HDFS for persistence. To solve obvious read/write conflicts, Ginkgo produces very lightweight snapshot for each query instance, containing up-to-date view to allow data ingestion and query concurrently execution without blocking.
+The majority of analytic systems perform long running bulk load data with days delay. This imperfection makes query scan stale tables. Ginkgo employs a real-time data ingestion engine, which continuously fetches records from external data sources and then shuffle to update partitions among cluster. Incoming data is inserted into memory to be scanned and then asynchronously flush to HDFS for persistence. To solve obvious read/write conflicts, Ginkgo produces very lightweight snapshot for each query execution instance, containing up-to-date view to allow data ingestion and query concurrently execution without blocking.
 
 ##### 3. Smart intra-node parallelism. 
 
