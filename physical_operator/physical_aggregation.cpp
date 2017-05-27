@@ -33,7 +33,13 @@
 #include <glog/logging.h>
 #include <stack>
 #include <vector>
+#include <set>
+#include <string>
+#include <functional>
+#include <sstream>
+
 #include "../common/expression/expr_node.h"
+#include "../common/expression/expr_column.h"
 #include "../common/expression/data_type_oper.h"
 #include "../common/expression/expr_unary.h"
 #include "../common/memory_handle.h"
@@ -41,11 +47,13 @@
 #include "../Debug.h"
 #include "../utility/rdtsc.h"
 #include "../Executor/expander_tracker.h"
+#include "../utility/lock_guard.h"
 using claims::common::DataTypeOper;
 using claims::common::DataTypeOperFunc;
 using claims::common::ExprEvalCnxt;
 using claims::common::ExprNode;
 using claims::common::ExprUnary;
+using claims::utility::LockGuard;
 using std::vector;
 namespace claims {
 namespace physical_operator {
@@ -198,7 +206,6 @@ bool PhysicalAggregation::Open(SegmentExecStatus *const exec_status,
   BasicHashTable *private_hashtable =
       new BasicHashTable(state_.num_of_buckets_, state_.bucket_size_,
                          state_.hash_schema_->getTupleMaxSize());
-
   start = curtick();
   BarrierArrive(1);
   void *cur = 0;
@@ -211,6 +218,8 @@ bool PhysicalAggregation::Open(SegmentExecStatus *const exec_status,
   void *value_in_input_tuple;
   void *value_in_hash_table;
   void *new_tuple_in_hash_table;
+  // put all group-by key into string and hash it
+  std::ostringstream group_by_key_string;
   ExprEvalCnxt eecnxt;
   eecnxt.schema[0] = state_.input_schema_;
 
@@ -253,17 +262,20 @@ bool PhysicalAggregation::Open(SegmentExecStatus *const exec_status,
          * aggregation (i.e., aggregation without group-by attributes)
          * could be considered as passed the group by value verification.
          */
+        group_by_key_string.clear();
         key_exist = true;
         for (int i = 0; i < group_by_attrs.size(); ++i) {
           group_by_expr_result = group_by_attrs[i]->ExprEvaluate(eecnxt);
           key_in_hash_table =
               state_.hash_schema_->getColumnAddess(i, tuple_in_hashtable);
+          group_by_key_string << group_by_attrs[i]->getValueofTuple(eecnxt);
           if (!state_.hash_schema_->getcolumn(i)
                    .operate->equal(group_by_expr_result, key_in_hash_table)) {
             key_exist = false;
             break;
           }
         }
+        unsigned int value = hash_function_(group_by_key_string.str());
         // hash table have the key (the value in group-by attribute)
         if (key_exist) {
           // value_in_input_tuple by expression
@@ -272,6 +284,20 @@ bool PhysicalAggregation::Open(SegmentExecStatus *const exec_status,
             agg_attrs[i]->ExprEvaluate(
                 eecnxt, state_.hash_schema_->getColumnAddess(
                             i + group_by_size, tuple_in_hashtable));
+            // get value from every tuple.
+            if (agg_attrs[i]->oper_type_  == 37 && agg_attrs[i]->is_distinct_) {
+              GroupkeyToColumnID temp = make_pair(value, i);
+              if (global_set_.find(temp) == global_set_.end()) {
+                LockGuard<Lock> guard(dist_set_lock_);
+                global_set_[temp] = set<string>();
+                global_set_[temp].insert(agg_attrs[i]->arg0_
+                                       ->getValueofTuple(eecnxt));
+              } else {
+                LockGuard<Lock> guard(dist_set_lock_);
+                global_set_[temp].insert(agg_attrs[i]->arg0_
+                                       ->getValueofTuple(eecnxt));
+              }
+            }
           }
           bsti->increase_cur_();
           break;
@@ -285,16 +311,35 @@ bool PhysicalAggregation::Open(SegmentExecStatus *const exec_status,
       eecnxt.tuple[0] = cur;
       new_tuple_in_hash_table = private_hashtable->allocate(bn);
       // set group-by's original value by expression
+      // if key is not exist, will create a new tuple in private hash_table,
+      // so we need a new ostringstream.
+      std::ostringstream new_group_by_key_string;
+      new_group_by_key_string.clear();
       for (int i = 0; i < group_by_attrs.size(); ++i) {
         key_in_input_tuple = group_by_attrs[i]->ExprEvaluate(eecnxt);
         key_in_hash_table =
             state_.hash_schema_->getColumnAddess(i, new_tuple_in_hash_table);
         state_.hash_schema_->getcolumn(i)
             .operate->assignment(key_in_input_tuple, key_in_hash_table);
+        new_group_by_key_string << group_by_attrs[i]->getValueofTuple(eecnxt);
       }
+      unsigned int value = hash_function_(new_group_by_key_string.str());
       // get value_in_input_tuple from expression
       for (int i = 0; i < agg_attrs.size(); ++i) {
         value_in_input_tuple = agg_attrs[i]->arg0_->ExprEvaluate(eecnxt);
+        if (agg_attrs[i]->oper_type_  == 37 && agg_attrs[i]->is_distinct_) {
+          GroupkeyToColumnID temp = make_pair(value, i);
+          if (global_set_.find(temp) == global_set_.end()) {
+            LockGuard<Lock> guard(dist_set_lock_);
+            global_set_[temp] = set<string>();
+            global_set_[temp].insert(agg_attrs[i]->arg0_
+                                   ->getValueofTuple(eecnxt));
+          } else {
+            LockGuard<Lock> guard(dist_set_lock_);
+            global_set_[temp].insert(agg_attrs[i]->arg0_
+                                   ->getValueofTuple(eecnxt));
+          }
+        }
         value_in_hash_table = state_.hash_schema_->getColumnAddess(
             group_by_size + i, new_tuple_in_hash_table);
         state_.hash_schema_->getcolumn(group_by_size + i)
@@ -354,7 +399,6 @@ bool PhysicalAggregation::Open(SegmentExecStatus *const exec_status,
                 state_.hash_schema_->getColumnAddess(i + group_by_size,
                                                      tuple_in_hashtable));
           }
-
           pht_it.increase_cur_();
           hashtable_->unlockBlock(bn);
           break;
@@ -388,6 +432,7 @@ bool PhysicalAggregation::Open(SegmentExecStatus *const exec_status,
     }
   }
 
+  // merge local_set into global set
   if (ExpanderTracker::getInstance()->isExpandedThreadCallBack(
           pthread_self())) {
     UnregisterExpandedThreadToAllBarriers(2);
@@ -409,6 +454,7 @@ bool PhysicalAggregation::Open(SegmentExecStatus *const exec_status,
         ExpanderTracker::getInstance()->getPerformanceInfo(pthread_self());
     perf_info_->initialize();
   }
+
   BarrierArrive(3);
   if (NULL != block_for_asking) {
     delete block_for_asking;
@@ -434,7 +480,6 @@ bool PhysicalAggregation::Open(SegmentExecStatus *const exec_status,
 bool PhysicalAggregation::Next(SegmentExecStatus *const exec_status,
                                BlockStreamBase *block) {
   RETURN_IF_CANCELLED(exec_status);
-
   if (ExpanderTracker::getInstance()->isExpandedThreadCallBack(
           pthread_self())) {
     UnregisterExpandedThreadToAllBarriers(3);
@@ -473,6 +518,21 @@ bool PhysicalAggregation::Next(SegmentExecStatus *const exec_status,
             DataTypeOper::avg_divide_[state_.hash_schema_->columns[id].type](
                 sum_value, count_value, sum_value);
           }
+          }
+        std::ostringstream group_by_key_string;
+        group_by_key_string.clear();
+        for (int i = 0; i < state_.group_by_attrs_.size(); i++) {
+          group_by_key_string << state_.hash_schema_->getColumnValue(tuple, i);
+        }
+        unsigned int value = hash_function_(group_by_key_string.str());
+        for (int i = 0; i <state_.aggregation_attrs_.size(); i++) {
+          GroupkeyToColumnID temp = make_pair(value, i);
+          if (global_set_.find(temp) != global_set_.end()) {
+            int number = global_set_[temp].size();
+            state_.hash_schema_->getcolumn(i+state_.group_by_attrs_.size())
+                .operate->assignment(&number, state_.hash_schema_
+                     ->getColumnAddess(i+state_.group_by_attrs_.size(), tuple));
+          }
         }
         it_.increase_cur_();
       } else {
@@ -498,7 +558,6 @@ bool PhysicalAggregation::Close(SegmentExecStatus *const exec_status) {
     delete hashtable_;
     hashtable_ = NULL;
   }
-
   state_.child_->Close(exec_status);
   return true;
 }

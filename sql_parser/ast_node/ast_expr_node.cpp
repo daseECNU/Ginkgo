@@ -299,8 +299,12 @@ RetCode AstExprUnary::GetLogicalPlan(ExprNode*& logic_expr,
   RetCode ret = rSuccess;
   // count(*) = count(1)
   if (expr_type_ == "COUNT_ALL" || expr_type_ == "COUNT") {
-    child_logic_expr =
-        new ExprConst(ExprNodeType::t_qexpr, t_u_long, "COUNT(1)", "1");
+    if (arg0_ !=NULL && arg0_->ast_node_type_ == AST_DISTINCT_CLAUSE) {
+      ret = arg0_->GetLogicalPlan(child_logic_expr, left_lplan, right_lplan);
+    } else {
+      child_logic_expr =
+          new ExprConst(ExprNodeType::t_qexpr, t_u_long, "COUNT(1)", "1");
+    }
   } else {
     ret = arg0_->GetLogicalPlan(child_logic_expr, left_lplan, right_lplan);
   }
@@ -312,11 +316,15 @@ RetCode AstExprUnary::GetLogicalPlan(ExprNode*& logic_expr,
     logic_expr = new ExprUnary(ExprNodeType::t_qexpr_unary,
                                child_logic_expr->actual_type_, expr_str_, oper,
                                child_logic_expr);
+    if (arg0_ != NULL && arg0_->ast_node_type_ == AST_DISTINCT_CLAUSE) {
+      reinterpret_cast<ExprUnary*>(logic_expr)->is_distinct_ = 1;
+    }
   } else {
     logic_expr = new ExprUnary(ExprNodeType::t_qexpr_unary, t_boolean,
                                child_logic_expr->actual_type_, expr_str_, oper,
                                child_logic_expr);
   }
+
   return rSuccess;
 }
 RetCode AstExprUnary::SolveSelectAlias(

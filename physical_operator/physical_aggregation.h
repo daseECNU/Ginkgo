@@ -34,6 +34,10 @@
 #include <vector>
 #include <map>
 #include <stack>
+#include <string>
+#include <set>
+#include <unordered_map>
+#include <utility>
 
 #include "../common/error_define.h"
 #include "../common/expression/expr_node.h"
@@ -52,6 +56,11 @@ using claims::common::ExprUnary;
 using claims::common::ExprNode;
 
 namespace claims {
+// First param means all a hash value made by group key
+// Second param means the index of distinct aggregation in column.
+
+typedef std::pair<u_int64_t, u_int64_t>  GroupkeyToColumnID;
+
 namespace physical_operator {
 #define NEWCONDI
 
@@ -115,13 +124,15 @@ class PhysicalAggregation : public PhysicalOperator {
   State state_;
 
  private:
+  // (todo)need to initialize
+  boost::unordered_map<GroupkeyToColumnID, set<string>> global_set_;
+  std::hash<std::string> hash_function_;
   BasicHashTable *hashtable_;
   PartitionFunction *hash_;
   // hashtable traverse and in the next func
-  Lock hashtable_cur_lock_;
+  Lock hashtable_cur_lock_, dist_set_lock_ ;
   unsigned bucket_cur_;
   BasicHashTable::Iterator it_;
-
   PerformanceInfo *perf_info_;
 
 // unsigned allocated_tuples_in_hashtable;

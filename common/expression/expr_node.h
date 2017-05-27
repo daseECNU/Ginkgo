@@ -144,7 +144,7 @@ class ExprNode {
   virtual ExprNode* ExprCopy() { return NULL; }
   bool IsEqualAttr(const Attribute& attr);
   Attribute ExprNodeToAttr(const int id, unsigned table_id = 1000000);
-
+  virtual string getValueofTuple(ExprEvalCnxt& eecnxt){ return "null"; }
  private:
   friend class boost::serialization::access;
   template <class Archive>
