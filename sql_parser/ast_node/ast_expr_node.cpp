@@ -186,10 +186,13 @@ RetCode AstExprUnary::SemanticAnalisys(SemanticContext* sem_cnxt) {
     if (sem_cnxt->have_agg) {
       sem_cnxt->select_expr_have_agg = true;
     }
+    auto old_clause_type = sem_cnxt->clause_type_;
+    sem_cnxt->clause_type_ = SemanticContext::kAggregationClause;
     RetCode ret = arg0_->SemanticAnalisys(sem_cnxt);
     if (rSuccess != ret) {
       return ret;
     }
+    sem_cnxt->clause_type_ = old_clause_type;
     sem_cnxt->have_agg = false;
     return rSuccess;
   }

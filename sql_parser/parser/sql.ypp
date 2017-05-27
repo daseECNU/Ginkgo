@@ -4,8 +4,8 @@
 %pure-parser
 %parse-param { struct ParseResult* result}
 %glr-parser
-%expect 4
-%expect-rr 62
+%expect 33
+%expect-rr 83
 %defines
 %{
 #include <stdlib.h>
@@ -562,9 +562,10 @@ select_opts:							{ $$ = 0; }
     ;
 */
 select_opts:                      { $$ = NULL; }
-	|DISTINCT                      { $$ = new AstDistinctClause(AST_DISTINCT_CLAUSE, NULL, 1); }           
+	| DISTINCT                      { $$ = new AstDistinctClause(AST_DISTINCT_CLAUSE, NULL, 1); }           
 	| DISTINCT ON '(' distinct_list ')'	{ $$ = new AstDistinctClause(AST_DISTINCT_CLAUSE, $4, 2); }
 	| ALL { $$ = new AstDistinctClause(AST_DISTINCT_CLAUSE, NULL, 0); }
+	| DISTINCT  distinct_list  { $$ = new AstDistinctClause(AST_DISTINCT_CLAUSE, $2, 3); }
 	;
 	
 distinct_list: 
@@ -758,7 +759,11 @@ expr: FCOUNT '(' '*' ')'	                    { $$ = new AstExprUnary(AST_EXPR_UN
 	| FAVG '(' expr ')'                         { $$ = new AstExprUnary(AST_EXPR_UNARY, "AVG",	 	 $3); }
 	| FMIN '(' expr ')'                         { $$ = new AstExprUnary(AST_EXPR_UNARY, "MIN",	 	 $3); }
 	| FMAX '(' expr ')'                         { $$ = new AstExprUnary(AST_EXPR_UNARY, "MAX",	 	 $3); }
-   
+    | FCOUNT '(' select_opts ')'	            { $$ = new AstExprUnary(AST_EXPR_UNARY, "COUNT",	 $3); }
+    | FSUM '(' select_opts ')'                  { $$ = new AstExprUnary(AST_EXPR_UNARY, "SUM",	 	 $3); }
+	| FAVG '(' select_opts ')'                  { $$ = new AstExprUnary(AST_EXPR_UNARY, "AVG",	 	 $3); }
+	| FMIN '(' select_opts ')'                  { $$ = new AstExprUnary(AST_EXPR_UNARY, "MIN",	 	 $3); }
+	| FMAX '(' select_opts ')'                  { $$ = new AstExprUnary(AST_EXPR_UNARY, "MAX",	 	 $3); }
    ;
    
 expr: FSUBSTRING '(' expr ',' expr ')'		    { $$ = new AstExprFunc(AST_EXPR_FUNC, "SUBSTRING_EXPR_EXPR", 				$3, $5, 	NULL); }
@@ -1321,4 +1326,3 @@ void yyerror(struct ParseResult *pp,const char *  s, ...) {
   vfprintf(stderr, s, ap);
   fprintf(stderr, "\n");
 }
-

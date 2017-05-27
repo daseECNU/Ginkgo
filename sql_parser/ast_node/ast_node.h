@@ -150,6 +150,7 @@ class SemanticContext {
     kHavingClause,
     kDistinctClause,
     kOrderByClause,
+    kAggregationClause,
     kLimitClause
   };
   SemanticContext();

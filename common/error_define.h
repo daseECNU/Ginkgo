@@ -339,6 +339,9 @@ const int rOrderbyNodeExprStrIsNULL = -14142;
 const int rDistinctNodeExprStrIsNULL = -14143;
 const int rDistinctNodeIsNotExistInGroupBy = -14144;
 const int rOrderNodeIsNotExistInDistinct = -14145;
+const int rDistinctInAggregationIsMoreThanOne = -14146;
+const int rDistinctInAggregationIsLessThanOne = -14147;
+const int rDistinctInAggregationNeedTabelName = -14148;
 // for node_manager
 const int rConRemoteActorError = -14300;
 const int rRegisterToMasterTimeOut = -14301;

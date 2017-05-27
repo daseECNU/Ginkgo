@@ -33,6 +33,8 @@
 #include "./ast_node.h"
 #include "../../common/expression/expr_node.h"
 #include "../../logical_operator/logical_operator.h"
+#include "ast_expr_node.h"
+
 using claims::logical_operator::LogicalOperator;
 using std::string;
 using std::vector;
@@ -340,7 +342,8 @@ class AstDistinctList : public AstNode {
   RetCode SemanticAnalisys(SemanticContext* sem_cnxt);
   void RecoverExprName(string& name);
   RetCode SolveSelectAlias(SelectAliasSolver* const select_alias_solver);
-  RetCode SetScanAttrList(SemanticContext* sem_cnxt);  AstNode* expr_;
+  RetCode SetScanAttrList(SemanticContext* sem_cnxt);
+  AstNode* expr_;
   AstNode* next_;
 };
 
@@ -350,6 +353,7 @@ class AstDistinctClause : public AstNode {
     SELECT_ALL,
     SELECT_DISTINCT,
     SELECT_DISTINCTROW,
+    AGGREGATION_DISTINCT
   };
   AstDistinctClause(AstNodeType ast_node_type, AstNode* distinct_list,
                    int select_opts);
@@ -357,12 +361,14 @@ class AstDistinctClause : public AstNode {
   void Print(int level = 0) const;
   RetCode SemanticAnalisys(SemanticContext* sem_cnxt);
   void RecoverExprName(string& name);
-  RetCode GetLogicalPlan(LogicalOperator*& logic_plan);
+  RetCode GetLogicalPlan(ExprNode*& logic_expr,
+                         LogicalOperator* const left_lplan,
+                         LogicalOperator* const right_lplan);
   RetCode SolveSelectAlias(SelectAliasSolver* const select_alias_solver);
   RetCode SetScanAttrList(SemanticContext* sem_cnxt);
+  int GetSelectOpt() {return select_opts_;}
   AstDistinctList* distinct_list_;
   SelectOpts select_opts_;
-
 };
 
 /**
@@ -387,6 +393,7 @@ class AstSelectStmt : public AstNode {
   RetCode GetLogicalPlan(LogicalOperator*& logic_plan);
   RetCode GetLogicalPlanOfAggeration(LogicalOperator*& logic_plan);
   RetCode GetLogicalPlanOfProject(LogicalOperator*& logic_plan);
+  RetCode GetLogicalPlanOfDistinct(LogicalOperator*& logic_plan);
   RetCode SetScanAttrList(SemanticContext* sem_cnxt);
   AstNode* select_list_;
   AstNode* from_list_;
@@ -398,6 +405,7 @@ class AstSelectStmt : public AstNode {
   AstNode* limit_clause_;
   AstNode* select_into_clause_;
   vector<AstNode*> groupby_attrs_;
+  vector<AstNode*> distinct_attrs_;
   set<AstNode*> agg_attrs_;
 
   bool have_aggeragion_;
