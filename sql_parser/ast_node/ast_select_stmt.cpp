@@ -177,9 +177,6 @@ AstSelectExpr::AstSelectExpr(AstNodeType ast_node_type, std::string expr_alias,
 
 AstSelectExpr::~AstSelectExpr() { delete expr_; }
 
-
-
-
 void AstSelectExpr::Print(int level) const {
   cout << setw(level * TAB_SIZE) << " "
        << "|select expr|" << endl;
@@ -192,7 +189,7 @@ void AstSelectExpr::Print(int level) const {
 
 RetCode AstSelectExpr::SetScanAttrList(SemanticContext* sem_cnxt) {
   if (expr_ != NULL) {
-     expr_->SetScanAttrList(sem_cnxt);
+    expr_->SetScanAttrList(sem_cnxt);
   }
   return rSuccess;
 }
@@ -457,8 +454,8 @@ RetCode AstTable::SetScanAttrList(SemanticContext* sem_cnxt) {
     is_all_ = false;
     if (sem_cnxt->table_to_column.find(table_name_) !=
         sem_cnxt->table_to_column.end()) {
-        columns_ = sem_cnxt->table_to_column[table_name_];
-        return rSuccess;
+      columns_ = sem_cnxt->table_to_column[table_name_];
+      return rSuccess;
     } else {
       return rTableNotExisted;
     }
@@ -506,20 +503,26 @@ RetCode AstTable::GetLogicalPlan(LogicalOperator*& logic_plan) {
           ->getCatalog()
           ->getTable(table_name_)
           ->HasDeletedTuples()) {
-    LogicalOperator* base_table = new LogicalScan(table_alias_, columns_, table_name_, is_all_);
+    LogicalOperator* base_table =
+        new LogicalScan(table_alias_, columns_, table_name_, is_all_);
 
     Attribute filter_base =
         base_table->GetPlanContext().plan_partitioner_.get_partition_key();
-    LogicalOperator* del_table =
-        new LogicalScan(table_alias_ + "_DEL", columns_, table_name_ , is_all_);
+    LogicalOperator* del_table = new LogicalScan(
+        table_alias_ + "_DEL", columns_, table_name_ + "_DEL", is_all_);
     Attribute filter_del =
         del_table->GetPlanContext().plan_partitioner_.get_partition_key();
 
     assert(filter_base.attrName != "NULL");
     assert(filter_del.attrName != "NULL");
     vector<LogicalDeleteFilter::FilterPair> filter_pair;
+    Attribute row_id_del = del_table->GetPlanContext().attribute_list_[1];
+    Attribute row_id_base = base_table->GetPlanContext().attribute_list_[0];
+
     filter_pair.push_back(
-        LogicalDeleteFilter::FilterPair(filter_del, filter_base));
+        LogicalDeleteFilter::FilterPair(row_id_del, row_id_base));
+    //    filter_pair.push_back(
+    //        LogicalDeleteFilter::FilterPair(filter_del, filter_base));
     logic_plan = new LogicalDeleteFilter(filter_pair, del_table, base_table);
 
   } else {
@@ -588,7 +591,7 @@ RetCode AstSubquery::SetScanAttrList(SemanticContext* sem_cnxt) {
     (*it)->SetScanAttrList(sem_cnxt);
   }
   for (auto it = normal_condition_.begin(); it != normal_condition_.end();
-      ++it) {
+       ++it) {
     (*it)->SetScanAttrList(sem_cnxt);
   }
   if (subquery_ != NULL) {
@@ -682,7 +685,7 @@ AstJoinCondition::~AstJoinCondition() { delete condition_; }
 
 RetCode AstJoinCondition::SetScanAttrList(SemanticContext* sem_cnxt) {
   if (condition_ != NULL) {
-     condition_->SetScanAttrList(sem_cnxt);
+    condition_->SetScanAttrList(sem_cnxt);
   }
   return rSuccess;
 }
@@ -972,7 +975,6 @@ AstWhereClause::AstWhereClause(AstNodeType ast_node_type, AstNode* expr)
 
 AstWhereClause::~AstWhereClause() { delete expr_; }
 
-
 RetCode AstWhereClause::SetScanAttrList(SemanticContext* sem_cnxt) {
   if (expr_ != NULL) expr_->SetScanAttrList(sem_cnxt);
   return rSuccess;
@@ -1225,7 +1227,7 @@ AstOrderByClause::AstOrderByClause(AstNodeType ast_node_type,
 
 AstOrderByClause::~AstOrderByClause() { delete orderby_list_; }
 
-RetCode AstOrderByClause::SetScanAttrList(SemanticContext *sem_cnxt) {
+RetCode AstOrderByClause::SetScanAttrList(SemanticContext* sem_cnxt) {
   if (orderby_list_ != NULL) orderby_list_->SetScanAttrList(sem_cnxt);
   return rSuccess;
 }
@@ -1443,7 +1445,7 @@ AstColumn::AstColumn(AstColumn* node)
 AstColumn::~AstColumn() { delete next_; }
 
 RetCode AstColumn::SetScanAttrList(SemanticContext* sem_cnxt) {
-//  next_->SetScanAttrList(sem_cnxt);
+  //  next_->SetScanAttrList(sem_cnxt);
   return rSuccess;
 }
 void AstColumn::Print(int level) const {
