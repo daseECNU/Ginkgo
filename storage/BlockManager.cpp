@@ -383,10 +383,10 @@ int BlockManager::LoadFromDisk(const ChunkID& chunk_id, void* const& desc,
       snappy::Uncompress(tmp, compress_length, result);
       //      cout << *result << endl;
       str << *result;
-      LOG(INFO) << "HOW LONG THE RESULT: " << (*result).length() << endl;
+//      LOG(INFO) << "HOW LONG THE RESULT: " << (*result).length() << endl;
       totoal_read += BLOCK_SIZE;
       start_pos += compress_length;
-      LOG(INFO) << "Finish the one size of block" << totoal_read << endl;
+//      LOG(INFO) << "Finish the one size of block" << totoal_read << endl;
     }
 
     else {
@@ -395,7 +395,6 @@ int BlockManager::LoadFromDisk(const ChunkID& chunk_id, void* const& desc,
     }
   }
   string final = str.str();
-  cout << "NOTHING????" << final.c_str() << endl;
   //  memcpy(reinterpret_cast<void*>(desc), final.data(), length);
   final.copy((char*)desc, length, 0);
   chunkid_off_in_file_[next_chunk] = start_pos;
