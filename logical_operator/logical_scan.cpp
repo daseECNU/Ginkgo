@@ -138,6 +138,7 @@ PlanContext LogicalScan::GetPlanContext() {
     if (columns_.find("*") != columns_.end()) {
       // if is all, select tableA.* from tableA, give largest projection;
       target_projection_off = get_Max_projection(table);
+      target_projection_ = table->getProjectoin(target_projection_off);
     } else {
         for (ProjectionOffset projection_off = 0;
             projection_off < table->getNumberOfProjection();

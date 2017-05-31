@@ -187,8 +187,16 @@ RetCode SelectExec::Execute() {
   logic_plan = new LogicalQueryPlanRoot(0, logic_plan, raw_sql_,
                                         LogicalQueryPlanRoot::kResultCollector);
   logic_plan->GetPlanContext();
-
-  if (Config::enable_prune_column) {
+  // if there is select * or select A.* , do not use prune_column
+  bool prune_column_flag = true;
+  if (sem_cnxt.is_all) prune_column_flag = false;
+  for (auto it = sem_cnxt.table_to_column.begin();
+      it != sem_cnxt.table_to_column.end(); it++) {
+    if (it->second.size() == 1 &&  it->second.find("*") != it->second.end()) {
+        prune_column_flag = false;
+    }
+  }
+  if (Config::enable_prune_column  &&prune_column_flag) {
     set<string> attrs;
     logic_plan->PruneProj(attrs);
   }
