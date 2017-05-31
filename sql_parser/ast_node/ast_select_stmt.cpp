@@ -508,8 +508,16 @@ RetCode AstTable::GetLogicalPlan(LogicalOperator*& logic_plan) {
 
     Attribute filter_base =
         base_table->GetPlanContext().plan_partitioner_.get_partition_key();
+    TableDescriptor* del_table_desc =
+        Catalog::getInstance()->getTable(table_name_ + "_DEL");
+    auto del_attr = del_table_desc->getAttributes();
+    set<string> del_columns;
+    for (int i = 0; i < del_table_desc->getNumberOfAttribute(); i++) {
+      del_columns.insert(
+          del_attr[i].attrName.substr(del_attr[i].attrName.find('.') + 1));
+    }
     LogicalOperator* del_table = new LogicalScan(
-        table_alias_ + "_DEL", columns_, table_name_ + "_DEL", is_all_);
+        table_alias_ + "_DEL", del_columns, table_name_ + "_DEL", is_all_);
     Attribute filter_del =
         del_table->GetPlanContext().plan_partitioner_.get_partition_key();
 
