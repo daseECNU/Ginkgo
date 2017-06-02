@@ -129,9 +129,9 @@ RetCode HdfsFileHandleImp::Write(const void* buffer, const size_t length) {
       Compress(static_cast<const char*>(buffer), length, result);
 //  LOG(INFO) << "Compress length: " << compress_length << endl;
   char head[100];
-//  sprintf(head, "%d", compress_length);
+  sprintf(head, "%d", compress_length);
 
-  // total_write_num <compress_length + sizeof(head); //by Han compression
+  //total_write_num <compress_length + sizeof(head); //by Han compression
 
   size_t total_write_num = 0;
   int32_t write_num = hdfsWrite(fs_, file_, head, sizeof(head));
