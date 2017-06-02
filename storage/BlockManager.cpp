@@ -309,19 +309,19 @@ int BlockManager::LoadFromHdfs(const ChunkID& chunk_id, void* const& desc,
     if (start_pos < hdfsfile->mSize) {
       memset((void*)tmp, '\0', 64 * 1024);
       head[100] = {0};
-      LOG(INFO) << "which is start_pos: " << start_pos << endl;
+  //    LOG(INFO) << "which is start_pos: " << start_pos << endl;
       ret = hdfsPread(fs, readFile, start_pos, static_cast<void*>(head), 100);
       compress_length = atoi(reinterpret_cast<const char*>(head));
-      std::cout << "Compress length: " << compress_length << endl;
+    //  std::cout << "Compress length: " << compress_length << endl;
       start_pos += 100;
       ret = hdfsPread(fs, readFile, start_pos, static_cast<void*>(tmp),
                       compress_length);
       snappy::Uncompress(tmp, compress_length, result);
       str << *result;
-      LOG(INFO) << "HOW LONG THE RESULT: " << (*result).length() << endl;
+  //    LOG(INFO) << "HOW LONG THE RESULT: " << (*result).length() << endl;
       totoal_read += BLOCK_SIZE;
       start_pos += compress_length;
-      LOG(INFO) << "Finish the one size of block" << totoal_read << endl;
+  //    LOG(INFO) << "Finish the one size of block" << totoal_read << endl;
     } else {
       ret = -1;
       break;
