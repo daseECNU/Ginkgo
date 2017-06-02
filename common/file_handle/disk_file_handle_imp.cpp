@@ -96,7 +96,7 @@ RetCode DiskFileHandleImp::Write(const void* buffer, const size_t length) {
       snappy::Compress(static_cast<const char*>(buffer), length, result);
  // LOG(INFO) << "Compress length: " << compress_length << endl;
   char head[100];
- // sprintf(head, "%d", compress_length);
+ sprintf(head, "%d", compress_length);
 
   size_t total_write_num = 0;
   ssize_t wirte_num = write(fd_, head, sizeof(head));
