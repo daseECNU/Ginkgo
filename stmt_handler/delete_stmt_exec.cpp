@@ -62,10 +62,9 @@ DeleteStmtExec::~DeleteStmtExec() {}
 
 RetCode DeleteStmtExec::Execute(ExecutedResult* exec_result) {
   RetCode ret = rSuccess;
-  string table_base_name =
-      dynamic_cast<AstTable*>(
-          dynamic_cast<AstFromList*>(delete_stmt_ast_->from_list_)->args_)
-          ->table_name_;
+  string table_base_name = dynamic_cast<AstTable*>(
+      dynamic_cast<AstFromList*>(delete_stmt_ast_->from_list_)->args_)
+                               ->table_name_;
   TableDescriptor* new_table =
       Environment::getInstance()->getCatalog()->getTable(table_base_name);
 
