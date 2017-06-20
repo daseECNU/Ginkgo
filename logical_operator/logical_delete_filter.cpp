@@ -155,8 +155,7 @@ PlanContext LogicalDeleteFilter::GetPlanContext() {
       filter_policy_ = kLeftBroadcast;
   }
 
-  // change filter_policy_ to kNoRepartition forcely
-  filter_policy_ = kNoRepartition;
+  // filter_policy_ = kNoRepartition;
 
   /**finally, construct the output data flow according to the join police**/
   switch (filter_policy_) {
