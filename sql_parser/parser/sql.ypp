@@ -31,6 +31,7 @@ using namespace std;
 #include "../ast_node/ast_delete_stmt.h"
 #include "../ast_node/ast_desc_stmt.h"
 #include "../ast_node/ast_update_stmt.h"
+#include "../ast_node/ast_truncate_stmt.h"
 
 void yyerror(struct ParseResult *pp,const char *s, ...);
 void emit(char *s, ...);
@@ -415,7 +416,7 @@ should replace YYLEX with the following clause in sql.tab.cpp, why so? I don't k
 %type <ast_node> create_database_stmt create_table_stmt create_select_statement
 %type <ast_node> create_definition create_col_list  create_index_stmt
 %type <ast_node> create_projection_stmt  drop_index_stmt
-%type <ast_node> drop_database_stmt drop_table_stmt table_list	
+%type <ast_node> drop_database_stmt drop_table_stmt table_list	 truncate_table_stmt
 %type <ast_node>  insert_stmt
 %type <ast_node> insert_vals insert_vals_list
 %type <ast_node> insert_asgn_list 
@@ -1049,6 +1050,13 @@ opt_rc: /* nil */ 	                        { $$ = 0; }
    | CASCADE 		                        { $$ = 2; }
    ;
 
+   /** truncate table **/	
+stmt: truncate_table_stmt              { $$ = $1; /*output($$, 1); puts("SQL parser： This is a truncate statement"); */}
+
+truncate_table_stmt:
+	TRUNCATE TABLE opt_if_exists NAME 
+											{ $$ = new AstTruncateTableStmt(AST_TRUNCATE_TABLE,$3,string($4));std::cout << "Success!" << std::endl;  } 
+	;
 
 /* statements: insert statement */	
 
