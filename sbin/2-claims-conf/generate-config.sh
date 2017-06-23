@@ -21,7 +21,7 @@ ip = "$slave";
 #端口范围（调试用）
 PortManager:
 {
-    start = 48000;
+    start = 48400;
     end   = 48500;
 }
 
@@ -67,6 +67,12 @@ enable_codegen = $enable_codegen
 load_thread_num = $load_thread_num
 
 memory_utilization = $memory_utilization
+
+enable_prune_column = $enable_prune_column
+
+tree_type = "$tree_type"
+
+binding_mode = $binding_mode
 
 hash_join_bucket_num = $hash_join_bucket_num
 

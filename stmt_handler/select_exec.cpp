@@ -200,8 +200,9 @@ RetCode SelectExec::Execute() {
       Environment::getInstance()->get_slave_node()->get_node_id();
   logic_plan = new LogicalQueryPlanRoot(collect_node_id, logic_plan, raw_sql_,
                                         LogicalQueryPlanRoot::kResultCollector);
-
-  if (Config::enable_prune_column) {
+  // not select * from table;
+  if (Config::enable_prune_column &&
+      ((AstSelectList*)(select_ast_->select_list_))->is_all_ == false) {
     set<string> attrs;
     logic_plan->PruneProj(attrs);
   }
