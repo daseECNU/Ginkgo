@@ -1,3 +1,4 @@
+#include <pthread.h>
 #include <unistd.h>
 
 /*
@@ -82,7 +83,7 @@ bool Expander::Open(SegmentExecStatus* const exec_status,
   one_thread_finished_ = false;
   finished_thread_count_ = 0;
   block_stream_buffer_ = new BlockStreamBuffer(
-      state_.block_size_, state_.block_count_in_buffer_ * 10, state_.schema_);
+      state_.block_size_, state_.block_count_in_buffer_ * 1000, state_.schema_);
 
   in_work_expanded_thread_list_.clear();
   RETURN_IF_CANCELLED(exec_status);
@@ -260,8 +261,7 @@ void* Expander::ExpandedWork(void* arg) {
       while (!Pthis->block_stream_buffer_->getEmptyBlock(block_for_asking)) {
         if (ExpanderTracker::getInstance()->isExpandedThreadCallBack(
                 pthread_self())) {
-          LOG(INFO) << Pthis->expander_id_
-                    << " <<<<<<<<<<<<<<<<Expander detected "
+          LOG(INFO) << " <<<<<<<<<<<<<<<<Expander detected "
                        "call back signal after open!>>>>>>>" << pthread_self()
                     << std::endl;
           isCancelled = true;
@@ -269,8 +269,7 @@ void* Expander::ExpandedWork(void* arg) {
         } else {  // wait empty block
           sleep(3);
           LOG(INFO)
-              << Pthis->expander_id_
-              << "could not get empty block, aftersleep 3ms, buffer useage = "
+              << "could not get empty block, after sleep 3ms, buffer useage = "
               << Pthis->block_stream_buffer_->getBufferUsage()
               << " thread = " << pthread_self() << std::endl;
         }
@@ -278,8 +277,7 @@ void* Expander::ExpandedWork(void* arg) {
       if (isCancelled) {
         break;
       }
-      LOG(INFO) << Pthis->expander_id_ << " get one empty block "
-                << pthread_self() << std::endl;
+      LOG(INFO) << " get one empty block " << pthread_self() << std::endl;
       // after get one empty block
       if (Pthis->state_.child_->Next(Pthis->exec_status_, block_for_asking)) {
         if (!block_for_asking->Empty()) {
@@ -291,8 +289,8 @@ void* Expander::ExpandedWork(void* arg) {
         }
       } else {
         // return empty block to buffer
-        LOG(INFO) << Pthis->expander_id_ << " cancelled and return empty block "
-                  << pthread_self() << std::endl;
+        LOG(INFO) << " cancelled and return empty block " << pthread_self()
+                  << std::endl;
         assert(block_for_asking->Empty() == true);
         Pthis->block_stream_buffer_->ReturnEmptyBlock(block_for_asking);
         break;

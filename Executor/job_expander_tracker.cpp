@@ -372,7 +372,9 @@ int JobExpanderTracker::DecideSchedule(LocalStage& current_stage,
           current_stage.dataflow_desc_.monitorable_buffer_->getBufferUsage();
       /* guarantee that there is at least one expanded thread when the input is
        * complete so that the stage can be finished soon.*/
-      if (current_stage.dataflow_src_.monitorable_buffer_->inputComplete()) {
+      if (current_stage.dataflow_src_.monitorable_buffer_->inputComplete() &&
+          current_stage.dataflow_src_.monitorable_buffer_->getBufferUsage() !=
+              0.0) {
         if (cur_thread_num == 0) {
           ret = DECISION_EXPAND;
         } else {
