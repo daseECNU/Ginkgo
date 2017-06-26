@@ -83,8 +83,7 @@ bool Expander::Open(SegmentExecStatus* const exec_status,
   one_thread_finished_ = false;
   finished_thread_count_ = 0;
   block_stream_buffer_ = new BlockStreamBuffer(
-      state_.block_size_, state_.block_count_in_buffer_ * 1000, state_.schema_);
-
+      state_.block_size_, state_.block_count_in_buffer_ * 100, state_.schema_);
   in_work_expanded_thread_list_.clear();
   RETURN_IF_CANCELLED(exec_status);
   // should before the register, otherwise, it will core dump due to the unknown
@@ -268,17 +267,14 @@ void* Expander::ExpandedWork(void* arg) {
           break;
         } else {  // wait empty block
           sleep(3);
-          LOG(INFO)
-              << "could not get empty block, after sleep 3ms, buffer useage = "
-              << Pthis->block_stream_buffer_->getBufferUsage()
-              << " thread = " << pthread_self() << std::endl;
         }
       }
       if (isCancelled) {
         break;
       }
-      LOG(INFO) << " get one empty block " << pthread_self() << std::endl;
+
       // after get one empty block
+      assert(block_for_asking->Empty() && "get a empty block");
       if (Pthis->state_.child_->Next(Pthis->exec_status_, block_for_asking)) {
         if (!block_for_asking->Empty()) {
           Pthis->lock_.acquire();
@@ -289,14 +285,12 @@ void* Expander::ExpandedWork(void* arg) {
         }
       } else {
         // return empty block to buffer
-        LOG(INFO) << " cancelled and return empty block " << pthread_self()
-                  << std::endl;
-        assert(block_for_asking->Empty() == true);
+
+        assert(block_for_asking->Empty() && "return empty block");
         Pthis->block_stream_buffer_->ReturnEmptyBlock(block_for_asking);
         break;
       }
     }
-
     if (ExpanderTracker::getInstance()->isExpandedThreadCallBack(
             pthread_self())) {
       LOG(INFO) << "expander_id_ = " << Pthis->expander_id_.first << " , "

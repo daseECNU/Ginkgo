@@ -164,6 +164,7 @@ void Config::initialize() {
 
   memory_utilization = getInt("memory_utilization", 100);
 
+  enable_prune_column = getBoolean("enable_prune_column", true);
   hash_join_bucket_num = getInt("hash_join_bucket_num", 1024 * 1024);
 
   hash_join_bucket_size = getInt("hash_join_bucket_size", 1024);
