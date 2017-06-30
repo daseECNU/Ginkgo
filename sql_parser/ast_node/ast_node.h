@@ -169,8 +169,6 @@ class SemanticContext {
 
   RetCode AddAggregation(AstNode* agg_node);
   RetCode AddGroupByAttrs(AstNode* groupby_node);
-  RetCode AddOrderByAttrs(AstNode* orderby_node);
-  RetCode AddDistinctAttrs(AstNode* distinct_node);
   RetCode AddSelectAttrs(AstNode* select_node);
   void GetTableAllColumn(const string table,
                          multimap<string, string>& new_columns);
@@ -178,8 +176,6 @@ class SemanticContext {
   void ClearSelectAttrs() { select_attrs_.clear(); }
   set<AstNode*> get_aggregation();
   vector<AstNode*> get_groupby_attrs();
-  vector<AstNode*> get_orderpby_attrs();
-  vector<AstNode*> get_distinct_attrs();
   set<AstNode*> get_select_attrs();
   multimap<string, string> get_column_to_table();
   set<string> get_tables();
@@ -199,8 +195,6 @@ class SemanticContext {
  private:
   set<AstNode*> aggregation_;
   vector<AstNode*> groupby_attrs_;
-  vector<AstNode*> distinct_attrs_;
-  vector<AstNode*> orderby_attrs_;
   set<AstNode*> select_attrs_;
   multimap<string, string> column_to_table_;
   set<string> tables_;

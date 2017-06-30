@@ -1177,7 +1177,6 @@ RetCode AstOrderByList::SemanticAnalisys(SemanticContext* sem_cnxt) {
     if (rSuccess != ret) {
       return ret;
     }
-    sem_cnxt->AddOrderByAttrs(expr_);
   }
   if (NULL != next_) {
     ret = next_->SemanticAnalisys(sem_cnxt);
@@ -1617,7 +1616,6 @@ RetCode AstDistinctList::SemanticAnalisys(SemanticContext* sem_cnxt) {
     if (rSuccess != ret) {
       return ret;
     }
-    sem_cnxt->AddDistinctAttrs(expr_);
   }
   if (NULL != next_) {
     ret = next_->SemanticAnalisys(sem_cnxt);

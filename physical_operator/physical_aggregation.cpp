@@ -856,7 +856,6 @@ void PhysicalAggregation::ProcessDistinct(void*& from,
                                           int &offset,
                                           void*& tuple_in_hashtable) {
   int set_size = 0;
-  cout <<"!!!!!!!!!!!!! " <<data_type <<endl;
   switch (data_type) {
       case t_int:
       case t_boolean:

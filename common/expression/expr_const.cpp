@@ -23,9 +23,7 @@ ExprConst::ExprConst(ExprNodeType expr_node_type, data_type actual_type,
     : ExprNode(expr_node_type, actual_type, alias), const_value_(const_value) {}
 ExprConst::ExprConst(ExprConst* expr)
     : ExprNode(expr), const_value_(expr->const_value_) {}
-void* ExprConst::ExprEvaluate(ExprEvalCnxt& eecnxt) {
-  return value_;
-}
+void* ExprConst::ExprEvaluate(ExprEvalCnxt& eecnxt) { return value_; }
 
 void ExprConst::InitExprAtLogicalPlan(LogicInitCnxt& licnxt) {
   return_type_ = licnxt.return_type_;
