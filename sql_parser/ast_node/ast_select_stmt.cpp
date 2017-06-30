@@ -1540,8 +1540,6 @@ RetCode AstColumn::GetLogicalPlan(ExprNode*& logic_expr,
 
   Attribute ret_lattr = left_lplan->GetPlanContext().GetAttribute(
       string(relation_name_ + "." + column_name_));
-//  cout << "left_lplan : " <<left_lplan << "   right_lplan:" <<right_lplan
-//           << "      child_logic_expr :" <<logic_expr <<endl;
   if (NULL != right_lplan) {
     Attribute ret_rattr = right_lplan->GetPlanContext().GetAttribute(
         string(relation_name_ + "." + column_name_));

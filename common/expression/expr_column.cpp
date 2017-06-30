@@ -8,7 +8,6 @@
  */
 
 #include "./expr_column.h"
-#include "../data_type.h"
 
 #include <glog/logging.h>
 #include <malloc.h>
@@ -17,7 +16,6 @@
 #include <string>
 #include <iostream>
 #include <map>
-
 
 #include "./expr_node.h"
 #include "./expr_type_cast.h"
@@ -40,91 +38,10 @@ ExprColumn::ExprColumn(ExprColumn* expr)
       table_name_(expr->table_name_),
       column_name_(expr->column_name_) {}
 
-string ExprColumn::getValueofTuple(ExprEvalCnxt& eecnxt ) {
-  void* result = eecnxt.schema[table_id_]->getColumnAddess(
-      attr_id_, eecnxt.tuple[table_id_]);
-  switch (actual_type_) {
-    case t_int:
-    {
-      OperateInt op = new OperateInt(false);
-      auto column_value = op.toString(result);
-      return column_value;
-    }
-    case t_float:
-    {
-      OperateFloat op = OperateFloat(false);
-      auto column_value = op.toString(result);
-      return column_value;
-    }
-    case t_double:
-    {
-      OperateDouble op = OperateDouble(false);
-      auto column_value = op.toString(result);
-      return column_value;
-    }
-    case t_u_long:
-    {
-      OperateULong op = OperateULong(false);
-      auto column_value = op.toString(result);
-      return column_value;
-    }
-    case t_string:
-    { // may be size is not true
-      OperateString op =  OperateString(10, false);
-      auto column_value = op.toString(result);
-      return column_value;
-    }
-    case t_date:
-    {
-      OperateDate op = OperateDate(false);
-      auto column_value = op.toString(result);
-      return column_value;
-    }
-    case t_time:
-    {
-      OperateTime op = OperateTime(false);
-      auto column_value = op.toString(result);
-      return column_value;
-    }
-    case t_datetime:
-    {
-      OperateDatetime op =  OperateDatetime(false);
-      auto column_value = op.toString(result);
-      return column_value;
-    }
-    case t_decimal:
-    {
-      OperateDecimal op = OperateDecimal(10, 0, false);
-      auto column_value = op.toString(result);
-      return column_value;
-    }
-    case t_smallInt:
-    {
-      OperateSmallInt op = OperateSmallInt(false);
-      auto column_value = op.toString(result);
-      return column_value;
-    }
-    case t_u_smallInt:
-    {
-      OperateUSmallInt op = OperateUSmallInt(false);
-      auto column_value = op.toString(result);
-      return column_value;
-    }
-    case t_boolean:
-    {
-      OperateBool op = new OperateBool(false);
-      auto column_value = op.toString(result);
-      return column_value;
-    }
-    default:
-      return "null";
-  }
-}
 void* ExprColumn::ExprEvaluate(ExprEvalCnxt& eecnxt) {
   void* result = eecnxt.schema[table_id_]->getColumnAddess(
       attr_id_, eecnxt.tuple[table_id_]);
   return type_cast_func_(result, value_);
-
 }
 // checking the column belongs to witch table
 void ExprColumn::InitExprAtLogicalPlan(LogicInitCnxt& licnxt) {

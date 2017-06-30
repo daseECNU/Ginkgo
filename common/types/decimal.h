@@ -95,9 +95,8 @@ class Decimal {
   bool op_great_equals(const Decimal rhs) const;
 
   int compare(const Decimal rhs) const;
-
   Decimal& operator=(const Decimal& rhs);
-
+  bool operator==(const Decimal& rhs) {return compare(rhs);}
   void PrintValue(int ifra);
 
   const TTInt& GetTTInt() const {

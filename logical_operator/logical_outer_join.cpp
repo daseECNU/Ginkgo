@@ -290,13 +290,10 @@ PlanContext LogicalOuterJoin::GetPlanContext() {
           left_dataflow.plan_partitioner_.GetAggregatedDataSize();
       ret.commu_cost_ +=
           right_dataflow.plan_partitioner_.GetAggregatedDataSize();
-      auto lt = left_dataflow.plan_partitioner_.get_partition_key();
-      auto rt = right_dataflow.plan_partitioner_.get_partition_key();
 
 
       ret.plan_partitioner_ = DecideOutputDataflowProperty(
           left_dataflow, right_dataflow, join_type_);
-      auto it = ret.plan_partitioner_.get_partition_key();
       //
       // QueryOptimizationLogging::log("[Complete_repartition
       // hash join] is not implemented, because I'm very lazy. -_- \n");

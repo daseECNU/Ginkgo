@@ -31,7 +31,7 @@ class ExprColumn : public ExprNode {
   ExprColumn() {}
   ~ExprColumn() {}
   void* ExprEvaluate(ExprEvalCnxt& eecnxt);
-  string getValueofTuple(ExprEvalCnxt& eecnxt);
+
   void InitExprAtLogicalPlan(LogicInitCnxt& licnxt);
 
   void InitExprAtPhysicalPlan();

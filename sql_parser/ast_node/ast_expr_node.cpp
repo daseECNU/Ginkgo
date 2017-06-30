@@ -299,7 +299,7 @@ RetCode AstExprUnary::GetLogicalPlan(ExprNode*& logic_expr,
   RetCode ret = rSuccess;
   // count(*) = count(1)
   if (expr_type_ == "COUNT_ALL" || expr_type_ == "COUNT") {
-    if (arg0_ !=NULL && arg0_->ast_node_type_ == AST_DISTINCT_CLAUSE) {
+    if (arg0_ != NULL && arg0_->ast_node_type_ == AST_DISTINCT_CLAUSE) {
       ret = arg0_->GetLogicalPlan(child_logic_expr, left_lplan, right_lplan);
     } else {
       child_logic_expr =
@@ -318,6 +318,9 @@ RetCode AstExprUnary::GetLogicalPlan(ExprNode*& logic_expr,
                                child_logic_expr);
     if (arg0_ != NULL && arg0_->ast_node_type_ == AST_DISTINCT_CLAUSE) {
       reinterpret_cast<ExprUnary*>(logic_expr)->is_distinct_ = 1;
+      if (expr_type_ == "COUNT_ALL" || expr_type_ == "COUNT") {
+        logic_expr->actual_type_ = t_u_long;
+      }
     }
   } else {
     logic_expr = new ExprUnary(ExprNodeType::t_qexpr_unary, t_boolean,
