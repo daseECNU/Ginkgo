@@ -708,9 +708,9 @@ void PhysicalAggregation::CreateSetBytype(void* &target,
     case t_datetime:
       target = new boost::unordered_set<ptime, HashFunc_Ptime>();
       break;
-    case t_decimal:
-      target = new boost::unordered_set<Decimal, HashFunc_Deci>();
-      break;
+//    case t_decimal:
+//      target = new boost::unordered_set<Decimal, HashFunc_Deci>();
+//      break;
     case t_smallInt:
       target = new boost::unordered_set<short>();
       break;
