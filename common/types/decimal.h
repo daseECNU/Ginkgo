@@ -103,7 +103,6 @@ class Decimal {
     const void* retval = reinterpret_cast<const void*>(&word[0]);
     return *reinterpret_cast<const TTInt*>(retval);
   }
-
  private:
   Decimal();
   void SetTTInt(TTInt value) { this->word[0] = value; }

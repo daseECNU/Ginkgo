@@ -22,7 +22,7 @@ namespace claims {
 namespace common {
 ExprUnary::ExprUnary(ExprNodeType expr_node_type, data_type actual_type,
                      string alias, OperType oper_type, ExprNode* arg0,
-                     int is_distinct)
+                     bool is_distinct)
     : ExprNode(expr_node_type, actual_type, alias),
       oper_type_(oper_type),
       arg0_(arg0),
@@ -30,7 +30,7 @@ ExprUnary::ExprUnary(ExprNodeType expr_node_type, data_type actual_type,
       is_distinct_(is_distinct)  {}
 ExprUnary::ExprUnary(ExprNodeType expr_node_type, data_type actual_type,
                      data_type get_type, string alias, OperType oper_type,
-                     ExprNode* arg0, int is_distinct)
+                     ExprNode* arg0, bool is_distinct)
     : ExprNode(expr_node_type, actual_type, get_type, alias),
       oper_type_(oper_type),
       arg0_(arg0),

@@ -335,10 +335,7 @@ const int rCreateProjectionOnDelTableFailed = -14138;
 const int rNULLDropTableName = -14139;
 const int rStmtCancelled = -14140;
 const int rUnknowStmtType = -14141;
-const int rOrderbyNodeExprStrIsNULL = -14142;
-const int rDistinctNodeExprStrIsNULL = -14143;
-const int rDistinctNodeIsNotExistInGroupBy = -14144;
-const int rOrderNodeIsNotExistInDistinct = -14145;
+
 const int rDistinctInAggregationIsMoreThanOne = -14146;
 const int rDistinctInAggregationIsLessThanOne = -14147;
 const int rDistinctInAggregationNeedTabelName = -14148;

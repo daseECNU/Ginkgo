@@ -1694,6 +1694,15 @@ RetCode AstDistinctClause::SemanticAnalisys(SemanticContext* sem_cnxt) {
               "not just column in distinct aggregation!  exp: A.b";
           return rDistinctInAggregationNeedTabelName;
         }
+         string table_name =
+             it->expr_->expr_str_.substr(0, it->expr_->expr_str_.find('.'));
+         string column_name = it->expr_->expr_str_.
+             substr(it->expr_->expr_str_.find('.')+1,
+                    it->expr_->expr_str_.size()-1);
+         if (!Environment::getInstance()->getCatalog()
+             ->getTable(table_name)->isExist(it->expr_->expr_str_)) {
+               return rColumnNotExist;
+         }
         it = it->next_;
       }
     }

@@ -666,12 +666,20 @@ struct HashFunc_Ptime{
     return boost::hash_value(to_simple_string(p));
   }
 };
-struct HashFunc_Deci{
-  std::size_t operator() (const Decimal &d) const {
-    OperateDecimal opd;
-    return opd.getPartitionValue(&d);
-  }
-};
+//struct HashFunc_Deci{
+//  std::size_t operator() (const Decimal &d) const {
+//    const void* pttint = &(d.GetTTInt());
+//    unsigned long ul1 = *reinterpret_cast<const unsigned long*>(pttint);
+//    unsigned long ul2 = *reinterpret_cast<const unsigned long*>(pttint + 8);
+//    unsigned long ul3 = *reinterpret_cast<const unsigned long*>(pttint + 16);
+//    unsigned long ul4 = *reinterpret_cast<const unsigned long*>(pttint + 24);
+//
+//    boost::hash_combine(ul1, ul2);
+//    boost::hash_combine(ul1, ul3);
+//    boost::hash_combine(ul1, ul4);
+//    return boost::hash_value(ul1);
+//  }
+//};
 void PhysicalAggregation::CreateSetBytype(void* &target,
                                           int const &data_type) {
   switch (data_type) {
@@ -700,9 +708,9 @@ void PhysicalAggregation::CreateSetBytype(void* &target,
     case t_datetime:
       target = new boost::unordered_set<ptime, HashFunc_Ptime>();
       break;
-//    case t_decimal:
-//      target = new boost::unordered_set<Decimal, HashFunc_Deci>();
-//      break;
+    case t_decimal:
+      target = new boost::unordered_set<Decimal, HashFunc_Deci>();
+      break;
     case t_smallInt:
       target = new boost::unordered_set<short>();
       break;
@@ -872,9 +880,7 @@ void PhysicalAggregation::ProcessDistinct(void*& from,
            int *sum = new int();
            for (auto it = fromPtr->begin();
                it != fromPtr->end(); it++) {
-             int * a = new int(*it);
-             agg_attrs->ExprEvaluate(a, sum);
-             delete a;
+             agg_attrs->ExprEvaluate((void*)(&*it), sum);
            }
            state_.hash_schema_->getcolumn(offset)
                        .operate->assignment(sum, destPtr);
@@ -896,9 +902,7 @@ void PhysicalAggregation::ProcessDistinct(void*& from,
            float *sum = new float();
            for (auto it = fromPtr->begin();
                it != fromPtr->end(); it++) {
-             float * a = new float(*it);
-             agg_attrs->ExprEvaluate(a, sum);
-             delete a;
+             agg_attrs->ExprEvaluate((void*)(&*it), sum);
            }
            state_.hash_schema_->getcolumn(offset)
                        .operate->assignment(sum, destPtr);
@@ -920,9 +924,7 @@ void PhysicalAggregation::ProcessDistinct(void*& from,
           double *sum = new double();
            for (auto it = fromPtr->begin();
                it != fromPtr->end(); it++) {
-             double * a = new double(*it);
-             agg_attrs->ExprEvaluate(a, sum);
-             delete a;
+             agg_attrs->ExprEvaluate((void*)(&*it), sum);
            }
            state_.hash_schema_->getcolumn(offset)
                        .operate->assignment(sum, destPtr);
@@ -957,9 +959,7 @@ void PhysicalAggregation::ProcessDistinct(void*& from,
           unsigned long *sum = new unsigned long();
            for (auto it = fromPtr->begin();
                it != fromPtr->end(); it++) {
-             unsigned long * a = new unsigned long(*it);
-             agg_attrs->ExprEvaluate(a, sum);
-             delete a;
+             agg_attrs->ExprEvaluate((void*)(&*it), sum);
            }
            state_.hash_schema_->getcolumn(offset)
                        .operate->assignment(sum, destPtr);
@@ -981,9 +981,7 @@ void PhysicalAggregation::ProcessDistinct(void*& from,
           short *sum = new short();
            for (auto it = fromPtr->begin();
                it != fromPtr->end(); it++) {
-             short * a = new short(*it);
-             agg_attrs->ExprEvaluate(a, sum);
-             delete a;
+             agg_attrs->ExprEvaluate((void*)(&*it), sum);
            }
            state_.hash_schema_->getcolumn(offset)
                        .operate->assignment(sum, destPtr);
@@ -1005,9 +1003,7 @@ void PhysicalAggregation::ProcessDistinct(void*& from,
           unsigned short *sum = new unsigned short();
            for (auto it = fromPtr->begin();
                it != fromPtr->end(); it++) {
-             unsigned short * a = new unsigned short(*it);
-             agg_attrs->ExprEvaluate(a, sum);
-             delete a;
+             agg_attrs->ExprEvaluate((void*)(&*it), sum);
            }
            state_.hash_schema_->getcolumn(offset)
                        .operate->assignment(sum, destPtr);
