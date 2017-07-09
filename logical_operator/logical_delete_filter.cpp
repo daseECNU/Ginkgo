@@ -155,6 +155,8 @@ PlanContext LogicalDeleteFilter::GetPlanContext() {
       filter_policy_ = kLeftBroadcast;
   }
 
+  // filter_policy_ = kNoRepartition;
+
   /**finally, construct the output data flow according to the join police**/
   switch (filter_policy_) {
     case kNoRepartition: {
@@ -542,11 +544,11 @@ PhysicalOperatorBase* LogicalDeleteFilter::GetPhysicalPlan(
       Attribute right_repartition_key;
       if (dataflow_->plan_partitioner_.HasShadowPartitionKey()) {
         right_repartition_key =
-            filterkey_pair_list_[GetIdInLeftFilterKeys(
-                                     output_partition_key,
-                                     dataflow_->plan_partitioner_
-                                         .get_shadow_partition_keys())]
-                .right_filter_attr_;
+            filterkey_pair_list_
+                [GetIdInLeftFilterKeys(
+                     output_partition_key,
+                     dataflow_->plan_partitioner_.get_shadow_partition_keys())]
+                    .right_filter_attr_;
       } else {
         right_repartition_key =
             filterkey_pair_list_[GetIdInLeftFilterKeys(output_partition_key)]
@@ -707,8 +709,8 @@ std::vector<unsigned> LogicalDeleteFilter::GetRightPayloadIds() const {
   }
   return ret;
 }
-int LogicalDeleteFilter::GetIdInLeftFilterKeys(
-    const Attribute& attribute) const {
+int LogicalDeleteFilter::GetIdInLeftFilterKeys(const Attribute& attribute)
+    const {
   for (unsigned i = 0; i < filterkey_pair_list_.size(); i++) {
     if (filterkey_pair_list_[i].left_filter_attr_ == attribute) {
       return i;
@@ -745,8 +747,8 @@ int LogicalDeleteFilter::GetIdInLeftFilterKeys(
   assert(false);
   return -1;
 }
-int LogicalDeleteFilter::GetIdInRightFilterKeys(
-    const Attribute& attribute) const {
+int LogicalDeleteFilter::GetIdInRightFilterKeys(const Attribute& attribute)
+    const {
   for (unsigned i = 0; i < filterkey_pair_list_.size(); i++) {
     if (filterkey_pair_list_[i].right_filter_attr_ == attribute) {
       return i;
