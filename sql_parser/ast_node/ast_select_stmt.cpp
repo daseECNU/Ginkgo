@@ -2169,6 +2169,12 @@ RetCode AstSelectStmt::GetLogicalPlan(LogicalOperator*& logic_plan) {
       return ret;
     }
   }
+  if (NULL != distinct_clause_) {
+    ret = GetLogicalPlanOfDistinct(logic_plan);
+    if (rSuccess != ret) {
+      return ret;
+    }
+  }
   if (NULL != orderby_clause_) {
     ret = orderby_clause_->GetLogicalPlan(logic_plan);
     if (rSuccess != ret) {
@@ -2181,12 +2187,7 @@ RetCode AstSelectStmt::GetLogicalPlan(LogicalOperator*& logic_plan) {
       return ret;
     }
   }
-  if (NULL != distinct_clause_) {
-    ret = GetLogicalPlanOfDistinct(logic_plan);
-    if (rSuccess != ret) {
-      return ret;
-    }
-  }
+
   // it's optimal to add limit operator before select operator, but because it's
   // necessary add limit physical operator below LogicalQueryPlanRoot, so
   // underlying limit should at the top of plan
