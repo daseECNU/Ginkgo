@@ -34,11 +34,6 @@
 #include <vector>
 #include <map>
 #include <stack>
-#include <string>
-#include <set>
-#include <unordered_map>
-#include <utility>
-#include <boost/unordered_set.hpp>
 
 #include "../common/error_define.h"
 #include "../common/expression/expr_node.h"
@@ -57,10 +52,6 @@ using claims::common::ExprUnary;
 using claims::common::ExprNode;
 
 namespace claims {
-// First param means all a hash value made by group key
-// Second param means the index of distinct aggregation in column.
-
-
 namespace physical_operator {
 #define NEWCONDI
 
@@ -119,35 +110,20 @@ class PhysicalAggregation : public PhysicalOperator {
   bool Close(SegmentExecStatus *const exec_status);
   void Print();
   RetCode GetAllSegments(stack<Segment *> *all_segments);
-  void CreateSetBytype(void* &target, int const &data_type);
-  void InsertSetValue(void* const &target, void* const &value,
-                      int const &data_type);
-  void InsertSetfromSet(void* const &target, void* const &value,
-                        int const &data_type);
-  void ProcessDistinct(void*& from,
-                       void*& destPtr,
-                       ExprUnary *& agg_attrs,
-                       int &data_type,
-                       int &offset,
-                       void*& tuple_in_hashtable);
+
  public:
   State state_;
 
  private:
-  // (todo)need to initialize
-  std::hash<std::string> hash_function_;
   BasicHashTable *hashtable_;
   PartitionFunction *hash_;
   // hashtable traverse and in the next func
-  Lock hashtable_cur_lock_, dist_set_lock_;
+  Lock hashtable_cur_lock_;
   unsigned bucket_cur_;
   BasicHashTable::Iterator it_;
+
   PerformanceInfo *perf_info_;
-  // only sum(), avg(),count() need create set.
-  // first  means the index of distinct aggregation in result tuple,
-  // second means the offset in hashtable (common and private).
-  boost::unordered_map<int, int> column_off_;
-  int set_ptr_size_;
+
 // unsigned allocated_tuples_in_hashtable;
 #ifdef TIME
   unsigned long long timer;

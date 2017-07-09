@@ -184,10 +184,6 @@ inline void oper_not_support(OperFuncInfo fcinfo) {
   SQLParse_elog("This oper_functions is not supported now!!!!!!!!!!!!!");
   assert(false);
 }
-
-inline void oper_for_distinct(OperFuncInfo fcinfo) {
-  // do nothing, just for distinct
-}
 /*******************int*************************/
 inline void int_add(OperFuncInfo fcinfo) {
   assert(fcinfo->args_num_ == 2);
@@ -1554,9 +1550,6 @@ inline void InitOperatorFunc() {
   DataTypeOper::data_type_oper_func_[t_date][oper_is_null] = date_is_null;
   DataTypeOper::data_type_oper_func_[t_date][oper_is_not_null] =
       date_is_not_null;
-  // for distinct count
-  DataTypeOper::data_type_oper_func_[t_date][oper_agg_count] =
-      oper_for_distinct;
   /*****************date********************/
 
   /*****************time********************/
@@ -1572,9 +1565,6 @@ inline void InitOperatorFunc() {
   DataTypeOper::data_type_oper_func_[t_time][oper_is_null] = time_is_null;
   DataTypeOper::data_type_oper_func_[t_time][oper_is_not_null] =
       time_is_not_null;
-  // for distinct count
-  DataTypeOper::data_type_oper_func_[t_time][oper_agg_count] =
-      oper_for_distinct;
   /*****************time********************/
 
   /*****************datetime********************/
@@ -1593,9 +1583,6 @@ inline void InitOperatorFunc() {
       datetime_is_null;
   DataTypeOper::data_type_oper_func_[t_datetime][oper_is_not_null] =
       datetime_is_not_null;
-  // for distinct count
-  DataTypeOper::data_type_oper_func_[t_datetime][oper_agg_count] =
-      oper_for_distinct;
   /*****************datetime********************/
 }
 inline void avg_error_divide(void *sum_value, int64_t tuple_number,

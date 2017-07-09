@@ -1724,10 +1724,11 @@ RetCode AstDistinctClause::GetLogicalPlan(ExprNode*& logic_expr,
     // do nothing
   } else if (select_opts_ ==  SELECT_DISTINCT) {
   } else if (select_opts_ == AGGREGATION_DISTINCT) {
-     if (distinct_list_  != NULL) {
-       distinct_list_->expr_
-         ->GetLogicalPlan(logic_expr, left_lplan, right_lplan);
-     }
+    // (todo) finish  AGGREGATION_DISTINCT
+    //     if (distinct_list_  != NULL) {
+    //       distinct_list_->expr_
+    //         ->GetLogicalPlan(logic_expr, left_lplan, right_lplan);
+    //     }
   }
 
   return rSuccess;
@@ -2076,7 +2077,6 @@ RetCode AstSelectStmt::GetLogicalPlanOfDistinct(LogicalOperator*& logic_plan) {
       }
     } else if (select_expr->expr_->ast_node_type() == AST_COLUMN) {
       ExprNode* column_expr = NULL;
-      cout<< select_expr->expr_->expr_str_ <<endl;
       select_expr->expr_->GetLogicalPlan(column_expr, logic_plan, NULL);
       distinct_attrs.push_back(column_expr);
       // distinct a, b from tb;
@@ -2087,8 +2087,12 @@ RetCode AstSelectStmt::GetLogicalPlanOfDistinct(LogicalOperator*& logic_plan) {
          select_list = NULL;
        }
      }
-  logic_plan =
-      new LogicalAggregation(distinct_attrs, aggregation_attrs, logic_plan);
+  if (groupby_attrs_.size() == 0 && agg_attrs_.size() > 0) {
+
+  } else {
+    logic_plan =
+        new LogicalAggregation(distinct_attrs, aggregation_attrs, logic_plan);
+  }
   return rSuccess;
 }
 

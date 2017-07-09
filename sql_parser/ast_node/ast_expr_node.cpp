@@ -228,6 +228,11 @@ void AstExprUnary::ReplaceAggregation(AstNode*& agg_column,
   // like a leaf node
   if (expr_type_ == "COUNT_ALL" || expr_type_ == "SUM" || expr_type_ == "MAX" ||
       expr_type_ == "MIN" || expr_type_ == "AVG" || expr_type_ == "COUNT") {
+    if (this->arg0_ != NULL &&
+        this->arg0_->ast_node_type_ == AST_DISTINCT_CLAUSE) {
+      // make this column different with no distinct column
+      this->expr_str_ = this->expr_str_+"_DIS";
+    }
     if (need_collect) {
       agg_node.insert(this);
     }

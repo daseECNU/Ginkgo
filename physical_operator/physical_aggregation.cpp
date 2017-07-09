@@ -33,13 +33,7 @@
 #include <glog/logging.h>
 #include <stack>
 #include <vector>
-#include <set>
-#include <string>
-#include <functional>
-#include <sstream>
-
 #include "../common/expression/expr_node.h"
-#include "../common/expression/expr_column.h"
 #include "../common/expression/data_type_oper.h"
 #include "../common/expression/expr_unary.h"
 #include "../common/memory_handle.h"
@@ -47,17 +41,12 @@
 #include "../Debug.h"
 #include "../utility/rdtsc.h"
 #include "../Executor/expander_tracker.h"
-#include "../utility/lock_guard.h"
-
 using claims::common::DataTypeOper;
 using claims::common::DataTypeOperFunc;
 using claims::common::ExprEvalCnxt;
 using claims::common::ExprNode;
 using claims::common::ExprUnary;
-using claims::common::OperType;
-using claims::utility::LockGuard;
 using std::vector;
-
 namespace claims {
 namespace physical_operator {
 
@@ -66,16 +55,14 @@ PhysicalAggregation::PhysicalAggregation(State state)
       state_(state),
       hashtable_(NULL),
       hash_(NULL),
-      bucket_cur_(0),
-      set_ptr_size_(0) {
+      bucket_cur_(0) {
   set_phy_oper_type(kPhysicalAggregation);
   InitExpandedStatus();
   assert(state_.hash_schema_);
 }
 
 PhysicalAggregation::PhysicalAggregation()
-    : PhysicalOperator(4, 3), hashtable_(NULL), hash_(NULL), bucket_cur_(0),
-      set_ptr_size_(0) {
+    : PhysicalOperator(4, 3), hashtable_(NULL), hash_(NULL), bucket_cur_(0) {
   set_phy_oper_type(kPhysicalAggregation);
   InitExpandedStatus();
 }
@@ -161,9 +148,6 @@ bool PhysicalAggregation::Open(SegmentExecStatus *const exec_status,
   ExprNode *group_by_node = NULL;
   ExprUnary *agg_node = NULL;
   int group_by_size = state_.group_by_attrs_.size();
-  int aggr_size = state_.aggregation_attrs_.size();
-  unsigned tuple_size = state_.hash_schema_->getTupleMaxSize();
-
   for (int i = 0; i < state_.group_by_attrs_.size(); ++i) {
     group_by_node = state_.group_by_attrs_[i]->ExprCopy();
     group_by_node->InitExprAtPhysicalPlan();
@@ -191,30 +175,11 @@ bool PhysicalAggregation::Open(SegmentExecStatus *const exec_status,
 
   state_.child_->Open(exec_status, partition_offset);
   ticks start = curtick();
-  // only sum(), avg(),count() need create set.
-  // i means the index of distinct aggregation in result tuple,
-  // j means the offset in hashtable (common and private).
   if (TryEntryIntoSerializedSection(1)) {
     hash_ = PartitionFunctionFactory::createGeneralModuloFunction(
         state_.num_of_buckets_);
-    for (int i = 0, j=0; i < agg_attrs.size(); ++i) {
-      if (agg_attrs[i]->is_distinct_ == 1 &&
-          (agg_attrs[i]->oper_type_ == OperType::oper_agg_sum
-          || agg_attrs[i]->oper_type_ == OperType::oper_agg_count)) {
-        column_off_.insert(make_pair(i, j));
-        j++;
-      }
-    }
-    // create common hashtable
-    if (column_off_.size() > 0) {
-      set_ptr_size_ = sizeof(int64_t *)*column_off_.size();
-      hashtable_ = new BasicHashTable(state_.num_of_buckets_,
-                                      state_.bucket_size_,
-                                      tuple_size+set_ptr_size_);
-    } else {
-      hashtable_ = new BasicHashTable(state_.num_of_buckets_,
-                                    state_.bucket_size_, tuple_size);
-    }
+    hashtable_ = new BasicHashTable(state_.num_of_buckets_, state_.bucket_size_,
+                                    state_.hash_schema_->getTupleMaxSize());
   }
 
   start = curtick();
@@ -228,18 +193,11 @@ bool PhysicalAggregation::Open(SegmentExecStatus *const exec_status,
    * with small groups, as private aggregation avoids the contention to the
    * shared hash table.
    */
-  BasicHashTable *private_hashtable;
   RETURN_IF_CANCELLED(exec_status);
-  if (column_off_.size() == 0) {
-    private_hashtable =
-        new BasicHashTable(state_.num_of_buckets_, state_.bucket_size_,
-                         tuple_size);
-  } else {
-    private_hashtable =
-        new BasicHashTable(state_.num_of_buckets_,
-                           state_.bucket_size_+set_ptr_size_,
-                           tuple_size+set_ptr_size_);
-  }
+
+  BasicHashTable *private_hashtable =
+      new BasicHashTable(state_.num_of_buckets_, state_.bucket_size_,
+                         state_.hash_schema_->getTupleMaxSize());
 
   start = curtick();
   BarrierArrive(1);
@@ -253,14 +211,12 @@ bool PhysicalAggregation::Open(SegmentExecStatus *const exec_status,
   void *value_in_input_tuple;
   void *value_in_hash_table;
   void *new_tuple_in_hash_table;
-  // put all group-by key into string and hash it
   ExprEvalCnxt eecnxt;
   eecnxt.schema[0] = state_.input_schema_;
 
   unsigned allocated_tuples_in_hashtable = 0;
   BasicHashTable::Iterator ht_it = hashtable_->CreateIterator();
   BasicHashTable::Iterator pht_it = private_hashtable->CreateIterator();
-
   int64_t one = 1;
   BlockStreamBase *block_for_asking =
       BlockStreamBase::createBlock(state_.input_schema_, state_.block_size_);
@@ -308,6 +264,7 @@ bool PhysicalAggregation::Open(SegmentExecStatus *const exec_status,
             break;
           }
         }
+        // hash table have the key (the value in group-by attribute)
         if (key_exist) {
           // value_in_input_tuple by expression
           // update function
@@ -315,17 +272,6 @@ bool PhysicalAggregation::Open(SegmentExecStatus *const exec_status,
             agg_attrs[i]->ExprEvaluate(
                 eecnxt, state_.hash_schema_->getColumnAddess(
                             i + group_by_size, tuple_in_hashtable));
-            if (column_off_.find(i) != column_off_.end()) {
-              LockGuard<Lock> guard(dist_set_lock_);
-              int offset = (column_off_.find(i)->second)*sizeof(int64_t *)
-                                                         +tuple_size;
-              void* target = state_.hash_schema_
-                    ->getColumnAddess(0, tuple_in_hashtable)+offset;
-              void* set_ptr = *reinterpret_cast<int64_t *>(target);
-              void* value = agg_attrs[i]->arg0_->ExprEvaluate(eecnxt);
-              int type = agg_attrs[i]->arg0_->actual_type_;
-              InsertSetValue(set_ptr, value, type);
-            }
           }
           bsti->increase_cur_();
           break;
@@ -349,19 +295,6 @@ bool PhysicalAggregation::Open(SegmentExecStatus *const exec_status,
       // get value_in_input_tuple from expression
       for (int i = 0; i < agg_attrs.size(); ++i) {
         value_in_input_tuple = agg_attrs[i]->arg0_->ExprEvaluate(eecnxt);
-        if (column_off_.find(i) != column_off_.end()) {
-            LockGuard<Lock> guard(dist_set_lock_);
-            // set is not created yet
-            int offset = (column_off_.find(i)->second)*sizeof(int64_t *)
-                                                            +tuple_size;
-            void* target = state_.hash_schema_
-                ->getColumnAddess(0, new_tuple_in_hash_table)+offset;
-            int type = agg_attrs[i]->arg0_->actual_type_;
-            void* ptr = NULL;
-            CreateSetBytype(ptr, type);
-            InsertSetValue(ptr, value_in_input_tuple, type);
-            *reinterpret_cast<int64_t *>(target) = ptr;
-        }
         value_in_hash_table = state_.hash_schema_->getColumnAddess(
             group_by_size + i, new_tuple_in_hash_table);
         state_.hash_schema_->getcolumn(group_by_size + i)
@@ -393,6 +326,7 @@ bool PhysicalAggregation::Open(SegmentExecStatus *const exec_status,
       }
       // add a lock to guarantee operating the hash_table atomically
       hashtable_->lockBlock(bn);
+
       hashtable_->placeIterator(ht_it, bn);
       key_exist = false;
       while (NULL != (tuple_in_hashtable = ht_it.readCurrent())) {
@@ -419,23 +353,8 @@ bool PhysicalAggregation::Open(SegmentExecStatus *const exec_status,
                 state_.hash_schema_->getColumnAddess(i + group_by_size, cur),
                 state_.hash_schema_->getColumnAddess(i + group_by_size,
                                                      tuple_in_hashtable));
-            if (column_off_.find(i) != column_off_.end()) {
-              LockGuard<Lock> guard(dist_set_lock_);
-              // traverse all set value in private hashtable
-              int offset = (column_off_.find(i)->second)*sizeof(int64_t *)
-                                                          +tuple_size;
-              void* Dest = state_.hash_schema_
-                  ->getColumnAddess(0, tuple_in_hashtable)+offset;
-              void* From = state_.hash_schema_
-                  ->getColumnAddess(0, cur)+offset;
-              // merge private set into global set
-              void* fromPtr = *reinterpret_cast<int64_t *>(From);
-              void* destPtr = *reinterpret_cast<int64_t *>(Dest);
-              int type = agg_attrs[i]->arg0_->actual_type_;
-              InsertSetfromSet(destPtr, fromPtr, type);
-              delete fromPtr;
-              }
           }
+
           pht_it.increase_cur_();
           hashtable_->unlockBlock(bn);
           break;
@@ -463,22 +382,6 @@ bool PhysicalAggregation::Open(SegmentExecStatus *const exec_status,
             i + group_by_size, new_tuple_in_hash_table);
         state_.hash_schema_->getcolumn(i + group_by_size)
             .operate->assignment(value_in_input_tuple, value_in_hash_table);
-        // traverse all set value in private hashtable
-        if (column_off_.find(i) != column_off_.end()) {
-          LockGuard<Lock> guard(dist_set_lock_);
-          int offset = (column_off_.find(i)->second)*sizeof(int64_t *)
-                                                          +tuple_size;
-          void* Dest = state_.hash_schema_
-              ->getColumnAddess(0, new_tuple_in_hash_table)+offset;
-          void* From = state_.hash_schema_->getColumnAddess(0, cur)+offset;
-          void* destPtr = NULL;
-          void* fromPtr = *reinterpret_cast<int64_t *>(From);
-          int type = agg_attrs[i]->arg0_->actual_type_;
-          CreateSetBytype(destPtr, type);
-          InsertSetfromSet(destPtr, fromPtr, type);
-          *reinterpret_cast<int64_t *>(Dest) = destPtr;
-          delete fromPtr;
-        }
       }
       hashtable_->unlockBlock(bn);
       pht_it.increase_cur_();
@@ -495,6 +398,7 @@ bool PhysicalAggregation::Open(SegmentExecStatus *const exec_status,
   BarrierArrive(2);
 
   if (TryEntryIntoSerializedSection(2)) {
+    // hashtable_->report_status();
     it_ = hashtable_->CreateIterator();
     bucket_cur_ = 0;
     hashtable_->placeIterator(it_, bucket_cur_);
@@ -504,40 +408,8 @@ bool PhysicalAggregation::Open(SegmentExecStatus *const exec_status,
     perf_info_ =
         ExpanderTracker::getInstance()->getPerformanceInfo(pthread_self());
     perf_info_->initialize();
-    // deal with set value
-    if (column_off_.size() >0) {
-      void *tuple_in_hashtable;
-      while (it_.readCurrent() != 0 ||
-          (hashtable_->placeIterator(it_, bucket_cur_)) != false) {
-        while (NULL != (tuple_in_hashtable = it_.readCurrent())) {
-          for (int i = 0; i < agg_attrs.size(); ++i) {
-            if (column_off_.find(i) != column_off_.end()) {
-              int offset = (column_off_.find(i)->second)*sizeof(int64_t *)
-                                                              +tuple_size;
-              void* fromPtr = state_.hash_schema_
-                        ->getColumnAddess(0, tuple_in_hashtable)+offset;
-              void* destPtr = state_.hash_schema_
-                      ->getColumnAddess(group_by_size+i,
-                                        tuple_in_hashtable);
-              int type = agg_attrs[i]->arg0_->actual_type_;
-              int offsets = i + group_by_size;
-              ProcessDistinct(fromPtr, destPtr, agg_attrs[i],
-                              type, offsets, tuple_in_hashtable);
-              }
-            }
-            it_.increase_cur_();
-          }
-          bucket_cur_++;
-        }
-      }
-      // reinitialize the iterator
-      bucket_cur_ = 0;
-      hashtable_->placeIterator(it_, bucket_cur_);
   }
-
   BarrierArrive(3);
-
-
   if (NULL != block_for_asking) {
     delete block_for_asking;
     block_for_asking = NULL;
@@ -562,6 +434,7 @@ bool PhysicalAggregation::Open(SegmentExecStatus *const exec_status,
 bool PhysicalAggregation::Next(SegmentExecStatus *const exec_status,
                                BlockStreamBase *block) {
   RETURN_IF_CANCELLED(exec_status);
+
   if (ExpanderTracker::getInstance()->isExpandedThreadCallBack(
           pthread_self())) {
     UnregisterExpandedThreadToAllBarriers(3);
@@ -591,7 +464,7 @@ bool PhysicalAggregation::Next(SegmentExecStatus *const exec_status,
           int id = 0;
           void *sum_value;
           int64_t count_value =
-              *reinterpret_cast<int64_t *>(state_.hash_schema_->getColumnAddess(
+              *(int64_t *)(state_.hash_schema_->getColumnAddess(
                   state_.count_column_id_ + state_.group_by_attrs_.size(),
                   tuple));
           for (int i = 0; i < state_.avg_index_.size(); ++i) {
@@ -599,8 +472,8 @@ bool PhysicalAggregation::Next(SegmentExecStatus *const exec_status,
             sum_value = state_.hash_schema_->getColumnAddess(id, tuple);
             DataTypeOper::avg_divide_[state_.hash_schema_->columns[id].type](
                 sum_value, count_value, sum_value);
-            }
           }
+        }
         it_.increase_cur_();
       } else {
         hashtable_cur_lock_.release();
@@ -625,6 +498,7 @@ bool PhysicalAggregation::Close(SegmentExecStatus *const exec_status) {
     delete hashtable_;
     hashtable_ = NULL;
   }
+
   state_.child_->Close(exec_status);
   return true;
 }
@@ -649,432 +523,6 @@ RetCode PhysicalAggregation::GetAllSegments(stack<Segment *> *all_segments) {
   }
   return ret;
 }
-struct HashFunc_Date{
-  std::size_t operator() (const date &d) const {
-  return boost::hash_value(d.julian_day());
-  }
-};
-
-struct HashFunc_TimeDura{
-  std::size_t operator() (const time_duration &td) const {
-    return boost::hash_value(td.total_nanoseconds());
-  }
-};
-
-struct HashFunc_Ptime{
-  std::size_t operator() (const ptime &p) const {
-    return boost::hash_value(to_simple_string(p));
-  }
-};
-//struct HashFunc_Deci{
-//  std::size_t operator() (const Decimal &d) const {
-//    const void* pttint = &(d.GetTTInt());
-//    unsigned long ul1 = *reinterpret_cast<const unsigned long*>(pttint);
-//    unsigned long ul2 = *reinterpret_cast<const unsigned long*>(pttint + 8);
-//    unsigned long ul3 = *reinterpret_cast<const unsigned long*>(pttint + 16);
-//    unsigned long ul4 = *reinterpret_cast<const unsigned long*>(pttint + 24);
-//
-//    boost::hash_combine(ul1, ul2);
-//    boost::hash_combine(ul1, ul3);
-//    boost::hash_combine(ul1, ul4);
-//    return boost::hash_value(ul1);
-//  }
-//};
-void PhysicalAggregation::CreateSetBytype(void* &target,
-                                          int const &data_type) {
-  switch (data_type) {
-    case t_int:
-    case t_boolean:
-      target = new boost::unordered_set<int>();
-      break;
-    case t_float:
-      target = new boost::unordered_set<float>();
-      break;
-    case t_double:
-      target = new boost::unordered_set<double>();
-      break;
-    case t_string:
-      target = new boost::unordered_set<char*>();
-      break;
-    case t_u_long:
-      target = new boost::unordered_set<unsigned long>();
-      break;
-    case t_date:
-      target = new boost::unordered_set<date, HashFunc_Date>();
-      break;
-    case t_time:
-      target = new boost::unordered_set<time_duration, HashFunc_TimeDura>();
-      break;
-    case t_datetime:
-      target = new boost::unordered_set<ptime, HashFunc_Ptime>();
-      break;
-//    case t_decimal:
-//      target = new boost::unordered_set<Decimal, HashFunc_Deci>();
-//      break;
-    case t_smallInt:
-      target = new boost::unordered_set<short>();
-      break;
-    case t_u_smallInt:
-      target = new boost::unordered_set<unsigned short>();
-      break;
-    default:
-      break;
-  }
-}
-void PhysicalAggregation::InsertSetValue(void* const &target,
-                                         void* const &value,
-                                         int const &data_type) {
-  switch (data_type) {
-    case t_int:
-    case t_boolean:
-      ((boost::unordered_set<int>*)(target))
-        ->insert(*reinterpret_cast<int*>(value));
-      break;
-    case t_float:
-      ((boost::unordered_set<float>*)(target))
-        ->insert(*reinterpret_cast<float*>(value));
-      break;
-    case t_double:
-      ((boost::unordered_set<double>*)(target))
-        ->insert(*reinterpret_cast<double*>(value));
-      break;
-    case t_string:
-      ((boost::unordered_set<char*>*)(target))
-              ->insert(*reinterpret_cast<char*>(value));
-      break;
-    case t_u_long:
-      ((boost::unordered_set<unsigned long>*)(target))
-        ->insert(*reinterpret_cast<unsigned long*>(value));
-      break;
-    case t_date:
-      ((boost::unordered_set<date, HashFunc_Date>*)(target))
-              ->insert(*reinterpret_cast<date*>(value));
-      break;
-    case t_time:
-      ((boost::unordered_set<time_duration, HashFunc_TimeDura>*)(target))
-              ->insert(*reinterpret_cast<time_duration*>(value));
-      break;
-    case t_datetime:
-      ((boost::unordered_set<ptime, HashFunc_Ptime>*)(target))
-              ->insert(*reinterpret_cast<ptime*>(value));
-      break;
-    case t_smallInt:
-      ((boost::unordered_set<short>*)(target))
-              ->insert(*reinterpret_cast<short*>(value));
-      break;
-    case t_u_smallInt:
-      ((boost::unordered_set<unsigned short>*)(target))
-              ->insert(*reinterpret_cast<unsigned short*>(value));
-      break;
-//    case t_decimal:
-//      ((boost::unordered_set<Decimal, HashFunc_Deci>*)(target))
-//              ->insert(*reinterpret_cast<Decimal*>(value));
-//      break;
-    default:
-      break;
-  }
-}
-void PhysicalAggregation::InsertSetfromSet(void* const &target,
-                                         void* const &from,
-                                         int const &data_type) {
-  switch (data_type) {
-    case t_int:
-    case t_boolean:
-      ((boost::unordered_set<int>*)(target))
-        ->insert(reinterpret_cast<boost::unordered_set<int>*>(from)->begin(),
-                 reinterpret_cast<boost::unordered_set<int>*>(from)->end());
-      break;
-    case t_float:
-      ((boost::unordered_set<float>*)(target))
-        ->insert(reinterpret_cast<boost::unordered_set<float>*>(from)->begin(),
-                 reinterpret_cast<boost::unordered_set<float>*>(from)->end());
-      break;
-    case t_double:
-      ((boost::unordered_set<double>*)(target))
-        ->insert(reinterpret_cast<boost::unordered_set<double>*>
-                (from)->begin(),
-                 reinterpret_cast<boost::unordered_set<double>*>
-                (from)->end());
-      break;
-    case t_string:
-      ((boost::unordered_set<char*>*)(target))
-        ->insert(reinterpret_cast<boost::unordered_set<char*>*>
-                (from)->begin(),
-                 reinterpret_cast<boost::unordered_set<char*>*>
-                (from)->end());
-      break;
-    case t_u_long:
-      ((boost::unordered_set<unsigned long>*)(target))
-        ->insert(reinterpret_cast<boost::unordered_set<unsigned long>*>
-                (from)->begin(),
-                 reinterpret_cast<boost::unordered_set<unsigned long>*>
-                (from)->end());
-      break;
-    case t_date:
-      ((boost::unordered_set<date, HashFunc_Date>*)(target))
-        ->insert(reinterpret_cast<boost::unordered_set<date, HashFunc_Date>*>
-                (from)->begin(),
-                 reinterpret_cast<boost::unordered_set<date, HashFunc_Date>*>
-                (from)->end());
-      break;
-    case t_time:
-      ((boost::unordered_set<time_duration, HashFunc_TimeDura>*)(target))
-        ->insert(reinterpret_cast<boost::unordered_set<time_duration,
-                 HashFunc_TimeDura>*>(from)->begin(),
-                 reinterpret_cast<boost::unordered_set<time_duration,
-                 HashFunc_TimeDura>*>(from)->end());
-      break;
-    case t_datetime:
-      ((boost::unordered_set<ptime, HashFunc_Ptime>*)(target))
-        ->insert(reinterpret_cast<boost::unordered_set<ptime>*>
-                (from)->begin(),
-                 reinterpret_cast<boost::unordered_set<ptime>*>
-                (from)->end());
-      break;
-    case t_smallInt:
-      ((boost::unordered_set<short>*)(target))
-        ->insert(reinterpret_cast<boost::unordered_set<short>*>
-                (from)->begin(),
-                 reinterpret_cast<boost::unordered_set<short>*>
-                (from)->end());
-      break;
-    case t_u_smallInt:
-      ((boost::unordered_set<unsigned short>*)(target))
-        ->insert(reinterpret_cast<boost::unordered_set<unsigned short>*>
-                (from)->begin(),
-                 reinterpret_cast<boost::unordered_set<unsigned short>*>
-                (from)->end());
-      break;
-//    case t_decimal:
-//      ((boost::unordered_set<Decimal, HashFunc_Deci>*)(target))
-//        ->insert(reinterpret_cast<boost::unordered_set<Decimal>*>
-//                (from)->begin(),
-//                 reinterpret_cast<boost::unordered_set<Decimal>*>
-//                (from)->end());
-//      break;
-    default:
-      break;
-  }
-}
-
-void PhysicalAggregation::ProcessDistinct(void*& from,
-                                          void*& destPtr,
-                                          ExprUnary *& agg_attrs,
-                                          int &data_type,
-                                          int &offset,
-                                          void*& tuple_in_hashtable) {
-  int set_size = 0;
-  switch (data_type) {
-      case t_int:
-      case t_boolean:
-      {
-        boost::unordered_set<int>* fromPtr
-              = *reinterpret_cast<int64_t *>(from);
-        set_size = fromPtr->size();
-        if (agg_attrs->oper_type_ == OperType::oper_agg_count) {
-          void* value = new int(set_size);
-          state_.hash_schema_->getcolumn(offset)
-                      .operate->assignment(value, destPtr);
-          delete value;
-        } else if (agg_attrs->oper_type_ == OperType::oper_agg_sum) {
-           int *sum = new int();
-           for (auto it = fromPtr->begin();
-               it != fromPtr->end(); it++) {
-             agg_attrs->ExprEvaluate((void*)(&*it), sum);
-           }
-           state_.hash_schema_->getcolumn(offset)
-                       .operate->assignment(sum, destPtr);
-           delete sum;
-        }
-        break;
-      }
-      case t_float:
-      {
-        boost::unordered_set<float>* fromPtr
-              = *reinterpret_cast<int64_t *>(from);
-        set_size = fromPtr->size();
-        if (agg_attrs->oper_type_ == OperType::oper_agg_count) {
-          void* value = new int(set_size);
-          state_.hash_schema_->getcolumn(offset)
-                      .operate->assignment(value, destPtr);
-          delete value;
-        } else if (agg_attrs->oper_type_ == OperType::oper_agg_sum) {
-           float *sum = new float();
-           for (auto it = fromPtr->begin();
-               it != fromPtr->end(); it++) {
-             agg_attrs->ExprEvaluate((void*)(&*it), sum);
-           }
-           state_.hash_schema_->getcolumn(offset)
-                       .operate->assignment(sum, destPtr);
-           delete sum;
-        }
-        break;
-      }
-      case t_double:
-      {
-        boost::unordered_set<double>* fromPtr
-              = *reinterpret_cast<int64_t *>(from);
-        set_size = fromPtr->size();
-        if (agg_attrs->oper_type_ == OperType::oper_agg_count) {
-          void* value = new int(set_size);
-          state_.hash_schema_->getcolumn(offset)
-                      .operate->assignment(value, destPtr);
-          delete value;
-        } else if (agg_attrs->oper_type_ == OperType::oper_agg_sum) {
-          double *sum = new double();
-           for (auto it = fromPtr->begin();
-               it != fromPtr->end(); it++) {
-             agg_attrs->ExprEvaluate((void*)(&*it), sum);
-           }
-           state_.hash_schema_->getcolumn(offset)
-                       .operate->assignment(sum, destPtr);
-           delete sum;
-        }
-        break;
-      }
-      case t_string:
-      {
-        boost::unordered_set<char*>* fromPtr
-              = *reinterpret_cast<int64_t *>(from);
-        set_size = fromPtr->size();
-        if (agg_attrs->oper_type_ == OperType::oper_agg_count) {
-          void* value = new int(set_size);
-          state_.hash_schema_->getcolumn(offset)
-                      .operate->assignment(value, destPtr);
-          delete value;
-        }
-        break;
-      }
-      case t_u_long:
-      {
-        boost::unordered_set<unsigned long>* fromPtr
-              = *reinterpret_cast<int64_t *>(from);
-        set_size = fromPtr->size();
-        if (agg_attrs->oper_type_ == OperType::oper_agg_count) {
-          void* value = new int(set_size);
-          state_.hash_schema_->getcolumn(offset)
-                      .operate->assignment(value, destPtr);
-          delete value;
-        } else if (agg_attrs->oper_type_ == OperType::oper_agg_sum) {
-          unsigned long *sum = new unsigned long();
-           for (auto it = fromPtr->begin();
-               it != fromPtr->end(); it++) {
-             agg_attrs->ExprEvaluate((void*)(&*it), sum);
-           }
-           state_.hash_schema_->getcolumn(offset)
-                       .operate->assignment(sum, destPtr);
-           delete sum;
-        }
-        break;
-      }
-      case t_smallInt:
-      {
-        boost::unordered_set<short>* fromPtr
-              = *reinterpret_cast<int64_t *>(from);
-        set_size = fromPtr->size();
-        if (agg_attrs->oper_type_ == OperType::oper_agg_count) {
-          void* value = new int(set_size);
-          state_.hash_schema_->getcolumn(offset)
-                      .operate->assignment(value, destPtr);
-          delete value;
-        } else if (agg_attrs->oper_type_ == OperType::oper_agg_sum) {
-          short *sum = new short();
-           for (auto it = fromPtr->begin();
-               it != fromPtr->end(); it++) {
-             agg_attrs->ExprEvaluate((void*)(&*it), sum);
-           }
-           state_.hash_schema_->getcolumn(offset)
-                       .operate->assignment(sum, destPtr);
-           delete sum;
-        }
-        break;
-      }
-      case t_u_smallInt:
-      {
-        boost::unordered_set<unsigned short>* fromPtr
-              = *reinterpret_cast<int64_t *>(from);
-        set_size = fromPtr->size();
-        if (agg_attrs->oper_type_ == OperType::oper_agg_count) {
-          void* value = new int(set_size);
-          state_.hash_schema_->getcolumn(offset)
-                      .operate->assignment(value, destPtr);
-          delete value;
-        } else if (agg_attrs->oper_type_ == OperType::oper_agg_sum) {
-          unsigned short *sum = new unsigned short();
-           for (auto it = fromPtr->begin();
-               it != fromPtr->end(); it++) {
-             agg_attrs->ExprEvaluate((void*)(&*it), sum);
-           }
-           state_.hash_schema_->getcolumn(offset)
-                       .operate->assignment(sum, destPtr);
-           delete sum;
-        }
-        break;
-      }
-      case t_date:
-      {
-        boost::unordered_set<date, HashFunc_Date>* fromPtr
-              = *reinterpret_cast<int64_t *>(from);
-        set_size = fromPtr->size();
-        if (agg_attrs->oper_type_ == OperType::oper_agg_count) {
-          void* value = new int(set_size);
-          state_.hash_schema_->getcolumn(offset)
-                      .operate->assignment(value, destPtr);
-          delete value;
-        }
-        break;
-      }
-      case t_time:
-      {
-        boost::unordered_set<time_duration, HashFunc_TimeDura>* fromPtr
-              = *reinterpret_cast<int64_t *>(from);
-        set_size = fromPtr->size();
-        if (agg_attrs->oper_type_ == OperType::oper_agg_count) {
-          void* value = new int(set_size);
-          state_.hash_schema_->getcolumn(offset)
-                      .operate->assignment(value, destPtr);
-          delete value;
-        }
-        break;
-      }
-      case t_datetime:
-      {
-        boost::unordered_set<ptime, HashFunc_Ptime>* fromPtr
-              = *reinterpret_cast<int64_t *>(from);
-        set_size = fromPtr->size();
-        if (agg_attrs->oper_type_ == OperType::oper_agg_count) {
-          void* value = new int(set_size);
-          state_.hash_schema_->getcolumn(offset)
-                      .operate->assignment(value, destPtr);
-          delete value;
-        }
-        break;
-      }
-//      case t_decimal:
-//      {
-//        boost::unordered_set<Decimal, HashFunc_Deci>* fromPtr
-//              = *reinterpret_cast<int64_t *>(from);
-//        set_size = fromPtr->size();
-//        if (agg_attrs->oper_type_ == OperType::oper_agg_count) {
-//          void* value = new int(set_size);
-//          state_.hash_schema_->getcolumn(offset)
-//                      .operate->assignment(value, destPtr);
-//          delete value;
-//        }
-//        break;
-//      }
-      default:
-        break;
-    }
-    if (state_.avg_index_.size() > 0) {
-    // set avg count number equal set size.
-    *reinterpret_cast<int64_t *>(state_.hash_schema_->getColumnAddess(
-        state_.count_column_id_+ state_.group_by_attrs_.size(),
-          tuple_in_hashtable)) = set_size;
-  }
-}
 
 }  // namespace physical_operator
 }  // namespace claims
-
-
