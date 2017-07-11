@@ -648,6 +648,103 @@ inline void smallInt_is_not_null(OperFuncInfo fcinfo) {
 }
 /*******************smallInt*************************/
 
+/*******************usmallInt*************************/
+
+inline void usmallInt_add(OperFuncInfo fcinfo) {
+  assert(fcinfo->args_num_ == 2);
+  *(unsigned short int *)fcinfo->result_ =
+      (*(unsigned short int *)fcinfo->args_[0]) + (*(unsigned short int *)fcinfo->args_[1]);
+}
+inline void usmallInt_minus(OperFuncInfo fcinfo) {
+  assert(fcinfo->args_num_ == 2);
+  *(unsigned short int *)fcinfo->result_ =
+      (*(unsigned short int *)fcinfo->args_[0]) - (*(unsigned short int *)fcinfo->args_[1]);
+}
+inline void usmallInt_multiply(OperFuncInfo fcinfo) {
+  assert(fcinfo->args_num_ == 2);
+  *(unsigned short int *)fcinfo->result_ =
+      (*(unsigned short int *)fcinfo->args_[0]) * (*(unsigned short int *)fcinfo->args_[1]);
+}
+inline void usmallInt_divide(OperFuncInfo fcinfo) {
+  assert(fcinfo->args_num_ == 2);
+  unsigned short int val = *(unsigned short int *)fcinfo->args_[1];
+  if (val == 0) {
+    SQLParse_elog("The smallInt_divide divided = 0");
+    assert(false);
+  }
+  *(unsigned short int *)fcinfo->result_ =
+      (*(unsigned short int *)fcinfo->args_[0]) / (*(unsigned short int *)fcinfo->args_[1]);
+}
+inline void usmallInt_mod(OperFuncInfo fcinfo) {
+  assert(fcinfo->args_num_ == 2);
+  unsigned short int val = *(unsigned short int *)fcinfo->args_[1];
+  if (val == 0) {
+    SQLParse_elog("The smallInt_mod moded = 0");
+    assert(false);
+  }
+  *(unsigned short int *)fcinfo->result_ =
+      (*(unsigned short int *)fcinfo->args_[0] % (*(unsigned short int *)fcinfo->args_[1]));
+}
+inline void usmallInt_equal(OperFuncInfo fcinfo) {
+  assert(fcinfo->args_num_ == 2);
+  *(bool *)fcinfo->result_ =
+      (*(unsigned short int *)fcinfo->args_[0] == *(unsigned short int *)fcinfo->args_[1]);
+}
+inline void usmallInt_not_equal(OperFuncInfo fcinfo) {
+  assert(fcinfo->args_num_ == 2);
+  *(bool *)fcinfo->result_ =
+      (*(unsigned short int *)fcinfo->args_[0] != *(unsigned short int *)fcinfo->args_[1]);
+}
+inline void usmallInt_great(OperFuncInfo fcinfo) {
+  assert(fcinfo->args_num_ == 2);
+  *(bool *)fcinfo->result_ =
+      (*(unsigned short int *)fcinfo->args_[0] > *(unsigned short int *)fcinfo->args_[1]);
+}
+inline void usmallInt_great_equal(OperFuncInfo fcinfo) {
+  assert(fcinfo->args_num_ == 2);
+  *(bool *)fcinfo->result_ =
+      (*(unsigned short int *)fcinfo->args_[0] >= *(unsigned short int *)fcinfo->args_[1]);
+}
+inline void usmallInt_less(OperFuncInfo fcinfo) {
+  assert(fcinfo->args_num_ == 2);
+  *(bool *)fcinfo->result_ =
+      (*(unsigned short int *)fcinfo->args_[0] < *(unsigned short int *)fcinfo->args_[1]);
+}
+inline void usmallInt_less_equal(OperFuncInfo fcinfo) {
+  assert(fcinfo->args_num_ == 2);
+  *(bool *)fcinfo->result_ =
+      (*(unsigned short *)fcinfo->args_[0] <= *(unsigned short*)fcinfo->args_[1]);
+}
+inline void usmallInt_negative(OperFuncInfo fcinfo) {
+  assert(fcinfo->args_num_ == 1);
+  *(unsigned short *)fcinfo->result_ = (*(unsigned short*)fcinfo->args_[0] * (-1));
+}
+//
+inline void usmallInt_agg_max(OperFuncInfo fcinfo) {
+  assert(fcinfo->args_num_ == 2);
+  *(unsigned short *)fcinfo->result_ =
+      ((*(unsigned short *)fcinfo->args_[0]) > (*(unsigned short *)fcinfo->args_[1])
+           ? (*(unsigned short *)fcinfo->args_[0])
+           : (*(unsigned short *)fcinfo->args_[1]));
+}
+inline void usmallInt_agg_min(OperFuncInfo fcinfo) {
+  assert(fcinfo->args_num_ == 2);
+  *(unsigned short  *)fcinfo->result_ =
+      ((*(unsigned short *)fcinfo->args_[0]) < (*(unsigned short  *)fcinfo->args_[1])
+           ? (*(unsigned short  *)fcinfo->args_[0])
+           : (*(unsigned short  *)fcinfo->args_[1]));
+}
+inline void usmallInt_agg_sum(OperFuncInfo fcinfo) { usmallInt_add(fcinfo); }
+inline void usmallInt_agg_count(OperFuncInfo fcinfo) { usmallInt_add(fcinfo); }
+inline void usmallInt_is_null(OperFuncInfo fcinfo) {
+  assert(fcinfo->args_num_ == 1);
+  *(bool *)fcinfo->result_ = ((*(unsigned short *)fcinfo->args_[0]) == NULL_U_SMALL_INT);
+}
+inline void usmallInt_is_not_null(OperFuncInfo fcinfo) {
+  assert(fcinfo->args_num_ == 1);
+  *(bool *)fcinfo->result_ = ((*(unsigned short *)fcinfo->args_[0]) != NULL_U_SMALL_INT);
+}
+/*******************usmallInt*************************/
 /*****************boolean********************/
 
 inline void boolean_and(OperFuncInfo fcinfo) {
@@ -1273,6 +1370,50 @@ inline void InitOperatorFunc() {
       smallInt_is_not_null;
   /*****************smallInt********************/
 
+  /*****************usmallInt********************/
+  DataTypeOper::data_type_oper_func_[t_u_smallInt][oper_add] = usmallInt_add;
+  DataTypeOper::data_type_oper_func_[t_u_smallInt][oper_minus] =
+        usmallInt_minus;
+  DataTypeOper::data_type_oper_func_[t_u_smallInt][oper_multiply] =
+        usmallInt_multiply;
+  DataTypeOper::data_type_oper_func_[t_u_smallInt][oper_divide] =
+        usmallInt_divide;
+  DataTypeOper::data_type_oper_func_[t_u_smallInt][oper_mod] = usmallInt_mod;
+  DataTypeOper::data_type_oper_func_[t_u_smallInt][oper_and] =
+        oper_not_support;
+  DataTypeOper::data_type_oper_func_[t_u_smallInt][oper_or] =
+        oper_not_support;
+  DataTypeOper::data_type_oper_func_[t_u_smallInt][oper_xor] =
+        oper_not_support;
+  DataTypeOper::data_type_oper_func_[t_u_smallInt][oper_not] =
+        oper_not_support;
+  DataTypeOper::data_type_oper_func_[t_u_smallInt][oper_equal] =
+        usmallInt_equal;
+  DataTypeOper::data_type_oper_func_[t_u_smallInt][oper_not_equal] =
+        usmallInt_not_equal;
+  DataTypeOper::data_type_oper_func_[t_u_smallInt][oper_great] =
+        usmallInt_great;
+  DataTypeOper::data_type_oper_func_[t_u_smallInt][oper_great_equal] =
+        usmallInt_great_equal;
+  DataTypeOper::data_type_oper_func_[t_u_smallInt][oper_less] =
+        usmallInt_less;
+  DataTypeOper::data_type_oper_func_[t_u_smallInt][oper_less_equal] =
+        usmallInt_less_equal;
+  DataTypeOper::data_type_oper_func_[t_u_smallInt][oper_negative] =
+        usmallInt_negative;
+  DataTypeOper::data_type_oper_func_[t_u_smallInt][oper_max] =
+        usmallInt_agg_max;
+  DataTypeOper::data_type_oper_func_[t_u_smallInt][oper_min] =
+        usmallInt_agg_min;
+  DataTypeOper::data_type_oper_func_[t_u_smallInt][oper_agg_sum] =
+        usmallInt_agg_sum;
+  DataTypeOper::data_type_oper_func_[t_u_smallInt][oper_agg_count] =
+        usmallInt_agg_count;
+  DataTypeOper::data_type_oper_func_[t_u_smallInt][oper_is_null] =
+        usmallInt_is_null;
+  DataTypeOper::data_type_oper_func_[t_u_smallInt][oper_is_not_null] =
+        usmallInt_is_not_null;
+  /*****************usmallInt********************/
   /*****************boolean********************/
   DataTypeOper::data_type_oper_func_[t_boolean][oper_add] = oper_not_support;
   DataTypeOper::data_type_oper_func_[t_boolean][oper_minus] = oper_not_support;
@@ -1298,6 +1439,7 @@ inline void InitOperatorFunc() {
   DataTypeOper::data_type_oper_func_[t_boolean][oper_is_null] = boolean_is_null;
   DataTypeOper::data_type_oper_func_[t_boolean][oper_is_not_null] =
       boolean_is_not_null;
+  DataTypeOper::data_type_oper_func_[t_boolean][oper_agg_count] = int_agg_count;
   /*****************boolean********************/
 
   /*****************decimal********************/

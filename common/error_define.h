@@ -336,6 +336,9 @@ const int rNULLDropTableName = -14139;
 const int rStmtCancelled = -14140;
 const int rUnknowStmtType = -14141;
 
+const int rDistinctInAggregationIsMoreThanOne = -14146;
+const int rDistinctInAggregationIsLessThanOne = -14147;
+const int rDistinctInAggregationNeedTabelName = -14148;
 // for node_manager
 const int rConRemoteActorError = -14300;
 const int rRegisterToMasterTimeOut = -14301;

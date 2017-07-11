@@ -54,6 +54,7 @@ enum OperatorType {
   kLogicalEqualJoin,
   kLogicalProject,
   kLogicalSort,
+  kLogicalDistinct,
   kLogicalQueryPlanRoot,
   kLogicalCrossJoin,
   kLogicalLimit,

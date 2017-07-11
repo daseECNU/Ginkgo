@@ -20,7 +20,7 @@
  *
  *  Created on: Dec 23, 2015
  *      Author: SCDONG, cswang
- *	 		 Email: cs_wang@infosys.com
+ *       Email: cs_wang@infosys.com
  *
  * Description:
  *
@@ -45,9 +45,9 @@ namespace common {
 
 #define NWORDS 1
 
-#define DECIMAL_POS 	0x00
-#define DECIMAL_NEG 	0x01
-#define DECIMAL_NAN 	0x02
+#define DECIMAL_POS   0x00
+#define DECIMAL_NEG   0x01
+#define DECIMAL_NAN   0x02
 // The int used for storage and return values
 typedef ttmath::Int<DECIMAL_TTSIZE> TTInt;
 // Long integer with space for multiplication and division without

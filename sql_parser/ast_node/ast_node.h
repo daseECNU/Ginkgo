@@ -65,6 +65,8 @@ enum AstNodeType {
   AST_ORDERBY_LIST,
   AST_ORDERBY_CLAUSE,
   AST_HAVING_CLAUSE,
+  AST_DISTINCT_CLAUSE,
+  AST_DISTINCT_LIST,
   AST_LIMIT_CLAUSE,
   AST_SELECT_INTO_CLAUSE,
   AST_COLUMN,
@@ -146,7 +148,9 @@ class SemanticContext {
     kGroupByClause,
     kSelectClause,
     kHavingClause,
+    kDistinctClause,
     kOrderByClause,
+    kAggregationClause,
     kLimitClause
   };
   SemanticContext();

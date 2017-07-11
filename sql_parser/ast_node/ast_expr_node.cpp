@@ -186,10 +186,13 @@ RetCode AstExprUnary::SemanticAnalisys(SemanticContext* sem_cnxt) {
     if (sem_cnxt->have_agg) {
       sem_cnxt->select_expr_have_agg = true;
     }
+    auto old_clause_type = sem_cnxt->clause_type_;
+    sem_cnxt->clause_type_ = SemanticContext::kAggregationClause;
     RetCode ret = arg0_->SemanticAnalisys(sem_cnxt);
     if (rSuccess != ret) {
       return ret;
     }
+    sem_cnxt->clause_type_ = old_clause_type;
     sem_cnxt->have_agg = false;
     return rSuccess;
   }
@@ -225,6 +228,11 @@ void AstExprUnary::ReplaceAggregation(AstNode*& agg_column,
   // like a leaf node
   if (expr_type_ == "COUNT_ALL" || expr_type_ == "SUM" || expr_type_ == "MAX" ||
       expr_type_ == "MIN" || expr_type_ == "AVG" || expr_type_ == "COUNT") {
+    if (this->arg0_ != NULL &&
+        this->arg0_->ast_node_type_ == AST_DISTINCT_CLAUSE) {
+      // make this column different with no distinct column
+      this->expr_str_ = this->expr_str_+"_DIS";
+    }
     if (need_collect) {
       agg_node.insert(this);
     }
@@ -296,8 +304,12 @@ RetCode AstExprUnary::GetLogicalPlan(ExprNode*& logic_expr,
   RetCode ret = rSuccess;
   // count(*) = count(1)
   if (expr_type_ == "COUNT_ALL" || expr_type_ == "COUNT") {
-    child_logic_expr =
-        new ExprConst(ExprNodeType::t_qexpr, t_u_long, "COUNT(1)", "1");
+    if (arg0_ != NULL && arg0_->ast_node_type_ == AST_DISTINCT_CLAUSE) {
+      ret = arg0_->GetLogicalPlan(child_logic_expr, left_lplan, right_lplan);
+    } else {
+      child_logic_expr =
+          new ExprConst(ExprNodeType::t_qexpr, t_u_long, "COUNT(1)", "1");
+    }
   } else {
     ret = arg0_->GetLogicalPlan(child_logic_expr, left_lplan, right_lplan);
   }
@@ -309,11 +321,18 @@ RetCode AstExprUnary::GetLogicalPlan(ExprNode*& logic_expr,
     logic_expr = new ExprUnary(ExprNodeType::t_qexpr_unary,
                                child_logic_expr->actual_type_, expr_str_, oper,
                                child_logic_expr);
+    if (arg0_ != NULL && arg0_->ast_node_type_ == AST_DISTINCT_CLAUSE) {
+      reinterpret_cast<ExprUnary*>(logic_expr)->is_distinct_ = 1;
+      if (expr_type_ == "COUNT_ALL" || expr_type_ == "COUNT") {
+        logic_expr->actual_type_ = t_u_long;
+      }
+    }
   } else {
     logic_expr = new ExprUnary(ExprNodeType::t_qexpr_unary, t_boolean,
                                child_logic_expr->actual_type_, expr_str_, oper,
                                child_logic_expr);
   }
+
   return rSuccess;
 }
 RetCode AstExprUnary::SolveSelectAlias(

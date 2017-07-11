@@ -21,23 +21,27 @@ namespace claims {
 
 namespace common {
 ExprUnary::ExprUnary(ExprNodeType expr_node_type, data_type actual_type,
-                     string alias, OperType oper_type, ExprNode* arg0)
+                     string alias, OperType oper_type, ExprNode* arg0,
+                     bool is_distinct)
     : ExprNode(expr_node_type, actual_type, alias),
       oper_type_(oper_type),
       arg0_(arg0),
-      data_type_oper_func_(NULL) {}
+      data_type_oper_func_(NULL),
+      is_distinct_(is_distinct)  {}
 ExprUnary::ExprUnary(ExprNodeType expr_node_type, data_type actual_type,
                      data_type get_type, string alias, OperType oper_type,
-                     ExprNode* arg0)
+                     ExprNode* arg0, bool is_distinct)
     : ExprNode(expr_node_type, actual_type, get_type, alias),
       oper_type_(oper_type),
       arg0_(arg0),
-      data_type_oper_func_(NULL) {}
+      data_type_oper_func_(NULL),
+      is_distinct_(is_distinct) {}
 ExprUnary::ExprUnary(ExprUnary* expr)
     : ExprNode(expr),
       oper_type_(expr->oper_type_),
       arg0_(expr->arg0_->ExprCopy()),
-      data_type_oper_func_(expr->data_type_oper_func_) {}
+      data_type_oper_func_(expr->data_type_oper_func_),
+      is_distinct_(expr->is_distinct_) {}
 
 void* ExprUnary::ExprEvaluate(ExprEvalCnxt& eecnxt, void* last_value) {
   OperFuncInfoData oper_info;
