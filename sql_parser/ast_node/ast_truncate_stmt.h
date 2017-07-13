@@ -15,19 +15,14 @@ using std::string;
 // namespace claims {
 // namespace sql_parser {
 
-
-class AstTruncateTableStmt : public AstNode {
+class AstTruncateTable : public AstNode {
  public:
-  AstTruncateTableStmt(AstNodeType ast_node_type, int is_if_exists,
-		  string table_name);
-  ~AstTruncateTableStmt();
+  AstTruncateTable(AstNodeType ast_node_type, AstNode* table_list_);
+  ~AstTruncateTable();
   void Print(int level = 0) const;
-  RetCode SemanticAnalisys(SemanticContext* sem_cnxt);
-
-
   AstNodeType ast_node_type_;
-  string table_name_;
-  int is_if_exists_;
+  AstNode* table_list_;
+  RetCode SemanticAnalisys(SemanticContext* sem_cnxt);
 };
 //}  // namespace sql_parser
 //}  // namespace claims
