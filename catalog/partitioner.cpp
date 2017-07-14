@@ -122,6 +122,15 @@ void Partitioner::UpdatePartitionWithNumberOfChunksToBlockManager(
   }
 }
 
+void Partitioner::initPartitionData(unsigned partition_key,
+                                    unsigned number_of_chunks,
+                                    unsigned long number_of_blocks) {
+  assert(partition_key < partition_function_->getNumberOfPartitions());
+
+  partition_info_list[partition_key]->number_of_blocks = 0;
+  partition_info_list[partition_key]->number_of_tuples_ = 0;
+}
+
 void Partitioner::print() {
   //  hashmap<PartitionID,NodeID>::iterator it=partitionid_to_nodeid_.begin();
   //  while(it!=partitionid_to_nodeid_.end()){

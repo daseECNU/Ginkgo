@@ -133,6 +133,7 @@ class TableDescriptor {
   inline uint64_t getRowNumber() { return row_number_; }
   inline bool isEmpty() { return row_number_ == 0; }
   inline bool HasDeletedTuples() { return has_deleted_tuples_; }
+  uint64_t getRowNum() { return row_number_; }
   inline void SetDeletedTuples(bool has_deleted_tuples) {
     has_deleted_tuples_ = has_deleted_tuples;
   }
@@ -150,6 +151,8 @@ class TableDescriptor {
   */
 
   TableFileConnector& get_connector() { return *write_connector_; }
+
+  void InitTableData();
 
  private:
   RetCode InitFileConnector();

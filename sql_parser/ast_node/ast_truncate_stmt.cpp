@@ -1,8 +1,29 @@
 /*
- * ast_truncate_stmt.cpp
+ * Copyright [2012-2015] DaSE@ECNU
+ *
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * /CLAIMS/sql_parser/ast_node/ast_truncate_stmt.cpp
  *
  *  Created on: Jun 13, 2017
- *      Author: he
+ *      Author: zy.he
+ *       Email: hzylab@gmail.com
+ *
+ * Description:
+ *
  */
 
 #include "../ast_node/ast_truncate_stmt.h"
@@ -25,7 +46,7 @@ using std::setw;
 using std::bitset;
 
 // namespace claims {
-// namespace ast_node {
+// namespace sql_parser {
 AstTruncateTable::AstTruncateTable(AstNodeType ast_node_type,
                                    AstNode* table_list)
     : AstNode(ast_node_type), table_list_(table_list) {
@@ -56,4 +77,5 @@ RetCode AstTruncateTable::SemanticAnalisys(SemanticContext* sem_cnxt) {
   }
   return ret;
 }
-//} /* namespace truncate_table_exec */
+//}  // namespace sql_parser
+//}  // namespace claims

@@ -78,6 +78,11 @@ RetCode TableDescriptor::InitFileConnector() {
       common::kAppendFile);
 }
 
+void TableDescriptor::InitTableData() {
+  row_number_ = 0;
+  has_deleted_tuples_ = false;
+}
+
 RetCode TableDescriptor::createHashPartitionedProjection(
     const vector<ColumnOffset>& column_list, Attribute partition_attribute,
     unsigned number_of_partitions) {

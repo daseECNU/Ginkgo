@@ -84,7 +84,7 @@ class Catalog {
   TableDescriptor* getTable(const TableID&) const;
   TableDescriptor* getTable(const std::string& table_name) const;
   void GetAllTables(ostringstream& ostr) const;
-  vector<TableID> GetAllTablesID()const;
+  vector<TableID> GetAllTablesID() const;
   ProjectionDescriptor* getProjection(const ProjectionID&) const;
   ProjectionBinding* getBindingModele() const;
 
@@ -107,6 +107,7 @@ class Catalog {
                                          const std::string& attribute_name);
 
   bool DropTable(const std::string table_name, const TableID id);
+  RetCode TruncateTable(const std::string table_name);
 
  private:
   Catalog();  // avoiding generate more instance

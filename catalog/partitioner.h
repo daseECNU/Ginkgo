@@ -87,6 +87,10 @@ class PartitionInfo {
   virtual bool is_all_blocks_bound() = 0;                             // p
   virtual bool is_colocated(const PartitionInfo &) const = 0;
   int get_number_of_blocks() const { return number_of_blocks; }  // p
+  void initData() {
+    number_of_blocks = 0;
+    number_of_tuples_ = 0;
+  }  // p
   virtual NodeID get_location() const = 0;
 
  protected:
@@ -269,6 +273,9 @@ class Partitioner {
   NodeID getPartitionLocation(unsigned partition_offset) const;
   void print();
 
+  void initPartitionData(unsigned partition_key, unsigned number_of_chunks,
+                         unsigned long number_of_blocks);
+
   bool hasSamePartitionLocation(const Partitioner &target_partition) const;
 
   binding_mode get_binding_mode_() const { return mode_; }
@@ -279,7 +286,8 @@ class Partitioner {
   bool allPartitionBound() const;
 
   vector<PartitionID> getPartitionIDList();
-  vector<PartitionInfo *> getPartitionList(){ return partition_info_list; }
+  vector<PartitionInfo *> getPartitionList() { return partition_info_list; }
+
  private:
   Attribute *partition_key_;
   PartitionFunction *partition_function_;
