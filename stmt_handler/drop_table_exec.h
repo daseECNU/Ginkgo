@@ -41,7 +41,7 @@ class DropTableExec : public StmtExec {
  public:
   DropTableExec(AstNode* stmt);  // NOLINT
   virtual ~DropTableExec();
-
+  friend class TruncateTableExec;
   RetCode Execute(ExecutedResult* exec_result);
 
  private:
@@ -51,7 +51,7 @@ class DropTableExec : public StmtExec {
    * not, the table is the del table.
    * @param table_name the name of the given table
    */
-  bool CheckBaseTbl(const string& table_name) const;
+  static bool CheckBaseTbl(const string& table_name);
   /**
    * delete the table from the catalog and the delete the associated files in
    * the disk or in the hdfs
@@ -72,7 +72,15 @@ class DropTableExec : public StmtExec {
    * @param table_name
    * @return
    */
-  RetCode DeleteTableFiles(const string& table_name);
+  static RetCode DeleteTableFiles(const string& table_name);
+
+  /**
+   * @brief delete the table from memory
+   * @param table_name
+   * @author zy.he
+   * @return
+   */
+  bool DeleteTableFromMemory(const string& table_name);
 
  private:
   AstDropTable* drop_table_ast_;

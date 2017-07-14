@@ -39,6 +39,7 @@
 #include "../loader/data_injector.h"
 #include "../loader/table_file_connector.h"
 #include "../stmt_handler/drop_table_exec.h"
+using claims::common::rFailure;
 using claims::common::FilePlatform;
 using claims::loader::TableFileConnector;
 using claims::catalog::Catalog;
@@ -91,7 +92,9 @@ RetCode DropTableExec::Execute(ExecutedResult* exec_result) {
                 // does not need to be removed
         ret = DeleteTableFiles(table_name);
         // todo (miqni 2016.1.28) to delete the del table from memory
-        cout << table_name + "_DeL is dropped from this database!" << endl;
+        // delete table from memory
+        DeleteTableFromMemory(table_name);
+        cout << table_name + " is dropped from this database!" << endl;
       }
 
       if (ret == rSuccess) {
@@ -111,7 +114,7 @@ RetCode DropTableExec::Execute(ExecutedResult* exec_result) {
   return ret;
 }
 
-bool DropTableExec::CheckBaseTbl(const string& table_name) const {
+static bool DropTableExec::CheckBaseTbl(const string& table_name) {
   Catalog* local_catalog = Environment::getInstance()->getCatalog();
   string base_tbl_name = "";
   // if the length of the table name is less than 4, it should be the name of
@@ -152,21 +155,25 @@ RetCode DropTableExec::DropTable(const string& table_name) {
     return ret;
   }
   // start to drop table
-  // you need to delete the file first, and then drop the informantion in the
+  // you need to delete the file first, and then drop the information in the
   // catalog
   ret = DeleteTableFiles(table_name);
-  if (rSuccess != ret) {
-    ELOG(ret, "failed to delete the files when dropping table " + table_name);
-    return ret;
-  } else {
-    ret = DropTableFromCatalog(table_name);
-    if (ret != rSuccess) {
-      ELOG(ret,
-           "failed to drop the table from the catalog, while its files have "
-           "been deleted, when dropping table" +
-               table_name);
+  if (DeleteTableFromMemory(table_name)) {
+    if (rSuccess != ret) {
+      ELOG(ret, "failed to delete the files when dropping table " + table_name);
       return ret;
+    } else {
+      ret = DropTableFromCatalog(table_name);
+      if (ret != rSuccess) {
+        ELOG(ret,
+             "failed to drop the table from the catalog, while its files have "
+             "been deleted, when dropping table" +
+                 table_name);
+        return ret;
+      }
     }
+  } else {
+    return rFailure;
   }
 }
 
@@ -189,7 +196,7 @@ RetCode DropTableExec::DropTableFromCatalog(const string& table_name) {
  * @param table_name
  * @return
  */
-RetCode DropTableExec::DeleteTableFiles(const string& table_name) {
+static RetCode DropTableExec::DeleteTableFiles(const string& table_name) {
   RetCode ret = rSuccess;
   // start to delete the files
   TableFileConnector* connector = new TableFileConnector(
@@ -203,5 +210,43 @@ RetCode DropTableExec::DeleteTableFiles(const string& table_name) {
 
   return ret;
 }
+
+/**
+ * @brief delete the table from memory
+ * @param table_name
+ * @return
+ */
+bool DropTableExec::DeleteTableFromMemory(const string& table_name) {
+  if (table_name != "") {
+    Catalog* local_catalog = Environment::getInstance()->getCatalog();
+    TableDescriptor* table_desc = local_catalog->getTable(table_name);
+    if (table_desc != NULL) {
+      vector<ProjectionDescriptor*>* projection_list =
+          table_desc->GetProjectionList();
+      if (projection_list != NULL) {
+        for (auto projection : *projection_list) {
+          Partitioner* partitioner = projection->getPartitioner();
+          bool res = Catalog::getInstance()
+                         ->getBindingModele()
+                         ->UnbindingEntireProjection(partitioner);
+          if (res) {
+            LOG(INFO) << "unbound entire projection "
+                      << partitioner->getProejctionID().projection_off
+                      << " in table " << table_desc->getTableName()
+                      << std::endl;
+          } else {
+            LOG(ERROR) << "failed to unbind entire projection "
+                       << partitioner->getProejctionID().projection_off
+                       << " in table " << table_desc->getTableName()
+                       << std::endl;
+            return false;
+          }
+        }
+      }
+    }
+  }
+  return true;
+}
+
 } /* namespace stmt_handler */
 } /* namespace claims */
