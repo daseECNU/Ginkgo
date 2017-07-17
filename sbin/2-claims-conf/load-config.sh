@@ -41,6 +41,7 @@ function load_config()
     getcfg $config hash_join_bucket_num hash_join_bucket_num
     getcfg $config hash_join_bucket_size hash_join_bucket_size
     getcfg $config scheduler scheduler
+    getcfg $config expander_buffer_size expander_buffer_size
     getcfg $config tree_type tree_type
     getcfg $config enable_prune_column enable_prune_column
     getcfg $config binding_mode binding_mode
@@ -81,7 +82,8 @@ echo "hash_join_bucket_size :               [$hash_join_bucket_size]"
 echo "enable_prune_column:                  [$enable_prune_column]"
 echo "binding_mode:                         [$binding_mode]"
 echo "tree_type:                            [$tree_type]"
-echo "scheduler : 			[$scheduler]"
+echo "scheduler : 			    [$scheduler]"
+echo "expander_buffer_size:                 [$expander_buffer_size]"
 echo "=========cluster config end=========="
 }
 

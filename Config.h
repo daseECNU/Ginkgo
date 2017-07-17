@@ -90,6 +90,7 @@ class Config {
   static std::string tree_type;
   static int extra_job_num;
   static int rank_computation;
+  static int expander_buffer_size;
 
  private:
   static Config* instance_;

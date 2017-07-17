@@ -4,17 +4,15 @@ SELECT
         O_ORDERDATE,
         O_SHIPPRIORITY
 FROM
-        CUSTOMER C,
-        ORDERS O,
-        LINEITEM L
+        LINEITEM,
+        ORDERS,
+        CUSTOMER
 WHERE
         C_MKTSEGMENT = 'HOUSEHOLD'
         AND C_CUSTKEY = O_CUSTKEY
         AND L_ORDERKEY = O_ORDERKEY
         AND O_ORDERDATE < '1995-03-04'
         AND L_SHIPDATE > '1995-03-04'
-        AND O_ORDERKEY %8 !=0 
-        AND C_CUSTKEY %8 != 7
 GROUP BY
         L_ORDERKEY,
         O_ORDERDATE,
@@ -25,31 +23,3 @@ ORDER BY
         O_ORDERDATE,
 	O_SHIPPRIORITY;
 exit;
-
-
-SELECT
-        L_ORDERKEY,
-        SUM(L_EXTENDEDPRICE * (1 - L_DISCOUNT)) AS REVENUE,
-        O_ORDERDATE,
-        O_SHIPPRIORITY
-FROM
-          LINEITEM,
-        ORDERS,
-         CUSTOMER1 C
-WHERE
-        C_MKTSEGMENT = 'HOUSEHOLD'
-        AND C_CUSTKEY = O_CUSTKEY
-        AND L_ORDERKEY = O_ORDERKEY
-        AND O_ORDERDATE < '1995-03-04'
-        AND L_SHIPDATE > '1995-03-04'
-        AND C.row_id<20
-
-GROUP BY
-        L_ORDERKEY,
-        O_ORDERDATE,
-        O_SHIPPRIORITY
- limit 10;
- 
- 
- select min(row_id) from CUSTOMER1 where C_MKTSEGMENT = 'HOUSEHOLD';
- 

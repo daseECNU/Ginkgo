@@ -74,6 +74,8 @@ tree_type = "$tree_type"
 
 binding_mode = $binding_mode
 
+expander_buffer_size = $expander_buffer_size
+
 hash_join_bucket_num = $hash_join_bucket_num
 
 hash_join_bucket_size = $hash_join_bucket_size
