@@ -4,8 +4,8 @@
 %pure-parser
 %parse-param { struct ParseResult* result}
 %glr-parser
-%expect 33
-%expect-rr 83
+%expect 34
+%expect-rr 84
 %defines
 %{
 #include <stdlib.h>
@@ -398,6 +398,7 @@ should replace YYLEX with the following clause in sql.tab.cpp, why so? I don't k
 %token FMIN
 %token FMAX
 
+%token TO_CHAR
 
 %type <intval> opt_with_rollup opt_asc_desc opt_inner_cross left_right_full 
 %type <intval> opt_left_or_right_outer opt_outer  
@@ -759,8 +760,10 @@ expr: FCOUNT '(' '*' ')'	                    { $$ = new AstExprUnary(AST_EXPR_UN
 	| FAVG '(' expr ')'                         { $$ = new AstExprUnary(AST_EXPR_UNARY, "AVG",	 	 $3); }
 	| FMIN '(' expr ')'                         { $$ = new AstExprUnary(AST_EXPR_UNARY, "MIN",	 	 $3); }
 	| FMAX '(' expr ')'                         { $$ = new AstExprUnary(AST_EXPR_UNARY, "MAX",	 	 $3); }
-    | FCOUNT '(' select_opts ')'	            { $$ = new AstExprUnary(AST_EXPR_UNARY, "COUNT",	 $3); }
-    | FSUM '(' select_opts ')'                  { $$ = new AstExprUnary(AST_EXPR_UNARY, "SUM",	 	 $3); }
+	| TO_CHAR '(' expr ')'                      { $$ = $3; printf("\n find a to_char \n");                }
+	| TO_CHAR '(' select_opts ')'               { $$ = $3; printf("\n find a to_char \n");                }
+   | FCOUNT '(' select_opts ')'	              { $$ = new AstExprUnary(AST_EXPR_UNARY, "COUNT",	 $3);    }
+   | FSUM '(' select_opts ')'                  { $$ = new AstExprUnary(AST_EXPR_UNARY, "SUM",	 	 $3); }
 	| FAVG '(' select_opts ')'                  { $$ = new AstExprUnary(AST_EXPR_UNARY, "AVG",	 	 $3); }
 	| FMIN '(' select_opts ')'                  { $$ = new AstExprUnary(AST_EXPR_UNARY, "MIN",	 	 $3); }
 	| FMAX '(' select_opts ')'                  { $$ = new AstExprUnary(AST_EXPR_UNARY, "MAX",	 	 $3); }
