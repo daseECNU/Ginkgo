@@ -162,7 +162,7 @@ bool ProjectionBinding::UnbindingEntireProjection(Partitioner* part) {
     ResourceManagerMaster* rmm =
         Environment::getInstance()->getResourceManagerMaster();
     for (int i = 0; i < part->getNumberOfPartitions(); i++) {
-      /* check the partition whether binds NodeID or not  --added by zy.he */
+      /* check the partition whether binds NodeID or not  --added by zyhe */
       if (part->getPartitionLocation(i) >= 0) {
         unsigned budget = part->getPartitionDataSize(i);
         switch (DESIRIABLE_STORAGE_LEVEL) {

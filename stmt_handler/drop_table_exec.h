@@ -75,9 +75,11 @@ class DropTableExec : public StmtExec {
   static RetCode DeleteTableFiles(const string& table_name);
 
   /**
-   * @brief delete the table from memory
+   * @brief call the UnbindingEntireProjection() function to free the memory in
+   * the memory pool. The memory doesn't return to the operating system
+   * directly. But apply the memory next time will use the memory pool first.
    * @param table_name
-   * @author zy.he
+   * @author zyhe
    * @return
    */
   bool DeleteTableFromMemory(const string& table_name);

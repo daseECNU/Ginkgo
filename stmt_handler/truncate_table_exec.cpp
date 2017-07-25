@@ -19,7 +19,7 @@
  * /CLAIMS/stmt_handler/ast_truncate_stmt.h
  *
  *  Created on: Jun 13, 2017
- *      Author: zy.he
+ *      Author: zyhe
  *       Email: hzylab@gmail.com
  *
  * Description:

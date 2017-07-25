@@ -22,6 +22,7 @@
  *      Author: yuyang
  *		   Email: youngfish93@hotmail.com
  *
+ *	Modified by
  * Description:
  *
  */
@@ -83,7 +84,7 @@ RetCode DropTableExec::Execute(ExecutedResult* exec_result) {
         if (ret == rSuccess) {
           cout << table_name + "_DEL is dropped from this database!" << endl;
           ret = DropTable(table_name);
-          cout << table_name + "is dropped from this database!" << endl;
+          cout << table_name + " is dropped from this database!" << endl;
         } else {
           DropTable(table_name + "_DEL");
           DropTable(table_name);
@@ -92,7 +93,7 @@ RetCode DropTableExec::Execute(ExecutedResult* exec_result) {
                 // does not need to be removed
         ret = DeleteTableFiles(table_name);
         // todo (miqni 2016.1.28) to delete the del table from memory
-        // delete table from memory
+        // delete table from memory(_pool)
         DeleteTableFromMemory(table_name);
         cout << table_name + " is dropped from this database!" << endl;
       }
@@ -141,7 +142,7 @@ static bool DropTableExec::CheckBaseTbl(const string& table_name) {
 /**
  * drop the table based on the provided table name,
  * this operator will delete the table in the catalog as well as the table file
- *on the disk or hdfs
+ * on the disk or hdfs
  *
  * @param table_name
  * @return
@@ -167,7 +168,7 @@ RetCode DropTableExec::DropTable(const string& table_name) {
       if (ret != rSuccess) {
         ELOG(ret,
              "failed to drop the table from the catalog, while its files have "
-             "been deleted, when dropping table" +
+             "been deleted, when dropping table " +
                  table_name);
         return ret;
       }
@@ -205,15 +206,18 @@ static RetCode DropTableExec::DeleteTableFiles(const string& table_name) {
       common::kReadFile);
   EXEC_AND_RETURN_ERROR(
       ret, connector->DeleteAllTableFiles(),
-      "failed to delete the projections, when delete the file on table" +
+      "failed to delete the projections, when delete the file on table " +
           table_name);
 
   return ret;
 }
 
 /**
- * @brief delete the table from memory
+ * @brief call the UnbindingEntireProjection() function free the memory in
+ * memory pool. The memory doesn't return to the operating system directly.
+ * Apply the memory next time will use the memory pool first.
  * @param table_name
+ * @author zy.he
  * @return
  */
 bool DropTableExec::DeleteTableFromMemory(const string& table_name) {
@@ -230,7 +234,7 @@ bool DropTableExec::DeleteTableFromMemory(const string& table_name) {
                          ->getBindingModele()
                          ->UnbindingEntireProjection(partitioner);
           if (res) {
-            LOG(INFO) << "unbound entire projection "
+            LOG(INFO) << "unbind entire projection "
                       << partitioner->getProejctionID().projection_off
                       << " in table " << table_desc->getTableName()
                       << std::endl;

@@ -19,7 +19,7 @@
  * /CLAIMS/stmt_handler/truncate_table_exec.h
  *
  *  Created on: Jun 13, 2017
- *      Author: zy.he
+ *      Author: zyhe
  *       Email: hzylab@gmail.com
  *
  * Description:
