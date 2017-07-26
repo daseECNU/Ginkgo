@@ -16,7 +16,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- *  /sql_parser/src/astnode/ast_drop_stmt.cpp
+ *  /sql_parser/astnode/ast_drop_stmt.cpp
  *
  *  Created on: Jul 23, 2015
  *      Author: yuyang
