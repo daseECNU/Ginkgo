@@ -3377,11 +3377,7 @@ static inline int yyfill(yyGLRStackItem *yyvsp, int *yylow, int yylow1,
     	          AST_EXPR_UNARY, "TO_CHAR",
     	          (((yyGLRStackItem const *)
     	            yyvsp)[YYFILL((3) - (4))].yystate.yysemantics.yysval.ast_node));
-    	/*
-      ((*yyvalp).ast_node) = (((yyGLRStackItem const *)yyvsp)[YYFILL((3) - (4))]
-                                  .yystate.yysemantics.yysval.ast_node);
-      printf("\n find a to_char \n");
-      */
+
     } break;
 
     case 138:
@@ -3392,11 +3388,7 @@ static inline int yyfill(yyGLRStackItem *yyvsp, int *yylow, int yylow1,
     	          AST_EXPR_UNARY, "TO_CHAR",
     	          (((yyGLRStackItem const *)
     	            yyvsp)[YYFILL((3) - (4))].yystate.yysemantics.yysval.ast_node));
-    	/*
-      ((*yyvalp).ast_node) = (((yyGLRStackItem const *)yyvsp)[YYFILL((3) - (4))]
-                                  .yystate.yysemantics.yysval.ast_node);
-      printf("\n find a to_char \n");
-      */
+
     } break;
 
     case 139:
