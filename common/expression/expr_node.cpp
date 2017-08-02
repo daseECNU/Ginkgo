@@ -104,10 +104,10 @@ Attribute ExprNode::ExprNodeToAttr(const int id, const unsigned table_id) {
     	size=24;
     	break;
     case t_float:
-    	size=48;
+    	size=32;
     	break;
     case t_double:
-    	size=48;
+    	size=32;
     	break;
     case t_date:
     	size=16;

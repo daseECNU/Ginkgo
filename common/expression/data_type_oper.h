@@ -562,8 +562,6 @@ inline void double_is_not_null(OperFuncInfo fcinfo) {
 }
 inline void double_to_char(OperFuncInfo fcinfo) {
   assert(fcinfo->args_num_ == 1);
-  cout<<"*(double *)fcinfo->args_[0]"<<*(double *)fcinfo->args_[0]<<endl;
-  cout<<"*(double *)fcinfo->result_ "<<*(double *)fcinfo->result_ <<endl;
   *(double *)fcinfo->result_ = *(double *)fcinfo->args_[0];
 
 }

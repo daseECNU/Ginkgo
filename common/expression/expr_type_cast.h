@@ -79,8 +79,8 @@ inline void *int_to_string(void *value, void *tovalue) {
   int tvalue = *(int *)value;
   stringstream va;
   va << tvalue;
-  va << '\0';
   strncpy((char *)tovalue, va.str().c_str(),16);
+  *((char *)tovalue + 15)='\0';
   va.clear();
   return tovalue;
 }
@@ -202,8 +202,8 @@ inline void *ulong_to_string(void *value, void *tovalue) {
   unsigned long tvalue = *(unsigned long *)value;
   stringstream va;
   va << tvalue;
-  va << '\0';
   strncpy((char *)tovalue, va.str().c_str(),24);
+  *((char *)tovalue + 23)='\0';
   va.clear();
   return tovalue;
 }
@@ -238,8 +238,8 @@ inline void *smallInt_to_string(void *value, void *tovalue) {
   short int tvalue = *(short int *)value;
   stringstream va;
   va << tvalue;
-  va << '\0';
   strncpy((char *)tovalue, va.str().c_str(),8);
+  *((char *)tovalue + 7)='\0';
   va.clear();
   return tovalue;
 }
@@ -285,8 +285,8 @@ inline void *usmallInt_to_string(void *value, void *tovalue) {
   unsigned short tvalue = *(unsigned short *)value;
   stringstream va;
   va << tvalue;
-  va << '\0';
   strncpy((char *)tovalue, va.str().c_str(),8);
+  *((char *)tovalue + 7)='\0';
   va.clear();
   return tovalue;
 }
@@ -316,8 +316,8 @@ inline void *float_to_string(void *value, void *tovalue) {
   float tvalue = *(float *)value;
   stringstream va;
   va << tvalue;
-  va << '\0';
-  strncpy((char *)tovalue, va.str().c_str(),48);
+  strncpy((char *)tovalue, va.str().c_str(),32);
+  *((char *)tovalue + 31)='\0';
   va.clear();
   return tovalue;
 }
@@ -344,8 +344,8 @@ inline void *double_to_string(void *value, void *tovalue) {
   double tvalue = *(double *)value;
   stringstream va;
   va << tvalue;
-  va << '\0';
-  strncpy((char *)tovalue, va.str().c_str(),48);
+  strncpy((char *)tovalue, va.str().c_str(),32);
+  *((char *)tovalue + 31)='\0';
   va.clear();
   return tovalue;
 }
@@ -404,8 +404,8 @@ inline void *boolean_to_string(void *value, void *tovalue) {
   bool tvalue = *(bool*)value;
   stringstream va;
   va << tvalue;
-  va << '\0';
   strncpy((char *)tovalue, va.str().c_str(),4);
+  *((char *)tovalue + 3)='\0';
   va.clear();
   return tovalue;
 }
@@ -426,10 +426,12 @@ inline void *decimal_to_boolean(void *value, void *tovalue) {
 inline void *decimal_to_string(void *value, void *tovalue) {
   Decimal tvalue = *(Decimal *)value;
   int precision = *(int*)tovalue;
+  int decimal_size=(precision/1000)+(precision%1000)+2;
   stringstream va;
   precision=precision%1000;
   va << tvalue.toString(precision);
-  strcpy((char *)tovalue, va.str().c_str());
+  strncpy((char *)tovalue, va.str().c_str(), decimal_size);
+  *((char *)tovalue + decimal_size-1)='\0';
   va.clear();
   return tovalue;
 }
