@@ -92,31 +92,31 @@ Attribute ExprNode::ExprNodeToAttr(const int id, const unsigned table_id) {
   // other data types convert to string,schema's attribute size changed
   switch (get_type_){
     case t_smallInt:
-    	size=5;
+    	size=8;
     	break;
     case t_u_smallInt:
-    	size=6;
+    	size=8;
     	break;
     case t_int:
-    	size=10;
+    	size=16;
     	break;
     case t_u_long:
-    	size=20;
+    	size=24;
     	break;
     case t_float:
-    	size=40;
+    	size=48;
     	break;
     case t_double:
-    	size=310;
+    	size=48;
     	break;
     case t_date:
-    	size=10;
+    	size=16;
     	break;
     case t_time:
-    	size=10;
+    	size=16;
     	break;
     case t_datetime:
-    	size=22;
+    	size=24;
     	break;
     case t_decimal:
     	size=column->size;
