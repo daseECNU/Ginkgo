@@ -273,6 +273,10 @@ inline void int_is_not_null(OperFuncInfo fcinfo) {
   assert(fcinfo->args_num_ == 1);
   *(bool *)fcinfo->result_ = (*(int *)fcinfo->args_[0] != NULL_INT);
 }
+inline void int_to_char(OperFuncInfo fcinfo) {
+  assert(fcinfo->args_num_ == 1);
+  *(int *)fcinfo->result_ = (*(int *)fcinfo->args_[0]);
+}
 
 /*******************int*************************/
 
@@ -372,6 +376,10 @@ inline void u_long_is_not_null(OperFuncInfo fcinfo) {
   *(bool *)fcinfo->result_ =
       (*(unsigned long *)fcinfo->args_[0] != NULL_U_LONG);
 }
+inline void u_long_to_char(OperFuncInfo fcinfo) {
+  assert(fcinfo->args_num_ == 1);
+  *(unsigned long *)fcinfo->result_ = (*(unsigned long *)fcinfo->args_[0]);
+}
 /*******************u_long*************************/
 
 /*******************float*************************/
@@ -458,6 +466,10 @@ inline void float_is_null(OperFuncInfo fcinfo) {
 inline void float_is_not_null(OperFuncInfo fcinfo) {
   assert(fcinfo->args_num_ == 1);
   *(bool *)fcinfo->result_ = ((*(float *)fcinfo->args_[0]) != NULL_FLOAT);
+}
+inline void float_to_char(OperFuncInfo fcinfo) {
+  assert(fcinfo->args_num_ == 1);
+  *(float *)fcinfo->result_ = (*(float *)fcinfo->args_[0]);
 }
 /*******************float*************************/
 
@@ -547,6 +559,13 @@ inline void double_is_null(OperFuncInfo fcinfo) {
 inline void double_is_not_null(OperFuncInfo fcinfo) {
   assert(fcinfo->args_num_ == 1);
   *(bool *)fcinfo->result_ = ((*(double *)fcinfo->args_[0]) != NULL_DOUBLE);
+}
+inline void double_to_char(OperFuncInfo fcinfo) {
+  assert(fcinfo->args_num_ == 1);
+  cout<<"*(double *)fcinfo->args_[0]"<<*(double *)fcinfo->args_[0]<<endl;
+  cout<<"*(double *)fcinfo->result_ "<<*(double *)fcinfo->result_ <<endl;
+  *(double *)fcinfo->result_ = *(double *)fcinfo->args_[0];
+
 }
 /*******************double*************************/
 
@@ -646,6 +665,10 @@ inline void smallInt_is_not_null(OperFuncInfo fcinfo) {
   assert(fcinfo->args_num_ == 1);
   *(bool *)fcinfo->result_ = ((*(short *)fcinfo->args_[0]) != NULL_SMALL_INT);
 }
+inline void smallInt_to_char(OperFuncInfo fcinfo) {
+  assert(fcinfo->args_num_ == 1);
+  *(short *)fcinfo->result_ = (*(short *)fcinfo->args_[0]);
+}
 /*******************smallInt*************************/
 
 /*******************usmallInt*************************/
@@ -744,6 +767,10 @@ inline void usmallInt_is_not_null(OperFuncInfo fcinfo) {
   assert(fcinfo->args_num_ == 1);
   *(bool *)fcinfo->result_ = ((*(unsigned short *)fcinfo->args_[0]) != NULL_U_SMALL_INT);
 }
+inline void usmallInt_to_char(OperFuncInfo fcinfo) {
+  assert(fcinfo->args_num_ == 1);
+  *(unsigned short int *)fcinfo->result_ = (*(unsigned short int*)fcinfo->args_[0]);
+}
 /*******************usmallInt*************************/
 /*****************boolean********************/
 
@@ -803,6 +830,10 @@ inline void boolean_is_null(OperFuncInfo fcinfo) {
 inline void boolean_is_not_null(OperFuncInfo fcinfo) {
   assert(fcinfo->args_num_ == 1);
   *(bool *)fcinfo->result_ = ((*(short *)fcinfo->args_[0]) != NULL_BOOLEAN);
+}
+inline void boolean_to_char(OperFuncInfo fcinfo) {
+  assert(fcinfo->args_num_ == 1);
+  *(bool *)fcinfo->result_ = (*(bool *)fcinfo->args_[0]);
 }
 
 /*****************boolean********************/
@@ -888,6 +919,10 @@ inline void decimal_is_null(OperFuncInfo fcinfo) {
 inline void decimal_is_not_null(OperFuncInfo fcinfo) {
   assert(fcinfo->args_num_ == 1);
   *(bool *)fcinfo->result_ = !(((Decimal *)fcinfo->args_[0])->isNull());
+}
+inline void decimal_to_char(OperFuncInfo fcinfo) {
+  assert(fcinfo->args_num_ == 1);
+  *(Decimal *)fcinfo->result_ = (*(Decimal *)fcinfo->args_[0]);
 }
 /*****************decimal********************/
 
@@ -1001,6 +1036,10 @@ inline void string_is_not_null(OperFuncInfo fcinfo) {
   assert(fcinfo->args_num_ == 1);
   *(bool *)fcinfo->result_ = (*(char *)fcinfo->args_[0]) != NULL_STRING;
 }
+inline void string_to_char(OperFuncInfo fcinfo) {
+  assert(fcinfo->args_num_ == 1);
+  strcpy((char *)fcinfo->result_, (char *)fcinfo->args_[0]);
+}
 /*****************string********************/
 
 /*****************date********************/
@@ -1100,6 +1139,10 @@ inline void date_is_not_null(OperFuncInfo fcinfo) {
   assert(fcinfo->args_num_ == 1);
   *(bool *)fcinfo->result_ = !(((date *)fcinfo->args_[0])->is_infinity());
 }
+inline void date_to_char(OperFuncInfo fcinfo) {
+  assert(fcinfo->args_num_ == 1);
+  *(date *)fcinfo->result_ = (*(date *)fcinfo->args_[0]);
+}
 /*****************date********************/
 
 /*****************time********************/
@@ -1157,6 +1200,10 @@ inline void time_is_not_null(OperFuncInfo fcinfo) {
   *(bool *)fcinfo->result_ =
       !(((time_duration *)fcinfo->args_[0])->is_negative());
 }
+inline void time_to_char(OperFuncInfo fcinfo) {
+  assert(fcinfo->args_num_ == 1);
+  *(time_duration *)fcinfo->result_ = (*(time_duration *)fcinfo->args_[0]);
+}
 
 /*****************time********************/
 
@@ -1213,6 +1260,10 @@ inline void datetime_is_not_null(OperFuncInfo fcinfo) {
   assert(fcinfo->args_num_ == 1);
   *(bool *)fcinfo->result_ = !(((ptime *)fcinfo->args_[0])->is_infinity());
 }
+inline void datetime_to_char(OperFuncInfo fcinfo) {
+  assert(fcinfo->args_num_ == 1);
+  *(ptime *)fcinfo->result_ = (*(ptime *)fcinfo->args_[0]);
+}
 /*****************datetime********************/
 inline void InitOperatorFunc() {
   for (int i = 0; i < DATA_TYPE_NUM; i++)
@@ -1241,6 +1292,7 @@ inline void InitOperatorFunc() {
   DataTypeOper::data_type_oper_func_[t_int][oper_agg_count] = int_agg_count;
   DataTypeOper::data_type_oper_func_[t_int][oper_is_null] = int_is_null;
   DataTypeOper::data_type_oper_func_[t_int][oper_is_not_null] = int_is_not_null;
+  DataTypeOper::data_type_oper_func_[t_int][oper_to_char] = int_to_char;
 
   /*****************int********************/
 
@@ -1274,6 +1326,7 @@ inline void InitOperatorFunc() {
   DataTypeOper::data_type_oper_func_[t_u_long][oper_is_null] = u_long_is_null;
   DataTypeOper::data_type_oper_func_[t_u_long][oper_is_not_null] =
       u_long_is_not_null;
+  DataTypeOper::data_type_oper_func_[t_u_long][oper_to_char] = u_long_to_char;
   /*****************ulong********************/
 
   /*****************float********************/
@@ -1302,7 +1355,7 @@ inline void InitOperatorFunc() {
   DataTypeOper::data_type_oper_func_[t_float][oper_is_null] = float_is_null;
   DataTypeOper::data_type_oper_func_[t_float][oper_is_not_null] =
       float_is_not_null;
-
+  DataTypeOper::data_type_oper_func_[t_float][oper_to_char] = float_to_char;
   /*****************float********************/
 
   /*****************double********************/
@@ -1334,6 +1387,7 @@ inline void InitOperatorFunc() {
   DataTypeOper::data_type_oper_func_[t_double][oper_is_null] = double_is_null;
   DataTypeOper::data_type_oper_func_[t_double][oper_is_not_null] =
       double_is_not_null;
+  DataTypeOper::data_type_oper_func_[t_double][oper_to_char] = double_to_char;
   /*****************double********************/
 
   /*****************smallInt********************/
@@ -1368,6 +1422,7 @@ inline void InitOperatorFunc() {
       smallInt_is_null;
   DataTypeOper::data_type_oper_func_[t_smallInt][oper_is_not_null] =
       smallInt_is_not_null;
+  DataTypeOper::data_type_oper_func_[t_smallInt][oper_to_char] = smallInt_to_char;
   /*****************smallInt********************/
 
   /*****************usmallInt********************/
@@ -1413,6 +1468,7 @@ inline void InitOperatorFunc() {
         usmallInt_is_null;
   DataTypeOper::data_type_oper_func_[t_u_smallInt][oper_is_not_null] =
         usmallInt_is_not_null;
+  DataTypeOper::data_type_oper_func_[t_u_smallInt][oper_to_char] = usmallInt_to_char;
   /*****************usmallInt********************/
   /*****************boolean********************/
   DataTypeOper::data_type_oper_func_[t_boolean][oper_add] = oper_not_support;
@@ -1440,6 +1496,7 @@ inline void InitOperatorFunc() {
   DataTypeOper::data_type_oper_func_[t_boolean][oper_is_not_null] =
       boolean_is_not_null;
   DataTypeOper::data_type_oper_func_[t_boolean][oper_agg_count] = int_agg_count;
+  DataTypeOper::data_type_oper_func_[t_boolean][oper_to_char] = boolean_to_char;
   /*****************boolean********************/
 
   /*****************decimal********************/
@@ -1473,6 +1530,8 @@ inline void InitOperatorFunc() {
   DataTypeOper::data_type_oper_func_[t_decimal][oper_is_null] = decimal_is_null;
   DataTypeOper::data_type_oper_func_[t_decimal][oper_is_not_null] =
       decimal_is_not_null;
+  DataTypeOper::data_type_oper_func_[t_decimal][oper_to_char] = decimal_to_char;
+
   /*****************decimal********************/
 
   /*****************string********************/
@@ -1510,6 +1569,8 @@ inline void InitOperatorFunc() {
   DataTypeOper::data_type_oper_func_[t_string][oper_is_null] = string_is_null;
   DataTypeOper::data_type_oper_func_[t_string][oper_is_not_null] =
       string_is_not_null;
+  DataTypeOper::data_type_oper_func_[t_string][oper_to_char] = string_to_char;
+
   /*****************string********************/
 
   /*****************date********************/
@@ -1550,6 +1611,8 @@ inline void InitOperatorFunc() {
   DataTypeOper::data_type_oper_func_[t_date][oper_is_null] = date_is_null;
   DataTypeOper::data_type_oper_func_[t_date][oper_is_not_null] =
       date_is_not_null;
+  DataTypeOper::data_type_oper_func_[t_date][oper_to_char] = date_to_char;
+
   /*****************date********************/
 
   /*****************time********************/
@@ -1565,6 +1628,8 @@ inline void InitOperatorFunc() {
   DataTypeOper::data_type_oper_func_[t_time][oper_is_null] = time_is_null;
   DataTypeOper::data_type_oper_func_[t_time][oper_is_not_null] =
       time_is_not_null;
+  DataTypeOper::data_type_oper_func_[t_time][oper_to_char] = time_to_char;
+
   /*****************time********************/
 
   /*****************datetime********************/
@@ -1583,6 +1648,8 @@ inline void InitOperatorFunc() {
       datetime_is_null;
   DataTypeOper::data_type_oper_func_[t_datetime][oper_is_not_null] =
       datetime_is_not_null;
+  DataTypeOper::data_type_oper_func_[t_datetime][oper_to_char] = datetime_to_char;
+
   /*****************datetime********************/
 }
 inline void avg_error_divide(void *sum_value, int64_t tuple_number,

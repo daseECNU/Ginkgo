@@ -3373,18 +3373,30 @@ static inline int yyfill(yyGLRStackItem *yyvsp, int *yylow, int yylow1,
 /* Line 868 of glr.c  */
 #line 763 "sql.ypp"
     {
+    	((*yyvalp).ast_node) = new AstExprUnary(
+    	          AST_EXPR_UNARY, "TO_CHAR",
+    	          (((yyGLRStackItem const *)
+    	            yyvsp)[YYFILL((3) - (4))].yystate.yysemantics.yysval.ast_node));
+    	/*
       ((*yyvalp).ast_node) = (((yyGLRStackItem const *)yyvsp)[YYFILL((3) - (4))]
                                   .yystate.yysemantics.yysval.ast_node);
       printf("\n find a to_char \n");
+      */
     } break;
 
     case 138:
 /* Line 868 of glr.c  */
 #line 764 "sql.ypp"
     {
+    	((*yyvalp).ast_node) = new AstExprUnary(
+    	          AST_EXPR_UNARY, "TO_CHAR",
+    	          (((yyGLRStackItem const *)
+    	            yyvsp)[YYFILL((3) - (4))].yystate.yysemantics.yysval.ast_node));
+    	/*
       ((*yyvalp).ast_node) = (((yyGLRStackItem const *)yyvsp)[YYFILL((3) - (4))]
                                   .yystate.yysemantics.yysval.ast_node);
       printf("\n find a to_char \n");
+      */
     } break;
 
     case 139:

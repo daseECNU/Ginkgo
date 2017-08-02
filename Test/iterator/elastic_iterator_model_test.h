@@ -59,7 +59,7 @@ TEST_F(ElasticIteratorModelTest, LoadFromHdfs){
     EXPECT_STREQ("load data successfully", message.c_str());
 }*/
 
-TEST_F(ElasticIteratorModelTest, LoadFromHdfs_part){
+/*TEST_F(ElasticIteratorModelTest, LoadFromHdfs_part){
     EXPECT_TRUE(client_.connected());
     ResultSet rs;
     std::string command;
@@ -86,7 +86,7 @@ TEST_F(ElasticIteratorModelTest, LoadFromHdfs_customer){
     client_.submit(command, message, rs);
     message = message.substr(0,22);
     EXPECT_STREQ("load data successfully", message.c_str());
-}
+}*/
 TEST_F(ElasticIteratorModelTest, Scan) {
   EXPECT_TRUE(client_.connected());
   ResultSet rs;
@@ -267,7 +267,7 @@ TEST_F(ElasticIteratorModelTest, OuterJoin) {
   EXPECT_EQ(1533872, *(long *)b_it->nextTuple());
   delete b_it;
 }
-
+/*
 // delete data test.
 TEST_F(ElasticIteratorModelTest, createTable) {
   string createtablesql =
@@ -319,15 +319,15 @@ P_COMMENT\
   EXPECT_STREQ("create projection successfully\n", message.c_str());
 
   cout << message << endl;
-}
+}*/
 #if 0
 TEST_F(ElasticIteratorModelTest,loaddata){
 
   string datapathfile = "/home/imdb/data/part.tbl";
-  /* this data file should be loaded by tester SELF and the structure of the data is the same as PART. 
-    just load the data of PART into PART2. 
+  /* this data file should be loaded by tester SELF and the structure of the data is the same as PART.
+    just load the data of PART into PART2.
   */
-#if 0 
+#if 0
   cout << "please input the your data to load:" << endl;
   cin >> datapathfile;
 #endif
@@ -335,12 +335,12 @@ TEST_F(ElasticIteratorModelTest,loaddata){
   string loaddataintopart2sql="load table PART2 from \""+ datapathfile +"\" with '|','\\n';";
 
   cout << loaddataintopart2sql << endl;
-  
+
   ResultSet rs;
   std::string message;
   client_.submit(loaddataintopart2sql.c_str(),message,rs);
   EXPECT_STREQ("load data successfully\n", message.c_str());
-  
+
   cout << message << endl;
 }
 
@@ -348,12 +348,12 @@ TEST_F(ElasticIteratorModelTest,deletedata){
 
 
   string deletedatafrompart2sql="delete from PART2 where row_id < 10;";
-  
+
   ResultSet rs;
   std::string message;
   client_.submit(deletedatafrompart2sql.c_str(),message,rs);
   //EXPECT_STREQ("load data successfully", message.c_str());
-  
+
   cout << message << endl;
 }
 
@@ -361,7 +361,7 @@ TEST_F(ElasticIteratorModelTest,showdeleteddatafromtableDEL){
 
 
   string showdeletedatafrompart2sql="select * from PART2_DEL order by row_id_DEL;";
-  
+
   ResultSet rs;
   std::string message;
   client_.submit(showdeletedatafrompart2sql.c_str(),message,rs);
@@ -371,7 +371,7 @@ TEST_F(ElasticIteratorModelTest,showdeleteddatafromtableDEL){
   cout << message << endl;
 }
 #endif
-TEST_F(ElasticIteratorModelTest, droptestdata) {
+/*TEST_F(ElasticIteratorModelTest, droptestdata) {
   string droptablepart2sql = "drop table PART2;";
 
   ResultSet rs;
@@ -382,6 +382,21 @@ TEST_F(ElasticIteratorModelTest, droptestdata) {
       it.nextBlock()->createIterator();
   EXPECT_EQ("drop table successfully!\n", message);
   cout << message << endl;
+}*/
+TEST_F(ElasticIteratorModelTest, to_char) {
+  ResultSet rs;
+  std::string message;
+  client_.submit("select to_char(O_ORDERKEY),to_char(O_CUSTKEY) from ORDERS;",
+                 message, rs);
+  DynamicBlockBuffer::Iterator it = rs.createIterator();
+  BlockStreamBase::BlockStreamTraverseIterator *b_it =
+      it.nextBlock()->createIterator();
+  EXPECT_EQ(1500000, rs.getNumberOftuples());
+  cout<<rs.schema_->columns[0].type<<endl;
+  EXPECT_EQ(5,rs.schema_->columns[1].type);
+//  EXPECT_EQ("136777",rs.schema_->getcolumn(1).operate->toString(
+//		  rs.schema_->getColumnAddess(1,b_it->nextTuple())));
+  delete b_it;
 }
 
 // TEST_F(ElasticIteratorModelTest, CreateTempTableForTableFileConnectorTest) {

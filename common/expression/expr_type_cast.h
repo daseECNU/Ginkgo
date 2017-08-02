@@ -21,7 +21,6 @@ using boost::gregorian::weeks;
 using boost::gregorian::years;
 namespace claims {
 namespace common {
-
 typedef void *(*TypeCastFunc)(void *value, void *tovalue);
 class ExprTypeCast {
  public:
@@ -74,6 +73,14 @@ inline void *int_to_decimal(void *value, void *tovalue) {
 }
 inline void *int_to_boolean(void *value, void *tovalue) {
   *(bool *)tovalue = (*(int *)value == 0 ? 0 : 1);
+  return tovalue;
+}
+inline void *int_to_string(void *value, void *tovalue) {
+  int tvalue = *(int *)value;
+  stringstream va;
+  va << tvalue;
+  strcpy((char *)tovalue, va.str().c_str());
+  va.clear();
   return tovalue;
 }
 
@@ -190,7 +197,14 @@ inline void *ulong_to_boolean(void *value, void *tovalue) {
   *(bool *)tovalue = (*(unsigned long *)value == 0 ? 0 : 1);
   return tovalue;
 }
-
+inline void *ulong_to_string(void *value, void *tovalue) {
+  unsigned long tvalue = *(unsigned long *)value;
+  stringstream va;
+  va << tvalue;
+  strcpy((char *)tovalue, va.str().c_str());
+  va.clear();
+  return tovalue;
+}
 /***************unsigned long****************************/
 
 /***************smallInt****************************/
@@ -380,7 +394,14 @@ inline void *boolean_to_decimal(void *value, void *tovalue) {
   va.clear();
   return tovalue;
 }
-
+inline void *boolean_to_string(void *value, void *tovalue) {
+  bool tvalue = *(bool*)value;
+  stringstream va;
+  va << tvalue;
+  strcpy((char *)tovalue, va.str().c_str());
+  va.clear();
+  return tovalue;
+}
 /***************boolean****************************/
 
 /***************decimal****************************/
@@ -392,6 +413,17 @@ static Decimal zero(1, 0, "0");
 inline void *decimal_to_boolean(void *value, void *tovalue) {
   Decimal tvalue = *(Decimal *)value;
   *(bool *)tovalue = tvalue.op_equals(zero);
+  return tovalue;
+}
+
+inline void *decimal_to_string(void *value, void *tovalue) {
+  Decimal tvalue = *(Decimal *)value;
+  int tttvalue = *(int*)tovalue;
+  stringstream va;
+  tttvalue=tttvalue%1000;
+  va << tvalue.toString(tttvalue);
+  strcpy((char *)tovalue, va.str().c_str());
+  va.clear();
   return tovalue;
 }
 /***************decimal****************************/
@@ -443,6 +475,7 @@ inline void *errormsg(void *value, void *tovalue) {
   return NULL;
 }
 inline void InitTypeCastFunc() {
+
   // t_smallInt
   ExprTypeCast::type_cast_func_[t_smallInt][t_smallInt] = smallInt_to_smallInt;
   ExprTypeCast::type_cast_func_[t_smallInt][t_u_smallInt] =
@@ -481,7 +514,7 @@ inline void InitTypeCastFunc() {
   ExprTypeCast::type_cast_func_[t_int][t_u_long] = int_to_ulong;
   ExprTypeCast::type_cast_func_[t_int][t_float] = int_to_float;
   ExprTypeCast::type_cast_func_[t_int][t_double] = int_to_double;
-  ExprTypeCast::type_cast_func_[t_int][t_string] = errormsg;
+  ExprTypeCast::type_cast_func_[t_int][t_string] = int_to_string;
   ExprTypeCast::type_cast_func_[t_int][t_date] = errormsg;
   ExprTypeCast::type_cast_func_[t_int][t_time] = errormsg;
   ExprTypeCast::type_cast_func_[t_int][t_datetime] = errormsg;
@@ -495,7 +528,7 @@ inline void InitTypeCastFunc() {
   ExprTypeCast::type_cast_func_[t_u_long][t_u_long] = ulong_to_ulong;
   ExprTypeCast::type_cast_func_[t_u_long][t_float] = ulong_to_float;
   ExprTypeCast::type_cast_func_[t_u_long][t_double] = ulong_to_double;
-  ExprTypeCast::type_cast_func_[t_u_long][t_string] = errormsg;
+  ExprTypeCast::type_cast_func_[t_u_long][t_string] = ulong_to_string;
   ExprTypeCast::type_cast_func_[t_u_long][t_date] = errormsg;
   ExprTypeCast::type_cast_func_[t_u_long][t_time] = errormsg;
   ExprTypeCast::type_cast_func_[t_u_long][t_datetime] = errormsg;
@@ -605,7 +638,7 @@ inline void InitTypeCastFunc() {
   ExprTypeCast::type_cast_func_[t_decimal][t_u_long] = errormsg;
   ExprTypeCast::type_cast_func_[t_decimal][t_float] = errormsg;
   ExprTypeCast::type_cast_func_[t_decimal][t_double] = errormsg;
-  ExprTypeCast::type_cast_func_[t_decimal][t_string] = errormsg;
+  ExprTypeCast::type_cast_func_[t_decimal][t_string] = decimal_to_string;
   ExprTypeCast::type_cast_func_[t_decimal][t_date] = errormsg;
   ExprTypeCast::type_cast_func_[t_decimal][t_time] = errormsg;
   ExprTypeCast::type_cast_func_[t_decimal][t_datetime] = errormsg;
@@ -619,7 +652,7 @@ inline void InitTypeCastFunc() {
   ExprTypeCast::type_cast_func_[t_boolean][t_u_long] = boolean_to_ulong;
   ExprTypeCast::type_cast_func_[t_boolean][t_float] = boolean_to_float;
   ExprTypeCast::type_cast_func_[t_boolean][t_double] = boolean_to_double;
-  ExprTypeCast::type_cast_func_[t_boolean][t_string] = errormsg;
+  ExprTypeCast::type_cast_func_[t_boolean][t_string] = boolean_to_string;
   ExprTypeCast::type_cast_func_[t_boolean][t_date] = errormsg;
   ExprTypeCast::type_cast_func_[t_boolean][t_time] = errormsg;
   ExprTypeCast::type_cast_func_[t_boolean][t_datetime] = errormsg;
