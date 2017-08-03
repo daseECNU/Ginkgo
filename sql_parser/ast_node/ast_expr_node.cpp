@@ -295,6 +295,8 @@ RetCode AstExprUnary::GetLogicalPlan(ExprNode*& logic_expr,
 
   } else if (expr_type_ == "SUM") {
     oper = OperType::oper_agg_sum;
+  } else if (expr_type_ == "TO_CHAR"){
+	 oper = OperType::oper_to_char;
   }
   if (oper == OperType::oper_none) {
     LOG(ERROR) << "not support now!" << endl;
@@ -318,9 +320,15 @@ RetCode AstExprUnary::GetLogicalPlan(ExprNode*& logic_expr,
   }
   assert(NULL != child_logic_expr);
   if (oper_flag == 0) {
-    logic_expr = new ExprUnary(ExprNodeType::t_qexpr_unary,
+	  if (expr_type_== "TO_CHAR"){
+		  logic_expr = new ExprUnary(ExprNodeType::t_qexpr_unary,
+				  child_logic_expr->actual_type_,child_logic_expr->actual_type_,
+				  expr_str_, oper,child_logic_expr,expr_type_);
+	  }else{
+		  logic_expr = new ExprUnary(ExprNodeType::t_qexpr_unary,
                                child_logic_expr->actual_type_, expr_str_, oper,
                                child_logic_expr);
+	  }
     if (arg0_ != NULL && arg0_->ast_node_type_ == AST_DISTINCT_CLAUSE) {
       reinterpret_cast<ExprUnary*>(logic_expr)->is_distinct_ = 1;
       if (expr_type_ == "COUNT_ALL" || expr_type_ == "COUNT") {
