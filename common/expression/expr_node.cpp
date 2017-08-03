@@ -122,7 +122,7 @@ Attribute ExprNode::ExprNodeToAttr(const int id, const unsigned table_id) {
     	size=column->size;
     	break;
     case t_boolean:
-    	size=4;
+    	size=8;
     	break;
     case t_string:
     	size=column->size;

@@ -404,8 +404,8 @@ inline void *boolean_to_string(void *value, void *tovalue) {
   bool tvalue = *(bool*)value;
   stringstream va;
   va << tvalue;
-  strncpy((char *)tovalue, va.str().c_str(),4);
-  *((char *)tovalue + 3)='\0';
+  strncpy((char *)tovalue, va.str().c_str(),8);
+  *((char *)tovalue + 7)='\0';
   va.clear();
   return tovalue;
 }
@@ -426,7 +426,7 @@ inline void *decimal_to_boolean(void *value, void *tovalue) {
 inline void *decimal_to_string(void *value, void *tovalue) {
   Decimal tvalue = *(Decimal *)value;
   int precision = *(int*)tovalue;
-  int decimal_size=(precision/1000)+(precision%1000)+2;
+  int decimal_size=(precision/1000)+4;
   stringstream va;
   precision=precision%1000;
   va << tvalue.toString(precision);
