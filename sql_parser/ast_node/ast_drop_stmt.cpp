@@ -99,6 +99,8 @@ void AstDropTable::Print(int level) const {
   cout << setw(level * TAB_SIZE) << " "
        << "|Drop Table|" << endl;
   if (table_list_ != NULL) {
+    cout << setw(++level * TAB_SIZE) << " "
+         << "|Table List|" << endl;
     table_list_->Print(level);
   }
 }
@@ -111,9 +113,12 @@ AstDropTableList::AstDropTableList(AstNodeType ast_node_type, string db_name,
       next_(next) {}
 
 AstDropTableList::~AstDropTableList() { delete next_; }
+
 void AstDropTableList::Print(int level) const {
-  cout << setw(level * TAB_SIZE) << " "
-       << "|Drop Table List|" << endl;
+  cout << setw(level * TAB_SIZE) << " " << table_name_ << endl;
+  if (next_ != NULL) {
+    next_->Print(level);
+  }
 }
 RetCode AstDropTableList::SemanticAnalisys(SemanticContext* sem_cnxt) {
   RetCode ret = rSuccess;

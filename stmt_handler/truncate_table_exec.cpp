@@ -65,7 +65,6 @@ RetCode TruncateTableExec::Execute(ExecutedResult* exec_result) {
         "Semantic analysis error.\n" + sem_cnxt.error_msg_;
     exec_result->status_ = false;
     LOG(WARNING) << "semantic analysis error result= : " << ret;
-    cout << "semantic analysis error result= : " << ret << endl;
     return ret;
   }
   Catalog* local_catalog = Environment::getInstance()->getCatalog();
@@ -79,20 +78,21 @@ RetCode TruncateTableExec::Execute(ExecutedResult* exec_result) {
       // to make consistency, truncate the table_del first, and then the table
       if (DropTableExec::CheckBaseTbl(table_name)) {
         if (TruncateTable(table_name + "_DEL") == rSuccess) {
-          cout << table_name + "_DEL is truncated from this database!" << endl;
+          LOG(INFO) << table_name + "_DEL is truncated from this database!"
+                    << endl;
         } else {
-          cout << "execution failed for truncating " + table_name + "_DEL !"
-               << endl;
+          LOG(ERROR) << "execution failed for truncating " + table_name +
+                            "_DEL !" << endl;
         }
         if (TruncateTable(table_name) == rSuccess) {
-          cout << table_name + " is truncated from this database!" << endl;
+          LOG(INFO) << table_name + " is truncated from this database!" << endl;
         } else {
-          cout << "execution failed for truncating " + table_name + "_DEL !"
-               << endl;
+          LOG(ERROR) << "execution failed for truncating " + table_name +
+                            "_DEL !" << endl;
         }
       } else {  // truncate the table_del only
         ret = TruncateTable(table_name);
-        cout << table_name + " is truncated from this database!" << endl;
+        LOG(INFO) << table_name + " is truncated from this database!" << endl;
       }
     }
     if (ret == rSuccess) {

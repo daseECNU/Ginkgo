@@ -63,6 +63,11 @@ AstTruncateTable::~AstTruncateTable() {
 void AstTruncateTable::Print(int level) const {
   cout << setw(level * TAB_SIZE) << " "
        << "|Truncate Stmt|" << endl;
+  if (table_list_ != NULL) {
+    cout << setw(++level * TAB_SIZE) << " "
+         << "|Table List|" << endl;
+    table_list_->Print(level);
+  }
 }
 
 RetCode AstTruncateTable::SemanticAnalisys(SemanticContext* sem_cnxt) {

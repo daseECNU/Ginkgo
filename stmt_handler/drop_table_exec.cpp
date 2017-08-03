@@ -65,7 +65,6 @@ RetCode DropTableExec::Execute(ExecutedResult* exec_result) {
         "Semantic analysis error.\n" + sem_cnxt.error_msg_;
     exec_result->status_ = false;
     LOG(WARNING) << "semantic analysis error result= : " << ret;
-    cout << "semantic analysis error result= : " << ret << endl;
     return ret;
   }
   Catalog* local_catalog = Environment::getInstance()->getCatalog();
@@ -81,9 +80,10 @@ RetCode DropTableExec::Execute(ExecutedResult* exec_result) {
       if (CheckBaseTbl(table_name)) {  // drop the base table
         ret = DropTable(table_name + "_DEL");
         if (ret == rSuccess) {
-          cout << table_name + "_DEL is dropped from this database!" << endl;
+          LOG(INFO) << table_name + "_DEL is dropped from this database!"
+                    << endl;
           ret = DropTable(table_name);
-          cout << table_name + " is dropped from this database!" << endl;
+          LOG(INFO) << table_name + " is dropped from this database!" << endl;
         } else {
           DropTable(table_name + "_DEL");
           DropTable(table_name);
@@ -94,7 +94,7 @@ RetCode DropTableExec::Execute(ExecutedResult* exec_result) {
         // todo (miqni 2016.1.28) to delete the del table from memory
         // delete table from memory(_pool)
         DeleteTableFromMemory(table_name);
-        cout << table_name + " is dropped from this database!" << endl;
+        LOG(INFO) << table_name + " is dropped from this database!" << endl;
       }
 
       if (ret == rSuccess) {
