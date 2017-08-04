@@ -270,6 +270,8 @@ class Partitioner {
 
   unsigned getPartitionChunks(unsigned partition_index) const;
 
+  bool isEmpty();
+
   NodeID getPartitionLocation(unsigned partition_offset) const;
   void print();
 

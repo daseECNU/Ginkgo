@@ -131,6 +131,15 @@ void Partitioner::initPartitionData(unsigned partition_key,
   partition_info_list[partition_key]->number_of_tuples_ = 0;
 }
 
+bool Partitioner::isEmpty() {
+  for (auto i : partition_info_list) {
+    if (i->number_of_blocks != 0 || i->number_of_tuples_ != 0) {
+      return false;
+    }
+  }
+  return true;
+}
+
 void Partitioner::print() {
   //  hashmap<PartitionID,NodeID>::iterator it=partitionid_to_nodeid_.begin();
   //  while(it!=partitionid_to_nodeid_.end()){
