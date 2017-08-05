@@ -110,6 +110,24 @@ class AstDropTableList : public AstNode {
 
  private:
 };
+
+/**
+ * @brief The AST of drop projection statement.
+ * @author zyhe
+ */
+class AstDropProjection : public AstNode {
+ public:
+  AstDropProjection(AstNodeType ast_node_type, string table_name, bool is_all,
+                    int projection_id);
+  ~AstDropProjection();
+  void Print(int level = 0) const;
+  AstNodeType ast_node_type_;
+  string table_name_;
+  bool is_all_;
+  int projection_id_;
+  RetCode SemanticAnalisys(SemanticContext* sem_cnxt);
+};
+
 //}  // namespace sql_parser
 //}  // namespace claims
 

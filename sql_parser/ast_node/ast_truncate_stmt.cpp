@@ -48,8 +48,12 @@ using std::bitset;
 // namespace claims {
 // namespace sql_parser {
 AstTruncateTable::AstTruncateTable(AstNodeType ast_node_type,
-                                   AstNode* table_list)
-    : AstNode(ast_node_type), table_list_(table_list) {
+                                   AstNode* table_list, string table_name,
+                                   int projection_id)
+    : AstNode(ast_node_type),
+      table_list_(table_list),
+      table_name_(table_name),
+      projection_id_(projection_id) {
   //  cout << "Generate AstTruncateTableStmt" << endl;
 }
 
@@ -67,20 +71,60 @@ void AstTruncateTable::Print(int level) const {
     cout << setw(++level * TAB_SIZE) << " "
          << "|Table List|" << endl;
     table_list_->Print(level);
+  } else {
+    cout << setw(++level * TAB_SIZE) << " "
+         << "|Table|: " << table_name_ << endl;
+    cout << setw(++level * TAB_SIZE) << " "
+         << "|Projection|: " << projection_id_ << endl;
   }
 }
 
 RetCode AstTruncateTable::SemanticAnalisys(SemanticContext* sem_cnxt) {
   RetCode ret = rSuccess;
-
-  if (NULL != table_list_) {
-    ret = table_list_->SemanticAnalisys(sem_cnxt);
+  if (table_name_.empty()) {
+    if (NULL != table_list_) {
+      ret = table_list_->SemanticAnalisys(sem_cnxt);
+    } else {
+      LOG(ERROR) << "No table found or invalid table name.";
+      sem_cnxt->error_msg_ = "No table found or invalid table name.";
+      ret = rNoTalbeFound;
+    }
+    return ret;
   } else {
-    LOG(ERROR) << "No table found or invalid table name.";
-    sem_cnxt->error_msg_ = "No table found or invalid table name.";
-    ret = rNoTalbeFound;
+    bool proj_match = false;
+    Catalog* local_catalog = Environment::getInstance()->getCatalog();
+    TableDescriptor* table_desc = local_catalog->getTable(table_name_);
+    if ("" == table_name_) {
+      LOG(ERROR)
+          << "No table name or invalid name during truncating projection!";
+      sem_cnxt->error_msg_ =
+          "No table name or invalid name during truncating projection!";
+      ret = rTableillegal;
+      return ret;
+    }
+    if (NULL == table_desc) {
+      LOG(ERROR) << "Table [" + table_name_ + "] is not exist!";
+      sem_cnxt->error_msg_ = "Table [" + table_name_ + "] is not exist!";
+      ret = rTableNotExisted;
+      return ret;
+    }
+    vector<ProjectionDescriptor*>* projection_list =
+        table_desc->GetProjectionList();
+    for (auto projection : *projection_list) {
+      Partitioner* partitioner = projection->getPartitioner();
+      if (projection_id_ == partitioner->getProejctionID().projection_off) {
+        proj_match = true;
+      }
+    }
+    if (proj_match == false) {
+      LOG(ERROR) << "Projection [" << projection_id_ << "] is not exist!";
+      string error = "Projection" + projection_id_;
+      error += " is not exist!";
+      sem_cnxt->error_msg_ = error;
+      ret = rNoProjection;
+      return ret;
+    }
   }
-  return ret;
 }
 //}  // namespace sql_parser
 //}  // namespace claims

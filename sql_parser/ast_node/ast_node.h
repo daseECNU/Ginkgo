@@ -123,8 +123,10 @@ enum AstNodeType {
   AST_DESC_STMT,
   AST_UPDATE_STMT,
   AST_UPDATE_SET_LIST,
+  AST_DROP_PROJECTION,
+  AST_DROP_PROJ_LIST,
   AST_TRUNCATE_TABLE
-  
+
 };
 // the order should be keep
 enum SubExprType {

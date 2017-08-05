@@ -142,5 +142,110 @@ RetCode AstDropTableList::SemanticAnalisys(SemanticContext* sem_cnxt) {
   }
   return ret;
 }
+
+AstDropProjection::AstDropProjection(AstNodeType ast_node_type,
+                                     string table_name, bool is_all,
+                                     int projection_id)
+    : AstNode(ast_node_type),
+      table_name_(table_name),
+      is_all_(is_all),
+      projection_id_(projection_id) {}
+
+AstDropProjection::~AstDropProjection() {}
+
+RetCode AstDropProjection::SemanticAnalisys(SemanticContext* sem_cnxt) {
+  RetCode ret = rSuccess;
+  bool proj_match = false;
+  Catalog* local_catalog = Environment::getInstance()->getCatalog();
+  TableDescriptor* table_desc = local_catalog->getTable(table_name_);
+  if ("" == table_name_) {
+    LOG(ERROR) << "No table name or invalid name during dropping projection!";
+    sem_cnxt->error_msg_ =
+        "No table name or invalid name during dropping projection!";
+    ret = rTableillegal;
+    return ret;
+  }
+  if (NULL == table_desc) {
+    LOG(ERROR) << "Table [" + table_name_ + "] is not exist!";
+    sem_cnxt->error_msg_ = "Table [" + table_name_ + "] is not exist!";
+    ret = rTableNotExisted;
+    return ret;
+  }
+
+  if (is_all_ == false) {
+    vector<ProjectionDescriptor*>* projection_list =
+        table_desc->GetProjectionList();
+    for (auto projection : *projection_list) {
+      Partitioner* partitioner = projection->getPartitioner();
+      if (projection_id_ == partitioner->getProejctionID().projection_off) {
+        proj_match = true;
+      }
+    }
+    if (proj_match == false) {
+      LOG(ERROR) << "Projection [" << projection_id_ << "] is not exist!";
+      string error = "Projection" + projection_id_;
+      error += " is not exist!";
+      sem_cnxt->error_msg_ = error;
+      ret = rNoProjection;
+      return ret;
+    }
+  }
+  return ret;
+}
+
+void AstDropProjection::Print(int level) const {
+  cout << setw(level * TAB_SIZE) << " "
+       << "|Table Name| : " << table_name_ << endl;
+  if (is_all_ == true) {
+    cout << setw(++level * TAB_SIZE) << " "
+         << "|Drop All Projection|" << endl;
+  } else {
+    cout << setw(++level * TAB_SIZE) << " "
+         << "|Drop Projection| : " << projection_id_ << endl;
+  }
+}
+
+// RetCode AstDropProjList::SemanticAnalisys(SemanticContext* sem_cnxt) {
+//  RetCode ret = rSuccess;
+//  bool proj_match = false;
+//  Catalog* local_catalog = Environment::getInstance()->getCatalog();
+//  TableDescriptor* table_desc = local_catalog->getTable(table_name_);
+//  if ("" == table_name_) {
+//    LOG(ERROR) << "No table name or invalid name during dropping projection!";
+//    sem_cnxt->error_msg_ =
+//        "No table name or invalid name during dropping projection!";
+//    ret = rTableillegal;
+//    return ret;
+//  }
+//  if (NULL == table_desc) {
+//    LOG(ERROR) << "Table [" + table_name_ + "] is not exist!";
+//    sem_cnxt->error_msg_ = "Table [" + table_name_ + "] is not exist!";
+//    ret = rTableNotExisted;
+//    return ret;
+//  }
+//
+//  if (is_all_ == false) {
+//    vector<ProjectionDescriptor*>* projection_list =
+//        table_desc->GetProjectionList();
+//    for (auto projection : *projection_list) {
+//      Partitioner* partitioner = projection->getPartitioner();
+//      if (projection_id_ == partitioner->getProejctionID().projection_off) {
+//        proj_match = true;
+//      }
+//    }
+//    if (proj_match == false) {
+//      LOG(ERROR) << "Projection [" << projection_id_ << "] is not exist!";
+//      string error = "Projection" + projection_id_;
+//      error += " is not exist!";
+//      sem_cnxt->error_msg_ = error;
+//      ret = rNoProjection;
+//      return ret;
+//    }
+//  }
+//  if (NULL != next_) {
+//    ret = next_->SemanticAnalisys(sem_cnxt);
+//  }
+//  return ret;
+//}
 //}  // namespace sql_parser
 //}  // namespace claims

@@ -38,11 +38,14 @@ using std::string;
 
 class AstTruncateTable : public AstNode {
  public:
-  AstTruncateTable(AstNodeType ast_node_type, AstNode* table_list_);
+  AstTruncateTable(AstNodeType ast_node_type, AstNode* table_list_,
+                   string table_name, int projection_id);
   ~AstTruncateTable();
   void Print(int level = 0) const;
   AstNodeType ast_node_type_;
   AstNode* table_list_;
+  string table_name_;
+  int projection_id_;
   RetCode SemanticAnalisys(SemanticContext* sem_cnxt);
 };
 //}  // namespace sql_parser
