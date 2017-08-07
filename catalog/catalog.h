@@ -107,7 +107,13 @@ class Catalog {
                                          const std::string& attribute_name);
 
   bool DropTable(const std::string table_name, const TableID id);
+
+  // added by zyhe
+  bool DropAllProjection(const std::string table_name);
+  bool DropOneProjection(const std::string table_name, const int projection_id);
   RetCode TruncateTable(const std::string table_name);
+  RetCode TruncateProjection(const std::string table_name,
+                             const int projection_id);
 
  private:
   Catalog();  // avoiding generate more instance

@@ -22,6 +22,10 @@
  *      Author: yuyang
  *		   Email: youngfish93@hotmail.com
  *
+ * 	Modified on : Aug 6, 2017
+ *      Author: zyhe
+ *       Email: hzylab@gmail.com
+ *
  * Description:
  *
  */
@@ -92,8 +96,8 @@ RetCode DropTableExec::Execute(ExecutedResult* exec_result) {
                 // does not need to be removed
         ret = DeleteTableFiles(table_name);
         // todo (miqni 2016.1.28) to delete the del table from memory
-        // delete table from memory(_pool)
-        DeleteTableFromMemory(table_name);
+        // free table from memory(_pool)
+        FreeTableFromMemory(table_name);
         LOG(INFO) << table_name + " is dropped from this database!" << endl;
       }
 
@@ -155,14 +159,11 @@ RetCode DropTableExec::DropTable(const string& table_name) {
     return ret;
   }
   // start to drop table
-  // you need to delete the file first, and then drop the information in the
-  // catalog
+  // you need to delete the file first. and then unbind the partition in slave
+  // node. in the end, drop the information in the catalog
   ret = DeleteTableFiles(table_name);
-  if (DeleteTableFromMemory(table_name)) {
-    if (rSuccess != ret) {
-      ELOG(ret, "failed to delete the files when dropping table " + table_name);
-      return ret;
-    } else {
+  if (ret == rSuccess) {
+    if (FreeTableFromMemory(table_name)) {
       ret = DropTableFromCatalog(table_name);
       if (ret != rSuccess) {
         ELOG(ret,
@@ -171,8 +172,13 @@ RetCode DropTableExec::DropTable(const string& table_name) {
                  table_name);
         return ret;
       }
+    } else {
+      ELOG(ret, "failed to delete the table from memory when dropping table " +
+                    table_name);
+      return rFailure;
     }
   } else {
+    ELOG(ret, "failed to delete the file when dropping table " + table_name);
     return rFailure;
   }
 }
@@ -199,27 +205,50 @@ RetCode DropTableExec::DropTableFromCatalog(const string& table_name) {
 static RetCode DropTableExec::DeleteTableFiles(const string& table_name) {
   RetCode ret = rSuccess;
   // start to delete the files
+  TableDescriptor* table =
+      Environment::getInstance()->getCatalog()->getTable(table_name);
   TableFileConnector* connector = new TableFileConnector(
       Config::local_disk_mode ? FilePlatform::kDisk : FilePlatform::kHdfs,
-      Environment::getInstance()->getCatalog()->getTable(table_name),
-      common::kReadFile);
+      table, common::kReadFile);
   EXEC_AND_RETURN_ERROR(
       ret, connector->DeleteAllTableFiles(),
       "failed to delete the projections, when delete the file on table " +
           table_name);
+  return ret;
+}
 
+/**
+ * delete one projection of the table files from the stroage
+ * @param table_name, projection_id
+ * @author zyhe
+ * @return
+ */
+static RetCode DropTableExec::DeleteProjectionFiles(const string& table_name,
+                                                    const string& proj_id) {
+  RetCode ret = rSuccess;
+  // start to delete the files
+  cout << "DeleteProjectionFiles:" << table_name << endl;
+  TableDescriptor* table =
+      Environment::getInstance()->getCatalog()->getTable(table_name);
+  TableFileConnector* connector = new TableFileConnector(
+      Config::local_disk_mode ? FilePlatform::kDisk : FilePlatform::kHdfs,
+      table, common::kReadFile);
+  EXEC_AND_RETURN_ERROR(ret, connector->DeleteOneProjectionFiles(proj_id),
+                        "failed to delete the projection " + proj_id +
+                            " when delete the file on table " + table_name);
   return ret;
 }
 
 /**
  * @brief call the UnbindingEntireProjection() function to free the memory in
- * the memory pool. The memory doesn't return to the operating system
- * directly. But apply the memory next time will use the memory pool first.
+ * the memory pool. The memory return to the memory pool rather than return to
+ * the operating system directly. It causes when you apply the memory next
+ * time thread will use the memory pool first.
  * @param table_name
  * @author zyhe
  * @return
  */
-bool DropTableExec::DeleteTableFromMemory(const string& table_name) {
+static bool DropTableExec::FreeTableFromMemory(const string& table_name) {
   if (table_name != "") {
     Catalog* local_catalog = Environment::getInstance()->getCatalog();
     TableDescriptor* table_desc = local_catalog->getTable(table_name);
@@ -251,5 +280,42 @@ bool DropTableExec::DeleteTableFromMemory(const string& table_name) {
   return true;
 }
 
+/**
+ * @brief unlike FreeTableFromMemory(), this function just frees one projection
+ * of the table
+ * @param table_name
+ * @author zyhe
+ * @return
+ */
+static bool DropTableExec::FreeProjectionFromMemory(const string& table_name,
+                                                    const int& proj_id) {
+  cout << "FreeProjectionFromMemory1:" << table_name << endl;
+  Catalog* local_catalog = Environment::getInstance()->getCatalog();
+  TableDescriptor* table_desc = local_catalog->getTable(table_name);
+  if (table_desc != NULL) {
+    vector<ProjectionDescriptor*>* projection_list =
+        table_desc->GetProjectionList();
+    if (projection_list != NULL) {
+      for (auto projection : *projection_list) {
+        Partitioner* partitioner = projection->getPartitioner();
+        if (proj_id == partitioner->getProejctionID().projection_off) {
+          bool res = Catalog::getInstance()
+                         ->getBindingModele()
+                         ->UnbindingEntireProjection(partitioner);
+          if (res) {
+            LOG(INFO) << "unbind entire projection " << proj_id << " in table "
+                      << table_desc->getTableName() << std::endl;
+          } else {
+            LOG(ERROR) << "failed to unbind entire projection " << proj_id
+                       << " in table " << table_desc->getTableName()
+                       << std::endl;
+            return false;
+          }
+        }
+      }
+    }
+  }
+  return true;
+}
 } /* namespace stmt_handler */
 } /* namespace claims */

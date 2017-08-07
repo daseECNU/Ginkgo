@@ -22,6 +22,10 @@
  *      Author: yuyang
  *		   Email: youngfish93@hotmail.com
  *
+ *	Modified on : Aug 6, 2017
+ *      Author: zyhe
+ *       Email: hzylab@gmail.com
+ *
  * Description:
  *
  */
@@ -41,6 +45,7 @@ class DropTableExec : public StmtExec {
  public:
   DropTableExec(AstNode* stmt);  // NOLINT
   virtual ~DropTableExec();
+  friend class DropProjExec;
   friend class TruncateTableExec;
   RetCode Execute(ExecutedResult* exec_result);
 
@@ -75,14 +80,34 @@ class DropTableExec : public StmtExec {
   static RetCode DeleteTableFiles(const string& table_name);
 
   /**
+   * delete one projection of the table files from the stroage
+   * @param table_name, projection_id
+   * @author zyhe
+   * @return
+   */
+  static RetCode DeleteProjectionFiles(const string& table_name,
+                                       const string& proj_id);
+
+  /**
    * @brief call the UnbindingEntireProjection() function to free the memory in
-   * the memory pool. The memory doesn't return to the operating system
-   * directly. But apply the memory next time will use the memory pool first.
+   * the memory pool. The memory return to the memory pool rather than return to
+   * the operating system directly. It causes when you apply the memory next
+   * time thread will use the memory pool first.
    * @param table_name
    * @author zyhe
    * @return
    */
-  bool DeleteTableFromMemory(const string& table_name);
+  static bool FreeTableFromMemory(const string& table_name);
+
+  /**
+   * @brief unlike FreeTableFromMemory(), this function frees one projection of
+   * the table
+   * @param table_name
+   * @author zyhe
+   * @return
+   */
+  static bool FreeProjectionFromMemory(const string& table_name,
+                                       const int& proj_id);
 
  private:
   AstDropTable* drop_table_ast_;

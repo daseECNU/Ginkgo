@@ -16,9 +16,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * /CLAIMS/stmt_handler/truncate_table_exec.h
+ * /CLAIMS/stmt_handler/drop_proj_exec.h
  *
- *  Created on: Jun 13, 2017
+ *  Created on: Aug 6, 2017
  *      Author: zyhe
  *       Email: hzylab@gmail.com
  *
@@ -26,55 +26,40 @@
  *
  */
 
-#ifndef STMT_HANDLER_TRUNCATE_TABLE_EXEC_H_
-#define STMT_HANDLER_TRUNCATE_TABLE_EXEC_H_
+#ifndef STMT_HANDLER_DROP_PROJ_EXEC_H_
+#define STMT_HANDLER_DROP_PROJ_EXEC_H_
 
 #include <string>
 #include "../stmt_handler/stmt_exec.h"
-#include "../sql_parser/ast_node/ast_truncate_stmt.h"
+#include "../sql_parser/ast_node/ast_drop_stmt.h"
 #include "../stmt_handler/drop_table_exec.h"
 
 namespace claims {
 namespace stmt_handler {
-/**
- * @brief
- */
-class TruncateTableExec : public StmtExec {
+
+class DropProjExec : public StmtExec {
  public:
-  TruncateTableExec(AstNode* stmt);  // NOLINT
-  virtual ~TruncateTableExec();
+  DropProjExec(AstNode* stmt);  // NOLINT
+  virtual ~DropProjExec();
+  friend class TruncateTableExec;
 
   RetCode Execute(ExecutedResult* exec_result);
 
  private:
-  /**
-   * @brief
-   * truncate all projections of the table from the catalog and delete the
-   * associated files in the disk or in the hdfs
-   * @param table_name
-   * @return
-   */
-  RetCode TruncateTable(const string& table_name);
+  RetCode DropAllProj(const string& table_name);
 
-  /**
-   * @brief
-   * delete the data information of table in catalog and unbind the
-   * projection bound to Slave Node
-   * @param table_name
-   * @return
-   */
-  RetCode TruncateTableFromCatalog(const string& table_name);
+  RetCode DropAllProjFromCatalog(const string& table_name);
 
-  RetCode TruncateProjection(const string& table_name, const int& proj_id);
+  RetCode DropOneProj(const string& table_name, const int& projection_id);
 
-  RetCode TruncateProjectionFromCatalog(const string& table_name,
-                                        const int& proj_id);
+  RetCode DropOneProjFromCatalog(const string& table_name,
+                                 const int& projection_id);
 
  private:
-  AstTruncateTable* truncate_table_ast_;
+  AstDropProjection* drop_proj_ast_;
 };
 
 } /* namespace stmt_handler */
 } /* namespace claims */
 
-#endif /* STMT_HANDLER_TRUNCATE_TABLE_EXEC_H_ */
+#endif /* STMT_HANDLER_DROP_PROJ_EXEC_H_ */

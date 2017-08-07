@@ -70,6 +70,8 @@ RetCode TruncateTableExec::Execute(ExecutedResult* exec_result) {
   Catalog* local_catalog = Environment::getInstance()->getCatalog();
   AstDropTableList* table_list =
       dynamic_cast<AstDropTableList*>(truncate_table_ast_->table_list_);
+
+  // truncate all projections of the table;
   while (NULL != table_list) {
     string table_name = table_list->table_name_;
     if (table_name != "") {  // if the table_name is null, then
@@ -96,14 +98,58 @@ RetCode TruncateTableExec::Execute(ExecutedResult* exec_result) {
       }
     }
     if (ret == rSuccess) {
-      exec_result->info_ = "truncated table successfully!";
+      exec_result->info_ =
+          "truncated all projections of the table successfully!";
     } else {
-      exec_result->error_info_ = "truncated table [" + table_name + "] failed.";
+      exec_result->error_info_ =
+          "truncated all projections of the table [" + table_name + "] failed.";
       exec_result->status_ = false;
       exec_result->result_ = NULL;
       return ret;
     }
     table_list = dynamic_cast<AstDropTableList*>(table_list->next_);
+  }
+
+  // truncate particular projection of the table;
+  string table_name = truncate_table_ast_->table_name_;
+  int projection_id = truncate_table_ast_->projection_id_;
+  if (table_name != "" && projection_id != "") {
+    string proj_id = std::to_string(projection_id);
+    if (DropTableExec::CheckBaseTbl(table_name)) {
+      ret = TruncateProjection(table_name + "_DEL", projection_id);
+      cout << "string proj_id:" << proj_id << endl;
+      if (ret == rSuccess) {
+        LOG(INFO) << "the projection " + proj_id + " of " + table_name +
+                         "_DEL is truncated from this database!" << endl;
+      } else {
+        LOG(ERROR) << "execution failed for truncating the projection " +
+                          proj_id + " of " + table_name + "_DEL !" << endl;
+      }
+      ret = TruncateProjection(table_name, projection_id);
+      if (ret == rSuccess) {
+        LOG(INFO) << "the projection " + proj_id + " of " + table_name +
+                         " is truncated from this database!" << endl;
+      } else {
+        LOG(ERROR) << "execution failed for truncating the projection " +
+                          proj_id + " of " + table_name + "!" << endl;
+      }
+    } else {
+      LOG(ERROR)
+          << table_name +
+                 " is DEL table! This operator is only aimed at base table!"
+          << endl;
+      ret = rFailure;
+    }
+    if (ret == rSuccess) {
+      exec_result->info_ = "truncated the projection " + proj_id +
+                           " of the table " + table_name + " successfully!";
+    } else {
+      exec_result->error_info_ = "truncated the projection " + proj_id +
+                                 " of the table[" + table_name + "] failed.";
+      exec_result->status_ = false;
+      exec_result->result_ = NULL;
+      return ret;
+    }
   }
   local_catalog->saveCatalog();
   exec_result->status_ = true;
@@ -113,9 +159,8 @@ RetCode TruncateTableExec::Execute(ExecutedResult* exec_result) {
 
 /**
  * @brief
- * truncate the table based on the provided table name,
- * this operator will truncate the table in the catalog as well as the table
- * file on the disk or hdfs
+ * truncate all projections of the table from the catalog and delete the
+ * associated files in the disk or in the hdfs
  * @param table_name
  * @return
  */
@@ -143,8 +188,8 @@ RetCode TruncateTableExec::TruncateTable(const string& table_name) {
 
 /**
  * @brief
- * delete the data information of table in catalog and unbind the projection
- * bound to Slave Node
+ * delete the data information of table in catalog and unbind the
+ * projection bound to Slave Node
  * @param table_name
  * @return
  */
@@ -153,6 +198,40 @@ RetCode TruncateTableExec::TruncateTableFromCatalog(const string& table_name) {
   Catalog* local_catalog = Environment::getInstance()->getCatalog();
   TableDescriptor* table_desc = local_catalog->getTable(table_name);
   ret = local_catalog->TruncateTable(table_name);
+  return ret;
+}
+
+RetCode TruncateTableExec::TruncateProjection(const string& table_name,
+                                              const int& projection_id) {
+  RetCode ret = rSuccess;
+  Catalog* local_catalog = Environment::getInstance()->getCatalog();
+  // start to truncate projection
+  // delete the files first, and then truncate the relative information in the
+  // catalog
+  string proj_id = std::to_string(projection_id);
+  ret = DropTableExec::DeleteProjectionFiles(table_name, proj_id);
+  if (rSuccess != ret) {
+    ELOG(ret, "failed to delete the files when truncating table " + table_name);
+    return ret;
+  } else {
+    ret = TruncateProjectionFromCatalog(table_name, projection_id);
+    if (ret != rSuccess) {
+      ELOG(ret,
+           "failed to truncate the table from the catalog, while its files "
+           "have been deleted, when truncating table" +
+               table_name);
+      return ret;
+    }
+  }
+  return ret;
+}
+
+RetCode TruncateTableExec::TruncateProjectionFromCatalog(
+    const string& table_name, const int& proj_id) {
+  RetCode ret = rSuccess;
+  Catalog* local_catalog = Environment::getInstance()->getCatalog();
+  TableDescriptor* table_desc = local_catalog->getTable(table_name);
+  ret = local_catalog->TruncateProjection(table_name, proj_id);
   return ret;
 }
 

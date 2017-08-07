@@ -280,6 +280,38 @@ RetCode TableFileConnector::DeleteAllTableFiles() {
   return ret;
 }
 
+RetCode TableFileConnector::DeleteOneProjectionFiles(string proj_id) {
+  RetCode ret = rSuccess;
+  if (0 != ref_) {
+    EXEC_AND_RETURN_ERROR(ret, common::rFileInUsing, "now reference is "
+                                                         << ref_);
+  }
+  LockGuard<Lock> guard(open_close_lock_);
+  // must double-check in case of deleting a file in using
+  if (0 == ref_ && is_closed) {
+    for (auto prj_files : file_handles_) {
+      for (auto file : prj_files) {
+        RetCode subret = rSuccess;
+        string file_name = file->get_file_name();
+        auto pos = file_name.rfind("G");
+        if (proj_id == file_name.substr(++pos, 1)) {
+          EXEC_AND_ONLY_LOG_ERROR(subret, file->DeleteFile(),
+                                  "failed to delete file "
+                                      << file->get_file_name());
+        }
+        if (rSuccess != subret) ret = subret;
+      }
+    }
+    if (rSuccess == ret) {
+      LOG(INFO) << "deleted all files of projection " + proj_id << std::endl;
+    }
+  } else {
+    ret = common::rFileInUsing;
+    EXEC_AND_RETURN_ERROR(ret, ret, "now reference is " << ref_);
+  }
+  return ret;
+}
+
 RetCode TableFileConnector::UpdateWithNewProj() {
   int proj_index = table_->projection_list_.size() - 1;
   vector<string> prj_write_path;

@@ -175,17 +175,15 @@ RetCode AstDropProjection::SemanticAnalisys(SemanticContext* sem_cnxt) {
   if (is_all_ == false) {
     vector<ProjectionDescriptor*>* projection_list =
         table_desc->GetProjectionList();
+    string proj_id = std::to_string(projection_id_);
     for (auto projection : *projection_list) {
-      Partitioner* partitioner = projection->getPartitioner();
-      if (projection_id_ == partitioner->getProejctionID().projection_off) {
+      if (projection_id_ == projection->getProjectionID().projection_off) {
         proj_match = true;
       }
     }
     if (proj_match == false) {
-      LOG(ERROR) << "Projection [" << projection_id_ << "] is not exist!";
-      string error = "Projection" + projection_id_;
-      error += " is not exist!";
-      sem_cnxt->error_msg_ = error;
+      LOG(ERROR) << "Projection [" + proj_id + "] is not exist!";
+      sem_cnxt->error_msg_ = "Projection [" + proj_id + "] is not exist!";
       ret = rNoProjection;
       return ret;
     }

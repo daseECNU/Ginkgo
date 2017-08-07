@@ -111,8 +111,7 @@ RetCode AstTruncateTable::SemanticAnalisys(SemanticContext* sem_cnxt) {
     vector<ProjectionDescriptor*>* projection_list =
         table_desc->GetProjectionList();
     for (auto projection : *projection_list) {
-      Partitioner* partitioner = projection->getPartitioner();
-      if (projection_id_ == partitioner->getProejctionID().projection_off) {
+      if (projection_id_ == projection->getProjectionID().projection_off) {
         proj_match = true;
       }
     }
@@ -122,6 +121,8 @@ RetCode AstTruncateTable::SemanticAnalisys(SemanticContext* sem_cnxt) {
       error += " is not exist!";
       sem_cnxt->error_msg_ = error;
       ret = rNoProjection;
+      return ret;
+    } else {
       return ret;
     }
   }

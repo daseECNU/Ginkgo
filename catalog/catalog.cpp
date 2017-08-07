@@ -328,6 +328,53 @@ bool Catalog::DropTable(const std::string table_name, const TableID id) {
   return isdropped;
 }
 
+bool Catalog::DropAllProjection(const std::string table_name) {
+  TableDescriptor* table_desc = getTable(table_name);
+  table_desc->GetProjectionList()->clear();
+
+  if (table_desc->GetProjectionList()->empty()) {
+    table_desc->InitTableData();
+    return true;
+  } else {
+    return false;
+  }
+}
+
+bool Catalog::DropOneProjection(const std::string table_name,
+                                const int projection_id) {
+  bool flag = false;
+  TableDescriptor* table_desc = getTable(table_name);
+  vector<ProjectionDescriptor*>* projection_list =
+      table_desc->GetProjectionList();
+  //  auto beg = projection_list->begin();
+  //  auto end = projection_list->end();
+  //  while (beg != end) {
+  //    ProjectionID projection_id_ = *(*beg)->getProjectionID();
+  //    if (projection_id == projection_id_.projection_off) {
+  //      projection_list->erase(beg);
+  //      delete *beg;
+  //    }
+  //    ++beg;
+  //  }
+  int num = 0;
+  auto beg = projection_list->begin();
+  for (auto projection : *projection_list) {
+    if (projection_id == projection->getProjectionID().projection_off) {
+      flag = true;
+      break;
+    } else {
+      ++num;
+    }
+  }
+  if (flag) {
+    delete *(beg + num);
+    projection_list->erase(beg + num);
+    return true;
+  } else {
+    return false;
+  }
+}
+
 // init the data information of table in catalog and unbind the partition with
 // slave node.
 RetCode Catalog::TruncateTable(const std::string table_name) {
@@ -342,6 +389,31 @@ RetCode Catalog::TruncateTable(const std::string table_name) {
         getBindingModele()->UnbindingEntireProjection(partitioner);
         for (unsigned i = 0; i < partitioner->getNumberOfPartitions(); i++) {
           partitioner->initPartitionData(i, 0, 0);
+        }
+      }
+    }
+  } else {
+    return rFailure;
+  }
+  table_desc->InitTableData();
+  return rSuccess;
+}
+
+RetCode Catalog::TruncateProjection(const std::string table_name,
+                                    const int projection_id) {
+  TableDescriptor* table_desc = NULL;
+  table_desc = getTable(table_name);
+  if (table_desc != NULL) {
+    vector<ProjectionDescriptor*>* projection_list =
+        table_desc->GetProjectionList();
+    if (projection_list != NULL) {
+      for (auto projection : *projection_list) {
+        Partitioner* partitioner = projection->getPartitioner();
+        if (projection_id == partitioner->getProejctionID().projection_off) {
+          getBindingModele()->UnbindingEntireProjection(partitioner);
+          for (unsigned i = 0; i < partitioner->getNumberOfPartitions(); i++) {
+            partitioner->initPartitionData(i, 0, 0);
+          }
         }
       }
     }
