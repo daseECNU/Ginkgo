@@ -1,0 +1,2 @@
+insert into a(a) select a from b;
+exit;

@@ -1,0 +1,5 @@
+drop table test_ac;
+
+select * into test_ac number =1 partitioned on row_id from test_sel;
+
+exit;
