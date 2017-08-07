@@ -430,6 +430,19 @@ int JobExpanderTracker::DecideSchedule(LocalStage& current_stage,
         // see how many thread to be shrunk, if enough, keep, else, shrink
       }
     }
+  } else {
+    if (cur_thread_num > 1 &&
+        pivot_cur_thread_num_ > Config::total_thread_num) {
+      ret = DECISION_SHRINK;
+    }
+    // guarantee at least 1 thread for pivot task
+    if (ret == DECISION_SHRINK) {
+      if (cur_thread_num == 1) {
+        ret = DECISION_KEEP;
+      } else if (cur_thread_num < 1) {
+        ret = DECISION_EXPAND;
+      }
+    }
   }
   return ret;
 }

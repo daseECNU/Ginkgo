@@ -1,3 +1,4 @@
+
 /*
  * Copyright [2012-2015] DaSE@ECNU
  *
@@ -129,7 +130,7 @@ bool ExchangeMerger::Open(SegmentExecStatus* const exec_status,
     }
     // buffer all deserialized blocks come from every socket
     all_merged_block_buffer_ = new BlockStreamBuffer(
-        state_.block_size_, kBufferSizeInExchange, state_.schema_);
+        state_.block_size_, Config::expander_buffer_size, state_.schema_);
 
     RETURN_IF_CANCELLED(exec_status);
 
@@ -227,7 +228,11 @@ bool ExchangeMerger::Next(SegmentExecStatus* const exec_status,
           << pthread_self() << ">>>>>>>>" << endl;
       return false;
     }
-
+#ifdef PRINT_USAGE_OF_NETWORK
+    LOG_EVERY_N(ERROR, 100)
+        << "exchange_id = " << state_.exchange_id_
+        << " buffer_usage = " << all_merged_block_buffer_->getBufferUsage();
+#endif
     if (sem_new_block_or_eof_.timed_wait(1)) {
       if (all_merged_block_buffer_->getBlock(*block)) {
         perf_info_->processed_one_block();

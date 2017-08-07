@@ -85,8 +85,8 @@ bool Expander::Open(SegmentExecStatus* const exec_status,
   finished_thread_count_ = 0;
   block_stream_buffer_ = new BlockStreamBuffer(
       state_.block_size_,
-      state_.block_count_in_buffer_ * Config::expander_buffer_size,
-      state_.schema_);
+      //      state_.block_count_in_buffer_ * Config::expander_buffer_size,
+      Config::expander_buffer_size, state_.schema_);
   in_work_expanded_thread_list_.clear();
   RETURN_IF_CANCELLED(exec_status);
   // should before the register, otherwise, it will core dump due to the unknown
@@ -128,7 +128,11 @@ bool Expander::Next(SegmentExecStatus* const exec_status,
 
   while (!block_stream_buffer_->getBlock(*block)) {
     RETURN_IF_CANCELLED(exec_status);
-
+#ifdef PRINT_USAGE_OF_NETWORK
+    LOG_EVERY_N(ERROR, 10) << "expande_id = " << expander_id_
+                           << " buffer_usage = "
+                           << block_stream_buffer_->getBufferUsage();
+#endif
     if (ChildExhausted()) {
       return false;
     } else {
