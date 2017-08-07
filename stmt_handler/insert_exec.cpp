@@ -28,7 +28,11 @@
  */
 
 #include <assert.h>
+#include <string>
+#include <set>
+#include <vector>
 #include "../stmt_handler/insert_exec.h"
+#include "../stmt_handler/select_exec.h"
 
 #include "../catalog/table.h"
 #include "../catalog/catalog.h"
@@ -199,11 +203,11 @@ RetCode InsertExec::Execute(ExecutedResult *exec_result) {
 
   AstInsertValList *insert_value_list =
       dynamic_cast<AstInsertValList *>(insert_ast_->insert_val_list_);
-  if (NULL == insert_value_list) {
+  if (NULL == insert_value_list && insert_ast_->select_stmt_ == NULL) {
     LOG(ERROR) << "No value!" << endl;
     exec_result->SetError("No value!");
     ret = common::rStmtHandlerInsertNoValue;
-  } else {
+  } else if (NULL != insert_value_list) {
     std::ostringstream ostr;
     int changed_row_num = 0;
 
@@ -331,10 +335,116 @@ RetCode InsertExec::Execute(ExecutedResult *exec_result) {
     }
     DELETE_PTR(injector);
     Environment::getInstance()->getCatalog()->saveCatalog();
+  } else if (insert_ast_->select_stmt_ != NULL) {
+    std::ostringstream ostr;
+    vector<int> res_pos;
+    if (is_all_col_ == true) {
+      // insert all into table
+      col_count = table->getNumberOfAttribute()-1;
+      }
+    // record the column position
+    SelectExec*  sel_exec_  = new SelectExec(insert_ast_->select_stmt_);
+    ExecutedResult exec_sel_result;
+    sel_exec_->Execute(&exec_sel_result);
+    unsigned int sel_count = exec_sel_result.result_
+        ->column_header_list_.size();
+//     we need add one column like select column from Table.
+//     because we need consider "row_id".
+    set<int> row_id_pos;
+    for (int i = 0 ; i < exec_sel_result.result_
+    ->column_header_list_.size(); i++) {
+      if (exec_sel_result.result_
+          ->column_header_list_[i].find("row_id") != exec_sel_result.result_
+          ->column_header_list_[i].npos) {
+        row_id_pos.insert(i);
+      }
+    }
+    sel_count -= row_id_pos.size();
+    if (sel_count != col_count) {
+      LOG(ERROR) << "select result column is not "
+          "equal to insert table column" << endl;
+      exec_result->SetError("select result column is not "
+          "equal to insert table column");
+      ret =  claims::common::rFailure;
+    } else {
+      // insert into table select
+      if (is_all_col_) {
+        unsigned int row_change = 0;
+        string sel_result =
+            exec_sel_result.result_->getResult(row_change);
+        DataInjector *injector = new DataInjector(table);
+        ret = injector->InsertFromString(sel_result, exec_result);
+        if (rSuccess == ret) {
+          ostr.clear();
+          ostr << "insert data successfully. " << row_change
+              << " rows changed.";
+          exec_result->SetResult(ostr.str(), NULL);
+        } else {
+          LOG(ERROR) << "failed to insert tuples into table:"
+              << table->getTableName() << endl;
+          exec_result->SetError("failed to insert tuples into table ");
+        }
+        DELETE_PTR(injector);
+        Environment::getInstance()->getCatalog()->saveCatalog();
+      } else {
+        // insert into table(A,B,C) select
+        unsigned int row_change = 0;
+        vector<std::string> insert_column;
+        vector<unsigned> insert_index;
+        col = dynamic_cast<AstColumn *>(insert_ast_->col_list_);
+        vector<Attribute> attributes =  table_desc_->getAttributes();
+        while (col) {
+          string col_name = table_desc_->getTableName()+ "."+col->column_name_;
+          if (table_desc_->isExist(col_name) == false) {
+            exec_result->SetError("insert column is not found in table");
+            ret =  claims::common::rFailure;
+            return ret;
+          }
+          // avoid insert into table A (c,c,a)
+          // this is not allowed.
+          for (auto it : insert_column) {
+            if (it == col_name) {
+              exec_result->SetError("insert column is appeared more than once");
+              ret =  claims::common::rFailure;
+              return ret;
+            }
+          }
+          insert_column.push_back(table_desc_->getTableName()
+                                  + "."+col->column_name_);
+          for (auto it : attributes) {
+            if (it.attrName == table_desc_->getTableName()
+                + "."+col->column_name_) {
+              insert_index.push_back(it.index);
+            }
+          }
+          col = dynamic_cast<AstColumn *>(col->next_);
+        }
+        string sel_result =
+            exec_sel_result.result_->getResult(row_change,
+                             insert_index, attributes,
+                             table->getSchema());
+        DataInjector *injector = new DataInjector(table);
+        ret = injector->InsertFromString(sel_result, exec_result);
+        if (rSuccess == ret) {
+          ostr.clear();
+          ostr << "insert data successfully. " << row_change
+              << " rows changed.";
+          exec_result->SetResult(ostr.str(), NULL);
+        } else {
+          LOG(ERROR) << "failed to insert tuples into table:"
+              << table->getTableName() << endl;
+          exec_result->SetError("failed to insert tuples into table ");
+        }
+        DELETE_PTR(injector);
+        Environment::getInstance()->getCatalog()->saveCatalog();
+      }
+      exec_sel_result.result_->destory();
+      delete exec_sel_result.result_;
+      exec_result->result_ = NULL;
+      delete sel_exec_;
+      return ret;
+    }
   }
-
-  return ret;
 }
-
 }  // namespace stmt_handler
 }  // namespace claims

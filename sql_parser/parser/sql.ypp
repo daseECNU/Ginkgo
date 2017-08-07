@@ -495,10 +495,10 @@ select_stmt:
 	{
 		$$=new AstSelectStmt(AST_SELECT_STMT, $2,$3,NULL,NULL,NULL,NULL,NULL,NULL,NULL);
 	}
-	| SELECT select_opts select_expr_list FROM table_references opt_where 
-    			opt_groupby opt_having opt_orderby opt_limit opt_into_list 
+	| SELECT select_opts select_expr_list opt_into_list FROM table_references opt_where 
+    			opt_groupby opt_having opt_orderby opt_limit  
 	{
-		$$=new AstSelectStmt(AST_SELECT_STMT, $2,$3,$5,$6,$7,$8,$9,$10,$11);
+		$$=new AstSelectStmt(AST_SELECT_STMT, $2,$3,$6,$7,$8,$9,$10,$11,$4);
 	}
 	;
 
@@ -541,7 +541,12 @@ opt_limit: 	 				{ $$ = NULL; }
   	; 
 
 opt_into_list:			{ $$=NULL; }
-   | INTO column_list 	{ $$=NULL;}
+   | INTO table_factor PARTITIONED ON NAME	{ $$= new AstSelectIntoClause(AST_SELECT_INTO_CLAUSE, $2, string($5),1);}
+   | INTO table_factor NUMBER COMPARISON INTNUM PARTITIONED ON NAME
+   	{ 
+		if ($4 != 4) { yyerror(result,"please give a specific number"); } 
+		else    { $$= new AstSelectIntoClause(AST_SELECT_INTO_CLAUSE, $2, string($8),atoi($5)); }
+	}
    ;
 
 column_list: 

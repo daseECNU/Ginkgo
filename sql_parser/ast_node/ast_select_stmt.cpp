@@ -1417,6 +1417,45 @@ RetCode AstLimitClause::GetLogicalPlan(LogicalOperator*& logical_plan) {
   logical_plan = new LogicalLimit(logical_plan, row_count, offset);
   return rSuccess;
 }
+
+
+
+
+AstSelectIntoClause::AstSelectIntoClause(AstNodeType ast_node_type,
+                                         AstNode* table,
+                                         string partition_key,
+                                         int partition_number)
+    :AstNode(ast_node_type), table_(table),
+     partition_key_(partition_key),
+     partition_number_(partition_number) {}
+AstSelectIntoClause::~AstSelectIntoClause() {
+  delete table_;
+}
+void AstSelectIntoClause::Print(int level = 0) const {
+  cout << setw(level * TAB_SIZE) << " "
+       << "|into clause| " << endl;
+  level++;
+  cout << setw(level * TAB_SIZE) << " "
+       << " into table: " << endl;
+  if (table_ != NULL) table_->Print(level + 1);
+  cout << setw((level+4)* TAB_SIZE) << " "
+         << "|partition info| " << endl;
+  cout << setw((level+4) * TAB_SIZE) << " "
+      <<" partitioned on " << partition_key_ <<endl
+      << setw((level+4) * TAB_SIZE) << " "
+      <<" partition number = " <<partition_number_ <<endl;
+}
+RetCode AstSelectIntoClause::SemanticAnalisys(SemanticContext* sem_cnxt) {
+  RetCode ret = rSuccess;
+  TableDescriptor* table = NULL;
+  table = Environment::getInstance()->getCatalog()->getTable(
+      reinterpret_cast<AstTable *>(table_)->table_name_);
+  if (table != NULL) {
+    ret = rTableAlreadyExist;
+  }
+  return ret;
+}
+
 AstColumn::AstColumn(AstNodeType ast_node_type, std::string relation_name,
                      std::string column_name)
     : AstNode(ast_node_type),
@@ -1987,6 +2026,9 @@ RetCode AstSelectStmt::SemanticAnalisys(SemanticContext* sem_cnxt) {
       ELOG(rAggSelectExprHaveOtherColumn, "");
       return rAggSelectExprHaveOtherColumn;
     }
+  }
+  if (select_into_clause_) {
+    ret = select_into_clause_->SemanticAnalisys(sem_cnxt);
   }
   // for select clause rebuild table column
   sem_cnxt->RebuildTableColumn();

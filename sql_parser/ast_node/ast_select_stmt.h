@@ -294,14 +294,18 @@ class AstLimitClause : public AstNode {
   AstNode* offset_;
   AstNode* row_count_;
 };
-/**
- * TODO(fzh):not used in this version.
- */
+
 class AstSelectIntoClause : public AstNode {
  public:
-  // AstSelectIntoClause();
-  // ~AstSelectIntoClause();
-  // void Print(int level = 0) const;
+  AstSelectIntoClause(AstNodeType ast_node_type , AstNode* table,
+                      string partition_key, int partition_number);
+  ~AstSelectIntoClause();
+  void Print(int level = 0) const;
+  RetCode SemanticAnalisys(SemanticContext* sem_cnxt);
+  AstNode* table_;
+  string partition_key_;
+  int partition_number_;
+
 };
 /**
  * @brief The AST of AstColumn.
@@ -382,10 +386,10 @@ class AstDistinctClause : public AstNode {
 class AstSelectStmt : public AstNode {
  public:
   AstSelectStmt(AstNodeType ast_node_type, AstNode* distinct_clause,
-                AstNode* select_list, AstNode* from_list, AstNode* where_clause,
+                AstNode* select_list, AstNode* select_into_clause,
+                AstNode* from_list, AstNode* where_clause,
                 AstNode* groupby_clause, AstNode* having_clause,
-                AstNode* orderby_clause, AstNode* limit_clause,
-                AstNode* select_into_clause);
+                AstNode* orderby_clause, AstNode* limit_clause);
   ~AstSelectStmt();
   void Print(int level = 0) const;
   RetCode SemanticAnalisys(SemanticContext* sem_cnxt);

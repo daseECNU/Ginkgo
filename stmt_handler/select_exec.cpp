@@ -27,6 +27,9 @@
  */
 
 #include "../stmt_handler/select_exec.h"
+#include "../sql_parser/ast_node/ast_create_stmt.h"
+#include "../stmt_handler/create_projection_exec.h"
+#include "../loader/data_injector.h"
 #include <glog/logging.h>
 #include <pthread.h>
 #include <sys/types.h>
@@ -65,9 +68,15 @@ using std::string;
 using std::cout;
 using std::make_pair;
 using claims::common::rStmtCancelled;
-
+using claims::loader::DataInjector;
 namespace claims {
 namespace stmt_handler {
+AstDataType* GenerateDataType(Schema* schema, int i);
+AstColumnAtts* GenerateColumnAtts(Schema* schema, int i);
+int GenerateDatatypeBytype(int a);
+RetCode execSelectInto(StmtExecStatus* exec_status,
+                       AstSelectIntoClause* select_into,
+                       ExecutedResult* exec_result);
 //#define PRINTCONTEXT
 SelectExec::SelectExec(AstNode* stmt, string raw_sql)
     : StmtExec(stmt), raw_sql_(raw_sql) {
@@ -107,13 +116,23 @@ RetCode SelectExec::Execute(ExecutedResult* exec_result) {
       exec_result->status_ = false;
       exec_result->error_info_ = raw_sql_ + string(" have been cancelled!");
       exec_status->set_exec_status(StmtExecStatus::ExecStatus::kError);
-
     } else if (StmtExecStatus::ExecStatus::kOk ==
                exec_status->get_exec_status()) {
-      exec_result->result_ = exec_status->get_query_result();
-      exec_result->status_ = true;
-      exec_result->info_ = exec_status->get_exec_info();
-      exec_status->set_exec_status(StmtExecStatus::ExecStatus::kDone);
+      if (select_ast_->select_into_clause_ != NULL) {
+        AstSelectIntoClause* select_into =
+            reinterpret_cast<AstSelectIntoClause*>(
+                select_ast_->select_into_clause_);
+        execSelectInto(exec_status, select_into, exec_result);
+        exec_status->get_query_result()->destory();
+        delete exec_status->get_query_result();
+        exec_result->status_ = true;
+        exec_status->set_exec_status(StmtExecStatus::ExecStatus::kDone);
+      } else {
+        exec_result->result_ = exec_status->get_query_result();
+        exec_result->status_ = true;
+        exec_result->info_ = exec_status->get_exec_info();
+        exec_status->set_exec_status(StmtExecStatus::ExecStatus::kDone);
+      }
 
     } else {
       assert(false);
@@ -127,6 +146,7 @@ RetCode SelectExec::Execute(ExecutedResult* exec_result) {
   }
   LOG(INFO) << raw_sql_ << " execution time: " << exec_time_ms / 1000.0
             << " sec" << endl;
+
   return rSuccess;
 }
 
@@ -356,5 +376,196 @@ RetCode SelectExec::IsUpperExchangeRegistered(
   return ret;
 }
 
+int isUnsigned(data_type type) {
+  switch (type) {
+    case t_u_long:
+    case t_u_smallInt:
+      return 1;
+    default:
+      return 0;
+  }
+}
+
+AstDataType* GenerateDataType(Schema* schema, int i) {
+  data_type type = schema->getcolumn(i).type;
+  AstOptLength* opt_length = NULL;
+  if (type == data_type::t_decimal) {
+    OperateDecimal* oper = schema->getcolumn(i).operate;
+    int precision = oper->getPrecision();
+    int scale = oper->getScale();
+    opt_length =
+        new AstOptLength(AST_OPT_LENGTH, precision, scale);
+  } else if (type == data_type::t_string) {
+    OperateString* oper = schema->getcolumn(i).operate;
+    unsigned size = oper->getSize();
+    opt_length =
+            new AstOptLength(AST_OPT_LENGTH, size, 0);
+  }
+  return new AstDataType(AST_DATA_TYPE,
+                         GenerateDatatypeBytype(type), opt_length,
+                         isUnsigned(type), NULL, 0 , NULL);
+}
+
+AstColumnAtts* GenerateColumnAtts(Schema* schema, int i) {
+  if (schema->getcolumn(i).operate->nullable) {
+    // can be null
+    return new AstColumnAtts(AST_COLUMN_ATTS,
+                             2, 0, 0, "", NULL);
+  } else {
+    return new AstColumnAtts(AST_COLUMN_ATTS,
+                                1, 0, 0, "", NULL);
+  }
+}
+int GenerateDatatypeBytype(int a) {
+  switch (a) {
+    case t_smallInt:
+      return 3;
+    case t_int:
+      return 5;
+    case t_u_long:
+      return 7;
+    case t_float:
+      return 10;
+    case t_double:
+      return 9;
+    case t_string:
+      return 18;
+    case t_date:
+      return 12;
+    case t_time:
+      return 13;
+    case t_datetime:
+      return 15;
+    case t_decimal:
+      return 11;
+    case t_boolean:
+      return 1;
+    case t_u_smallInt:
+      return 3;
+  }
+}
+RetCode createTableAndProj(StmtExecStatus* exec_status,
+                    AstSelectIntoClause* select_into,
+                    ExecutedResult* exec_result) {
+  RetCode ret = rSuccess;
+  ExecutedResult tmp_exec_result;
+  std::ostringstream ostr;
+  tmp_exec_result.result_ = exec_status->get_query_result();
+  tmp_exec_result.status_ = true;
+  string table_name = reinterpret_cast<AstTable*>(
+      select_into->table_)->table_name_;
+  // initialize create info
+  AstCreateDef* data;
+  AstCreateColList *create_col_ptr, *create_col_head;
+  AstColumn* col_ptr, *col_head;
+  int size = tmp_exec_result.result_->column_header_list_.size();
+  bool ishead = true;
+  for (int i = 0; i < size; i++) {
+    string column_name =  tmp_exec_result.result_->column_header_list_[i];
+    // if select * we need remove table name and row_id
+    if (column_name.find("row_id") == string::npos) {
+      if (i == size -1) {
+        column_name = column_name.substr(0, column_name.find(" "));
+      }
+      if (column_name.find(".") != string::npos) {
+        column_name = column_name.substr(column_name.find(".")+1
+                                         , column_name.length()-1);
+      }
+      AstDataType* data_type =
+          GenerateDataType(tmp_exec_result.result_->schema_, i);
+      AstColumnAtts* column_attr =
+          GenerateColumnAtts(tmp_exec_result.result_->schema_, i);
+      data = new AstCreateDef(AST_CREATE_DEF_NAME,
+                            1, column_name, data_type, column_attr, NULL);
+      if (ishead) {
+        create_col_ptr =
+                   new AstCreateColList(AST_CREATE_COL_LIST, data, NULL);
+        create_col_head = create_col_ptr;
+        col_ptr = new AstColumn(AST_COLUMN, table_name,
+                                column_name, NULL);
+        col_head = col_ptr;
+        ishead = false;
+      } else {
+        create_col_ptr->next_ =
+            new AstCreateColList(AST_CREATE_COL_LIST, data, NULL);
+        create_col_ptr = create_col_ptr->next_;
+        col_ptr->next_ = new AstColumn(AST_COLUMN, table_name,
+                                       column_name, NULL);
+        col_ptr = col_ptr->next_;
+      }
+    }
+  }
+
+  AstCreateTable* createtable_ast =
+      new AstCreateTable(AST_CREATE_TABLE_LIST, 0, 0,
+                    table_name, "", create_col_head, NULL);
+  CreateTableExec createtable(createtable_ast);
+  ret = createtable.Execute(&tmp_exec_result);
+  if ( ret != common::rStmtHandlerCreateTableSuccess ) {
+    ostr.clear();
+    LOG(ERROR) << "create table or create projection failure on  "
+        << table_name<< endl;
+    ostr <<"create table or create projection failure on  "
+         <<table_name <<endl;
+    exec_result->SetError(ostr.str());
+  }
+  // create projection
+  AstCreateProjection *ast_proj;
+  if ( select_into->partition_number_ == 1 ) {
+    ast_proj =
+        new AstCreateProjection(AST_CREATE_PROJECTION,
+                                table_name, col_head,
+                                select_into->partition_number_,
+                                select_into->partition_key_);
+  } else {
+    ast_proj = new AstCreateProjection(AST_CREATE_PROJECTION_NUM,
+                            table_name, col_head,
+                            select_into->partition_number_,
+                            select_into->partition_key_);
+
+  }
+  CreateProjectionExec * createpro =
+      new CreateProjectionExec(ast_proj);
+  ret = createpro->Execute(&tmp_exec_result);
+  // clear all memory
+  delete createtable_ast;
+  delete createpro;
+  delete ast_proj;
+  return ret;
+}
+RetCode execSelectInto(StmtExecStatus* exec_status,
+                       AstSelectIntoClause* select_into,
+                       ExecutedResult* exec_result) {
+  // initialize a result for execute
+  RetCode ret = rSuccess;
+  string table_name = reinterpret_cast<AstTable*>(
+      select_into->table_)->table_name_;
+  std::ostringstream ostr;
+  ret = createTableAndProj(exec_status, select_into, exec_result);
+  if (ret != rSuccess) {
+    return ret;
+  }
+  // insert into table
+  unsigned int row_change = 0;
+  TableDescriptor *insert_table =
+      Environment::getInstance()->getCatalog()->getTable(table_name);
+  DataInjector *injector = new DataInjector(insert_table);
+  string sel_result = exec_status->get_query_result()
+                      ->getResult(row_change);
+  ret = injector->InsertFromString(sel_result, exec_result);
+  if (rSuccess == ret) {
+    ostr.clear();
+    ostr << "insert data successfully. " << row_change
+        << " rows changed.";
+    exec_result->SetResult(ostr.str(), NULL);
+  } else {
+      LOG(ERROR) << "failed to insert tuples into table:"
+          << insert_table->getTableName() << endl;
+      exec_result->SetError("failed to insert tuples into table ");
+  }
+  DELETE_PTR(injector);
+  Environment::getInstance()->getCatalog()->saveCatalog();
+  return ret;
+}
 }  // namespace stmt_handler
 }  // namespace claims

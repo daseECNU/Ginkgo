@@ -56,7 +56,7 @@ class AstInsertStmt : public AstNode {
   AstNode* insert_val_list_;
   AstNode* insert_assign_list_;  // 2014-4-16---not used in this version
   AstNode* insert_assign_list_from_set_;  // 2014-4-17--not used in this version
-  AstNode* select_stmt_;  // 2014-4-16---not used in this version
+  AstNode* select_stmt_;
 
  private:
 };
