@@ -330,8 +330,16 @@ bool Catalog::DropTable(const std::string table_name, const TableID id) {
 
 bool Catalog::DropAllProjection(const std::string table_name) {
   TableDescriptor* table_desc = getTable(table_name);
-  table_desc->GetProjectionList()->clear();
-
+  //  table_desc->GetProjectionList()->clear();
+  vector<ProjectionDescriptor*>* projection_list =
+      table_desc->GetProjectionList();
+  auto beg = projection_list->begin();
+  auto end = projection_list->end();
+  while (beg != end) {
+    delete *beg;
+    ++beg;
+  }
+  projection_list->clear();
   if (table_desc->GetProjectionList()->empty()) {
     table_desc->InitTableData();
     return true;

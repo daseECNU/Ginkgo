@@ -75,6 +75,7 @@ class TableDescriptor {
 
   ProjectionDescriptor* getProjectoin(ProjectionOffset) const;
   unsigned getNumberOfProjection() const;
+  unsigned getMaxProjectionID() const;
   vector<ProjectionDescriptor*>* GetProjectionList() {
     return &projection_list_;
   }

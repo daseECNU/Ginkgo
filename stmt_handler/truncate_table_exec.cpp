@@ -98,8 +98,8 @@ RetCode TruncateTableExec::Execute(ExecutedResult* exec_result) {
       }
     }
     if (ret == rSuccess) {
-      exec_result->info_ =
-          "truncated all projections of the table successfully!";
+      exec_result->info_ = "truncated all projections of the table [" +
+                           table_name + "] successfully!";
     } else {
       exec_result->error_info_ =
           "truncated all projections of the table [" + table_name + "] failed.";
@@ -117,21 +117,20 @@ RetCode TruncateTableExec::Execute(ExecutedResult* exec_result) {
     string proj_id = std::to_string(projection_id);
     if (DropTableExec::CheckBaseTbl(table_name)) {
       ret = TruncateProjection(table_name + "_DEL", projection_id);
-      cout << "string proj_id:" << proj_id << endl;
       if (ret == rSuccess) {
-        LOG(INFO) << "the projection " + proj_id + " of " + table_name +
-                         "_DEL is truncated from this database!" << endl;
+        LOG(INFO) << "the projection [" + proj_id + "] of [" + table_name +
+                         "_DEL] is truncated from this database!" << endl;
       } else {
-        LOG(ERROR) << "execution failed for truncating the projection " +
-                          proj_id + " of " + table_name + "_DEL !" << endl;
+        LOG(ERROR) << "execution failed for truncating the [projection " +
+                          proj_id + "] of [" + table_name + "_DEL] !" << endl;
       }
       ret = TruncateProjection(table_name, projection_id);
       if (ret == rSuccess) {
-        LOG(INFO) << "the projection " + proj_id + " of " + table_name +
-                         " is truncated from this database!" << endl;
+        LOG(INFO) << "the projection [" + proj_id + "] of [" + table_name +
+                         "] is truncated from this database!" << endl;
       } else {
-        LOG(ERROR) << "execution failed for truncating the projection " +
-                          proj_id + " of " + table_name + "!" << endl;
+        LOG(ERROR) << "execution failed for truncating the projection [" +
+                          proj_id + "] of [" + table_name + "]!" << endl;
       }
     } else {
       LOG(ERROR)
@@ -141,11 +140,11 @@ RetCode TruncateTableExec::Execute(ExecutedResult* exec_result) {
       ret = rFailure;
     }
     if (ret == rSuccess) {
-      exec_result->info_ = "truncated the projection " + proj_id +
-                           " of the table " + table_name + " successfully!";
+      exec_result->info_ = "truncated the projection [" + proj_id +
+                           "] of the table [" + table_name + "] successfully!";
     } else {
-      exec_result->error_info_ = "truncated the projection " + proj_id +
-                                 " of the table[" + table_name + "] failed.";
+      exec_result->error_info_ = "truncated the projection [" + proj_id +
+                                 "] of the table[" + table_name + "] failed.";
       exec_result->status_ = false;
       exec_result->result_ = NULL;
       return ret;

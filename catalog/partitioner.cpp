@@ -70,6 +70,11 @@ Partitioner::Partitioner(ProjectionID projection_id,
 
 Partitioner::~Partitioner() {
   // TODO Auto-generated destructor stub
+  for (auto partition_info : partition_info_list) {
+    delete partition_info;
+  }
+  delete partition_key_;
+  delete partition_function_;
 }
 unsigned Partitioner::getNumberOfPartitions() const {
   return partition_function_->getNumberOfPartitions();

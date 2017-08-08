@@ -1041,10 +1041,10 @@ drop_table_stmt:
 	                                        { $$ = new AstDropTable(AST_DROP_TABLE, $2, $4, $6, $5); }
 	;
 	
-table_list: NAME 					        { $$ = new AstDropTableList(AST_DROP_TABLE_LIST, "", string($1), NULL); puts("1");}
-	| NAME '.' NAME				            { $$ = new AstDropTableList(AST_DROP_TABLE_LIST, string($1), string($3), NULL);puts("2"); }
-	| NAME ',' table_list			        { $$ = new AstDropTableList(AST_DROP_TABLE_LIST, "", string($1), $3);puts("3"); }
-	| NAME '.' NAME ',' table_list	        { $$ = new AstDropTableList(AST_DROP_TABLE_LIST, string($1), string($3), $5);puts("4"); }
+table_list: NAME 					        { $$ = new AstDropTableList(AST_DROP_TABLE_LIST, "", string($1), NULL); }
+	| NAME '.' NAME				            { $$ = new AstDropTableList(AST_DROP_TABLE_LIST, string($1), string($3), NULL); }
+	| NAME ',' table_list			        { $$ = new AstDropTableList(AST_DROP_TABLE_LIST, "", string($1), $3); }
+	| NAME '.' NAME ',' table_list	        { $$ = new AstDropTableList(AST_DROP_TABLE_LIST, string($1), string($3), $5); }
 	;
 
 opt_rc: /* nil */ 	                        { $$ = 0; }
@@ -1067,8 +1067,8 @@ drop_projection_stmt:
 stmt: truncate_table_stmt              { $$ = $1; /*output($$, 1); puts("SQL parser： This is a truncate statement"); */}
 
 truncate_table_stmt:
-	TRUNCATE TABLE table_list 			{ $$ = new AstTruncateTable(AST_TRUNCATE_TABLE,$3,"","");puts("5"); } 
-	| TRUNCATE TABLE NAME WHERE PROJECTION COMPARISON INTNUM		       { $$ = new AstTruncateTable(AST_TRUNCATE_TABLE,NULL,string($3),atoi($7));puts("6"); } 
+	TRUNCATE TABLE table_list 			{ $$ = new AstTruncateTable(AST_TRUNCATE_TABLE,$3,"",""); } 
+	| TRUNCATE PROJECTION INTNUM FROM NAME		       { $$ = new AstTruncateTable(AST_TRUNCATE_TABLE,NULL,string($5),atoi($3)); } 
 	;
 
 /* statements: insert statement */	

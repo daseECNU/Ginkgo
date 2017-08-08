@@ -71,23 +71,26 @@ RetCode DropProjExec::Execute(ExecutedResult* exec_result) {
   string table_name = drop_proj_ast_->table_name_;
   Catalog* local_catalog = Environment::getInstance()->getCatalog();
   TableDescriptor* table_desc = local_catalog->getTable(table_name);
+
+  // Drop all projections
   if (drop_proj_ast_->is_all_ == true) {
-    if (DropTableExec::CheckBaseTbl(table_name)) {  // drop the base table
+    if (DropTableExec::CheckBaseTbl(table_name)) {
+      // Drop all projections of the del table first, and then the base table
       ret = DropAllProj(table_name + "_DEL");
       if (ret == rSuccess) {
-        LOG(INFO) << "the projection of " + table_name +
+        LOG(INFO) << "all projections of " + table_name +
                          "_DEL is dropped from this database!" << endl;
         ret = DropAllProj(table_name);
-        LOG(INFO) << "the projection of " + table_name +
+        LOG(INFO) << "all projections of " + table_name +
                          " is dropped from this database!" << endl;
       } else {
-        DropAllProj(table_name + "_DEL");
-        DropAllProj(table_name);
+        LOG(ERROR) << "execution failed for dropping all projections of " +
+                          table_name << endl;
       }
     } else {
       LOG(ERROR)
           << table_name +
-                 " is DEL table! This operator is only aimed at base table!"
+                 " is DEL table! This operation is only aimed at base table!"
           << endl;
       ret = rFailure;
     }
@@ -100,7 +103,9 @@ RetCode DropProjExec::Execute(ExecutedResult* exec_result) {
       exec_result->result_ = NULL;
       return ret;
     }
-  } else {
+  }
+  // Only drop one projection of a table.
+  else {
     string proj_id = std::to_string(drop_proj_ast_->projection_id_);
     int projection_id = drop_proj_ast_->projection_id_;
     if (DropTableExec::CheckBaseTbl(table_name)) {  // drop the base table
@@ -112,8 +117,8 @@ RetCode DropProjExec::Execute(ExecutedResult* exec_result) {
         LOG(INFO) << "the projection [" + proj_id + "] of " + table_name +
                          " is dropped from this database!" << endl;
       } else {
-        DropOneProj(table_name + "_DEL", projection_id);
-        DropOneProj(table_name, projection_id);
+        LOG(ERROR) << "execution failed for dropping projection [" + proj_id +
+                          "] of table [" + table_name + "]" << endl;
       }
     } else {
       LOG(ERROR)
@@ -123,10 +128,11 @@ RetCode DropProjExec::Execute(ExecutedResult* exec_result) {
       ret = rFailure;
     }
     if (ret == rSuccess) {
-      exec_result->info_ = "drop projection successfully!";
+      exec_result->info_ = "drop projection [" + proj_id + "] of table [" +
+                           table_name + "] successfully!";
     } else {
       exec_result->error_info_ =
-          "drop all projections of  [" + table_name + "] failed.";
+          "drop projection [" + proj_id + "] of [" + table_name + "] failed.";
       exec_result->status_ = false;
       exec_result->result_ = NULL;
       return ret;
@@ -138,15 +144,17 @@ RetCode DropProjExec::Execute(ExecutedResult* exec_result) {
   return ret;
 }
 
+/* drop all projections of table */
 RetCode DropProjExec::DropAllProj(const string& table_name) {
   RetCode ret = rSuccess;
   Catalog* local_catalog = Environment::getInstance()->getCatalog();
-  // start to drop projection
-  // you need to delete the file first, and then drop the information in the
-  // catalog
+  // Start to drop all projections.
+  // You need to delete all the files of projections first, and then free the
+  // memories which are used by projections. In the end, drop information in
+  // the catalog.
   ret = DropTableExec::DeleteTableFiles(table_name);
   if (ret == rSuccess) {
-    // unbind all the projection with their slave node;
+    // Unbind all projections with slave nodes
     if (DropTableExec::FreeTableFromMemory(table_name)) {
       ret = DropAllProjFromCatalog(table_name);
       if (ret != rSuccess) {
@@ -156,78 +164,107 @@ RetCode DropProjExec::DropAllProj(const string& table_name) {
       }
     } else {
       ELOG(ret,
-           "failed to unbind all projections of the table from memory when "
+           "failed to unbind projections from memory when "
            "dropping all projections of the table " +
                table_name);
       return rFailure;
     }
   } else {
-    ELOG(ret,
-         "failed to delete all projections file when dropping all projections "
-         "of the table " +
-             table_name);
+    return ret;
+  }
+}
+
+/* Drop all projections of table from Catalog */
+RetCode DropProjExec::DropAllProjFromCatalog(const string& table_name) {
+  Catalog* local_catalog = Environment::getInstance()->getCatalog();
+  TableDescriptor* table_desc = local_catalog->getTable(table_name);
+  if (local_catalog->DropAllProjection(table_name)) {
+    LOG(INFO) << "drop all projections "
+              << "of [" + table_name + "] from catalog success! " << endl;
+    return rSuccess;
+  } else {
     return rFailure;
   }
 }
 
-RetCode DropProjExec::DropAllProjFromCatalog(const string& table_name) {
-  RetCode ret = rSuccess;
-  Catalog* local_catalog = Environment::getInstance()->getCatalog();
-  TableDescriptor* table_desc = local_catalog->getTable(table_name);
-  if (!local_catalog->DropAllProjection(table_name)) {
-    LOG(ERROR) << "drop all Projections of " + table_name + " failure! "
-               << endl;
-  }
-}
-
+/* Drop one projection of table */
 RetCode DropProjExec::DropOneProj(const string& table_name,
                                   const int& projection_id) {
   RetCode ret = rSuccess;
   Catalog* local_catalog = Environment::getInstance()->getCatalog();
-  // start to drop projection
-  // you need to delete the file first, and then drop the information in the
-  // catalog
+  // Start to drop one projection:
+  // You need to delete files of the projection first, and then free the
+  // memory which are used by projection. In the end, drop information in
+  // the catalog.
   string proj_id = std::to_string(projection_id);
   ret = DropTableExec::DeleteProjectionFiles(table_name, proj_id);
   if (ret == rSuccess) {
-    // unbind all the projection with their slave node;
-    if (DropTableExec::FreeProjectionFromMemory(table_name, projection_id)) {
+    // unbind the projection with slave node;
+    if (FreeProjectionFromMemory(table_name, projection_id)) {
       ret = DropOneProjFromCatalog(table_name, projection_id);
       if (ret != rSuccess) {
-        ELOG(ret, "failed to drop projection " + proj_id + " of " + table_name +
-                      " from the catalog");
+        ELOG(ret, "failed to drop projection [" + proj_id + "] of [" +
+                      table_name + "] from the catalog");
         return ret;
       }
     } else {
-      ELOG(ret, "failed to unbind projection " + proj_id +
-                    " from memory when dropping projection of the table " +
-                    table_name);
+      ELOG(
+          ret,
+          "failed to unbind projection from memory when dropping projection [" +
+              proj_id + "] of the table [" + table_name + "]");
       return rFailure;
     }
+    return ret;
   } else {
-    ELOG(ret,
-         "failed to delete all projections file when dropping all projections "
-         "of the table " +
-             table_name);
-    return rFailure;
+    return ret;
   }
-  return ret;
 }
 
+/* Drop one projections of table from Catalog */
 RetCode DropProjExec::DropOneProjFromCatalog(const string& table_name,
                                              const int& projection_id) {
   RetCode ret = rSuccess;
   Catalog* local_catalog = Environment::getInstance()->getCatalog();
   TableDescriptor* table_desc = local_catalog->getTable(table_name);
   if (local_catalog->DropOneProjection(table_name, projection_id)) {
-    LOG(INFO) << "drop projection Projection[" << projection_id
-              << "] of " + table_name + " from catalog success! " << endl;
+    LOG(INFO) << "drop projection[" << projection_id
+              << "] of [" + table_name + "] from catalog success! " << endl;
     return rSuccess;
   } else {
-    LOG(ERROR) << "drop projection Projection[" << projection_id
-               << "] of " + table_name + " from catalog failure! " << endl;
     return rFailure;
   }
+}
+
+/* This function only frees one projection of the table */
+bool DropProjExec::FreeProjectionFromMemory(const string& table_name,
+                                            const int& proj_id) {
+  Catalog* local_catalog = Environment::getInstance()->getCatalog();
+  TableDescriptor* table_desc = local_catalog->getTable(table_name);
+  if (table_desc != NULL) {
+    vector<ProjectionDescriptor*>* projection_list =
+        table_desc->GetProjectionList();
+    if (projection_list != NULL) {
+      for (auto projection : *projection_list) {
+        Partitioner* partitioner = projection->getPartitioner();
+        if (proj_id == partitioner->getProejctionID().projection_off) {
+          bool res = Catalog::getInstance()
+                         ->getBindingModele()
+                         ->UnbindingEntireProjection(partitioner);
+          if (res) {
+            LOG(INFO) << "unbind entire projection [" << proj_id
+                      << "] in table [" << table_desc->getTableName() << "]"
+                      << std::endl;
+          } else {
+            LOG(ERROR) << "failed to unbind entire projection [" << proj_id
+                       << "] in table [" << table_desc->getTableName() << "]"
+                       << std::endl;
+            return false;
+          }
+        }
+      }
+    }
+  }
+  return true;
 }
 
 } /* namespace stmt_handler */

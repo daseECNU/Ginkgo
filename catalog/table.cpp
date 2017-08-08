@@ -48,7 +48,14 @@ TableDescriptor::TableDescriptor(const string& name, const TableID table_id)
       common::kAppendFile);
 }
 
-TableDescriptor::~TableDescriptor() {}
+TableDescriptor::~TableDescriptor() {
+  if (!projection_list_.empty()) {
+    delete write_connector_;
+    for (auto projection : projection_list_) {
+      delete projection;
+    }
+  }
+}
 
 void TableDescriptor::addAttribute(Attribute attr) {
   LockGuard<SpineLock> guard(update_lock_);
@@ -92,7 +99,10 @@ RetCode TableDescriptor::createHashPartitionedProjection(
                     "inserting data";
     return common::rResourceIsLocked;
   }
-  ProjectionID projection_id(table_id_, projection_list_.size());
+  ProjectionID projection_id(
+      table_id_, projection_list_.size() == 0 ? 0 : getMaxProjectionID() + 1);
+  //  ProjectionID projection_id(table_id_, projection_list_.size());
+
   ProjectionDescriptor* projection = new ProjectionDescriptor(projection_id);
 
   for (unsigned i = 0; i < column_list.size(); i++) {
@@ -122,7 +132,10 @@ RetCode TableDescriptor::createHashPartitionedProjection(
                     "inserting data";
     return common::rResourceIsLocked;
   }
-  ProjectionID projection_id(table_id_, projection_list_.size());
+  //  ProjectionID projection_id(table_id_, projection_list_.size());
+  ProjectionID projection_id(
+      table_id_, projection_list_.size() == 0 ? 0 : getMaxProjectionID() + 1);
+
   ProjectionDescriptor* projection = new ProjectionDescriptor(projection_id);
 
   for (unsigned i = 0; i < attribute_list.size(); i++) {
@@ -155,19 +168,32 @@ bool TableDescriptor::isExist(const string& name) const {
   return false;
 }
 
+// modified by zyhe
 ProjectionDescriptor* TableDescriptor::getProjectoin(
     ProjectionOffset pid) const {
-  if (pid >= 0 && pid < projection_list_.size()) {
-    return projection_list_.at(pid);
+  if (pid >= 0) {
+    for (auto projection : projection_list_) {
+      if (projection->getProjectionID().projection_off == pid) {
+        return projection;
+      }
+    }
   } else {
     LOG(WARNING) << "no projection has been created on this table" << endl;
     return NULL;
   }
+  //  if (pid >= 0 && pid < projection_list_.size()) {
+  //    return projection_list_.at(pid);
+  //  } else {
+  //    LOG(WARNING) << "no projection has been created on this table" << endl;
+  //    return NULL;
+  //  }
 }
 unsigned TableDescriptor::getNumberOfProjection() const {
   return projection_list_.size();
 }
-
+unsigned TableDescriptor::getMaxProjectionID() const {
+  return projection_list_.back()->getProjectionID().projection_off;
+}
 Attribute TableDescriptor::getAttribute(const std::string& name) const {
   // format of name is colname, not tablename.colname
   stringstream ss;

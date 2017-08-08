@@ -46,14 +46,21 @@ class DropProjExec : public StmtExec {
   RetCode Execute(ExecutedResult* exec_result);
 
  private:
+  /* Drop all projections of a table */
   RetCode DropAllProj(const string& table_name);
 
+  /* Drop all projections of a table from Catalog */
   RetCode DropAllProjFromCatalog(const string& table_name);
 
+  /* Drop one projection of table */
   RetCode DropOneProj(const string& table_name, const int& projection_id);
 
+  /* Drop one projections of table from Catalog */
   RetCode DropOneProjFromCatalog(const string& table_name,
                                  const int& projection_id);
+
+  /* This function only frees one projection of the table */
+  bool FreeProjectionFromMemory(const string& table_name, const int& proj_id);
 
  private:
   AstDropProjection* drop_proj_ast_;

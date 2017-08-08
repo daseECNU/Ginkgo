@@ -94,14 +94,6 @@ RetCode AstTruncateTable::SemanticAnalisys(SemanticContext* sem_cnxt) {
     bool proj_match = false;
     Catalog* local_catalog = Environment::getInstance()->getCatalog();
     TableDescriptor* table_desc = local_catalog->getTable(table_name_);
-    if ("" == table_name_) {
-      LOG(ERROR)
-          << "No table name or invalid name during truncating projection!";
-      sem_cnxt->error_msg_ =
-          "No table name or invalid name during truncating projection!";
-      ret = rTableillegal;
-      return ret;
-    }
     if (NULL == table_desc) {
       LOG(ERROR) << "Table [" + table_name_ + "] is not exist!";
       sem_cnxt->error_msg_ = "Table [" + table_name_ + "] is not exist!";

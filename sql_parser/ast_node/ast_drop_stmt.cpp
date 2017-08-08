@@ -171,10 +171,17 @@ RetCode AstDropProjection::SemanticAnalisys(SemanticContext* sem_cnxt) {
     ret = rTableNotExisted;
     return ret;
   }
-
-  if (is_all_ == false) {
-    vector<ProjectionDescriptor*>* projection_list =
-        table_desc->GetProjectionList();
+  vector<ProjectionDescriptor*>* projection_list =
+      table_desc->GetProjectionList();
+  if (is_all_ == true) {
+    if (projection_list->empty()) {
+      LOG(ERROR) << "There is no projection in table [" + table_name_ + "]!";
+      sem_cnxt->error_msg_ =
+          "There is no projection in table [" + table_name_ + "]!";
+      ret = rNoProjection;
+      return ret;
+    }
+  } else {
     string proj_id = std::to_string(projection_id_);
     for (auto projection : *projection_list) {
       if (projection_id_ == projection->getProjectionID().projection_off) {
@@ -203,47 +210,5 @@ void AstDropProjection::Print(int level) const {
   }
 }
 
-// RetCode AstDropProjList::SemanticAnalisys(SemanticContext* sem_cnxt) {
-//  RetCode ret = rSuccess;
-//  bool proj_match = false;
-//  Catalog* local_catalog = Environment::getInstance()->getCatalog();
-//  TableDescriptor* table_desc = local_catalog->getTable(table_name_);
-//  if ("" == table_name_) {
-//    LOG(ERROR) << "No table name or invalid name during dropping projection!";
-//    sem_cnxt->error_msg_ =
-//        "No table name or invalid name during dropping projection!";
-//    ret = rTableillegal;
-//    return ret;
-//  }
-//  if (NULL == table_desc) {
-//    LOG(ERROR) << "Table [" + table_name_ + "] is not exist!";
-//    sem_cnxt->error_msg_ = "Table [" + table_name_ + "] is not exist!";
-//    ret = rTableNotExisted;
-//    return ret;
-//  }
-//
-//  if (is_all_ == false) {
-//    vector<ProjectionDescriptor*>* projection_list =
-//        table_desc->GetProjectionList();
-//    for (auto projection : *projection_list) {
-//      Partitioner* partitioner = projection->getPartitioner();
-//      if (projection_id_ == partitioner->getProejctionID().projection_off) {
-//        proj_match = true;
-//      }
-//    }
-//    if (proj_match == false) {
-//      LOG(ERROR) << "Projection [" << projection_id_ << "] is not exist!";
-//      string error = "Projection" + projection_id_;
-//      error += " is not exist!";
-//      sem_cnxt->error_msg_ = error;
-//      ret = rNoProjection;
-//      return ret;
-//    }
-//  }
-//  if (NULL != next_) {
-//    ret = next_->SemanticAnalisys(sem_cnxt);
-//  }
-//  return ret;
-//}
 //}  // namespace sql_parser
 //}  // namespace claims

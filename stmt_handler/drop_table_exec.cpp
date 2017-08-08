@@ -22,7 +22,7 @@
  *      Author: yuyang
  *		   Email: youngfish93@hotmail.com
  *
- * 	Modified on : Aug 6, 2017
+ * 	Modified on : Aug 8, 2017
  *      Author: zyhe
  *       Email: hzylab@gmail.com
  *
@@ -143,10 +143,9 @@ static bool DropTableExec::CheckBaseTbl(const string& table_name) {
 }
 
 /**
- * drop the table based on the provided table name,
- * this operator will delete the table in the catalog as well as the table file
- * on the disk or hdfs
- *
+ * @brief drop the table based on the provided table name, this operator will
+ * delete the table in the catalog as well as the table file on the disk or
+ * hdfs.
  * @param table_name
  * @return
  */
@@ -184,8 +183,8 @@ RetCode DropTableExec::DropTable(const string& table_name) {
 }
 
 /**
- * drop the table information from the catalog as well as to delete the object
- * of the TableDescroptor of the table_anme
+ * @brief drop the table information from the catalog as well as to delete the
+ * object of the TableDescroptor of the table_anme
  * @param table_name
  * @return
  */
@@ -198,7 +197,7 @@ RetCode DropTableExec::DropTableFromCatalog(const string& table_name) {
 }
 
 /**
- * delete the file associated with the Table table_name only
+ * @brief delete the file associated with the Table table_name only
  * @param table_name
  * @return
  */
@@ -207,18 +206,21 @@ static RetCode DropTableExec::DeleteTableFiles(const string& table_name) {
   // start to delete the files
   TableDescriptor* table =
       Environment::getInstance()->getCatalog()->getTable(table_name);
-  TableFileConnector* connector = new TableFileConnector(
-      Config::local_disk_mode ? FilePlatform::kDisk : FilePlatform::kHdfs,
-      table, common::kReadFile);
-  EXEC_AND_RETURN_ERROR(
-      ret, connector->DeleteAllTableFiles(),
-      "failed to delete the projections, when delete the file on table " +
-          table_name);
+  if (!table->GetProjectionList()->empty()) {
+    TableFileConnector* connector = new TableFileConnector(
+        Config::local_disk_mode ? FilePlatform::kDisk : FilePlatform::kHdfs,
+        table, common::kReadFile);
+    EXEC_AND_RETURN_ERROR(
+        ret, connector->DeleteAllTableFiles(),
+        "failed to delete all the projections, when delete the file on table " +
+            table_name);
+    delete connector;
+  }
   return ret;
 }
 
 /**
- * delete one projection of the table files from the stroage
+ * @brief delete one projection of the table files from the stroage
  * @param table_name, projection_id
  * @author zyhe
  * @return
@@ -226,16 +228,18 @@ static RetCode DropTableExec::DeleteTableFiles(const string& table_name) {
 static RetCode DropTableExec::DeleteProjectionFiles(const string& table_name,
                                                     const string& proj_id) {
   RetCode ret = rSuccess;
-  // start to delete the files
-  cout << "DeleteProjectionFiles:" << table_name << endl;
   TableDescriptor* table =
       Environment::getInstance()->getCatalog()->getTable(table_name);
-  TableFileConnector* connector = new TableFileConnector(
-      Config::local_disk_mode ? FilePlatform::kDisk : FilePlatform::kHdfs,
-      table, common::kReadFile);
-  EXEC_AND_RETURN_ERROR(ret, connector->DeleteOneProjectionFiles(proj_id),
-                        "failed to delete the projection " + proj_id +
-                            " when delete the file on table " + table_name);
+  if (!table->GetProjectionList()->empty()) {
+    TableFileConnector* connector = new TableFileConnector(
+        Config::local_disk_mode ? FilePlatform::kDisk : FilePlatform::kHdfs,
+        table, common::kReadFile);
+    EXEC_AND_RETURN_ERROR(ret, connector->DeleteOneProjectionFiles(proj_id),
+                          "failed to delete the projection [" + proj_id +
+                              "] when delete the file on table [" + table_name +
+                              "]");
+    delete connector;
+  }
   return ret;
 }
 
@@ -255,21 +259,21 @@ static bool DropTableExec::FreeTableFromMemory(const string& table_name) {
     if (table_desc != NULL) {
       vector<ProjectionDescriptor*>* projection_list =
           table_desc->GetProjectionList();
-      if (projection_list != NULL) {
+      if (!projection_list->empty()) {
         for (auto projection : *projection_list) {
           Partitioner* partitioner = projection->getPartitioner();
           bool res = Catalog::getInstance()
                          ->getBindingModele()
                          ->UnbindingEntireProjection(partitioner);
           if (res) {
-            LOG(INFO) << "unbind entire projection "
+            LOG(INFO) << "unbind entire projection ["
                       << partitioner->getProejctionID().projection_off
-                      << " in table " << table_desc->getTableName()
+                      << "] in table [" << table_desc->getTableName() << "]"
                       << std::endl;
           } else {
-            LOG(ERROR) << "failed to unbind entire projection "
+            LOG(ERROR) << "failed to unbind entire projection ["
                        << partitioner->getProejctionID().projection_off
-                       << " in table " << table_desc->getTableName()
+                       << "] in table [" << table_desc->getTableName() << "]"
                        << std::endl;
             return false;
           }
@@ -280,42 +284,5 @@ static bool DropTableExec::FreeTableFromMemory(const string& table_name) {
   return true;
 }
 
-/**
- * @brief unlike FreeTableFromMemory(), this function just frees one projection
- * of the table
- * @param table_name
- * @author zyhe
- * @return
- */
-static bool DropTableExec::FreeProjectionFromMemory(const string& table_name,
-                                                    const int& proj_id) {
-  cout << "FreeProjectionFromMemory1:" << table_name << endl;
-  Catalog* local_catalog = Environment::getInstance()->getCatalog();
-  TableDescriptor* table_desc = local_catalog->getTable(table_name);
-  if (table_desc != NULL) {
-    vector<ProjectionDescriptor*>* projection_list =
-        table_desc->GetProjectionList();
-    if (projection_list != NULL) {
-      for (auto projection : *projection_list) {
-        Partitioner* partitioner = projection->getPartitioner();
-        if (proj_id == partitioner->getProejctionID().projection_off) {
-          bool res = Catalog::getInstance()
-                         ->getBindingModele()
-                         ->UnbindingEntireProjection(partitioner);
-          if (res) {
-            LOG(INFO) << "unbind entire projection " << proj_id << " in table "
-                      << table_desc->getTableName() << std::endl;
-          } else {
-            LOG(ERROR) << "failed to unbind entire projection " << proj_id
-                       << " in table " << table_desc->getTableName()
-                       << std::endl;
-            return false;
-          }
-        }
-      }
-    }
-  }
-  return true;
-}
 } /* namespace stmt_handler */
 } /* namespace claims */

@@ -22,7 +22,7 @@
  *      Author: yuyang
  *		   Email: youngfish93@hotmail.com
  *
- *	Modified on : Aug 6, 2017
+ *	Modified on : Aug 8, 2017
  *      Author: zyhe
  *       Email: hzylab@gmail.com
  *
@@ -51,36 +51,36 @@ class DropTableExec : public StmtExec {
 
  private:
   /**
-   * to check the table with given name, whether it is a base table or a del
-   * table. If the return value is true, then the table is the base table, if
-   * not, the table is the del table.
+   * @brief to check the table with given name, whether it is a base table or a
+   * del table. If the return value is true, then the table is the base table,
+   * if not, the table is the del table.
    * @param table_name the name of the given table
    */
   static bool CheckBaseTbl(const string& table_name);
   /**
-   * delete the table from the catalog and the delete the associated files in
-   * the disk or in the hdfs
+   * @brief delete the table from the catalog and the delete the associated
+   * files in the disk or in the hdfs
    * @param table_name
    * @return
    */
   RetCode DropTable(const string& table_name);
 
   /**
-   * delete the table information from the catalog
+   * @brief delete the table information from the catalog
    * @param table_name
    * @return
    */
   RetCode DropTableFromCatalog(const string& table_name);
 
   /**
-   * delete the table files from the stroage
+   * @brief delete the table files from the stroage
    * @param table_name
    * @return
    */
   static RetCode DeleteTableFiles(const string& table_name);
 
   /**
-   * delete one projection of the table files from the stroage
+   * @brief delete all files of one projection from the stroage
    * @param table_name, projection_id
    * @author zyhe
    * @return
@@ -98,16 +98,6 @@ class DropTableExec : public StmtExec {
    * @return
    */
   static bool FreeTableFromMemory(const string& table_name);
-
-  /**
-   * @brief unlike FreeTableFromMemory(), this function frees one projection of
-   * the table
-   * @param table_name
-   * @author zyhe
-   * @return
-   */
-  static bool FreeProjectionFromMemory(const string& table_name,
-                                       const int& proj_id);
 
  private:
   AstDropTable* drop_table_ast_;
