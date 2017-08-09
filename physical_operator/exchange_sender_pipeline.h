@@ -55,6 +55,7 @@
 #include "../../common/Logging.h"
 #include "../../common/partition_functions.h"
 #include "../common/error_define.h"
+#include "../common/ids.h"
 #include "../physical_operator/exchange_sender.h"
 #include "../physical_operator/physical_operator_base.h"
 
@@ -137,7 +138,8 @@ class ExchangeSenderPipeline : public ExchangeSender {
   pthread_t sender_thread_id_;
   pthread_t debug_thread_id_;
   PartitionFunction* partition_function_;
-  unsigned sendedblocks_;
+  atomic_ullong sendedblocks_;
+  boost::unordered_map<unsigned, ExchangeID> local_partition_exch_id_;
 
  private:
   friend class boost::serialization::access;

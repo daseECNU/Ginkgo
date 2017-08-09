@@ -177,7 +177,7 @@ void Config::initialize() {
   scheduler = getString("scheduler", "SerializedScheduler");
   enable_prune_column = getBoolean("enable_prune_column", true);
   tree_type = getString("tree_type", "right_deep");
-  expander_buffer_size = getInt("expander_buffer_size", 10);
+  expander_buffer_size = getInt("expander_buffer_size", 1000);
 #ifdef DEBUG_Config
   print_configure();
 #endif

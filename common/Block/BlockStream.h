@@ -128,11 +128,11 @@ class BlockStreamBase : public Block {
 
 class BlockStreamFix : public BlockStreamBase {
   friend class BlockStreamBase;
+
+ public:
   struct tail_info {
     unsigned tuple_count;
   };
-
- public:
   BlockStreamFix(unsigned block_size, unsigned tuple_size);
   BlockStreamFix(unsigned block_size, unsigned tuple_size, void* start_addr,
                  unsigned ntuples);

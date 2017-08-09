@@ -118,7 +118,6 @@ ExchangeMerger::~ExchangeMerger() {
 bool ExchangeMerger::Open(SegmentExecStatus* const exec_status,
                           const PartitionOffset& partition_offset) {
   RETURN_IF_CANCELLED(exec_status);
-  unsigned long long int start = curtick();
   RegisterExpandedThreadToAllBarriers();
   if (TryEntryIntoSerializedSection()) {  // first arrived thread dose
     exhausted_lowers = 0;
@@ -228,24 +227,19 @@ bool ExchangeMerger::Next(SegmentExecStatus* const exec_status,
           << pthread_self() << ">>>>>>>>" << endl;
       return false;
     }
-#ifdef PRINT_USAGE_OF_NETWORK
-    LOG_EVERY_N(ERROR, 100)
-        << "exchange_id = " << state_.exchange_id_
-        << " buffer_usage = " << all_merged_block_buffer_->getBufferUsage();
-#endif
-    if (sem_new_block_or_eof_.timed_wait(1)) {
-      if (all_merged_block_buffer_->getBlock(*block)) {
-        perf_info_->processed_one_block();
-        return true;
-      }
-      // if there is no block, it will delay the Shrin(), so add this Check
-      if (this->CheckTerminateRequest()) {
-        LOG(INFO)
-            << "<<<<<<<<<<<<<Exchange detected call back, signal! get failed>>>"
-            << pthread_self() << ">>>>>>>>" << endl;
-        return false;
-      }
+    //   if (sem_new_block_or_eof_.timed_wait(1)) {
+    if (all_merged_block_buffer_->getBlock(*block)) {
+      perf_info_->processed_one_block();
+      return true;
     }
+    // if there is no block, it will delay the Shrin(), so add this Check
+    if (this->CheckTerminateRequest()) {
+      LOG(INFO)
+          << "<<<<<<<<<<<<<Exchange detected call back, signal! get failed>>>"
+          << pthread_self() << ">>>>>>>>" << endl;
+      return false;
+    }
+    //    }
     /*
      * Fix bug by checking whether the value of sem_new_block_or_eof_ is 0.
      * There is an extreme case that just after timed_wait(1) returned false
@@ -258,9 +252,8 @@ bool ExchangeMerger::Next(SegmentExecStatus* const exec_status,
      *but sem_new_block_or_eof_ is too large than the actual block number in
      *buffer, so it just to check the buffer is empty is ok.
      */
+
     if (exhausted_lowers == lower_num_ && all_merged_block_buffer_->Empty()) {
-      LOG(INFO) << "the value of sem_new_block_or_eof_ is :"
-                << sem_new_block_or_eof_.get_value() << endl;
       LOG(INFO) << "now all lower are exhausted~~~~~~~~~~~" << endl;
       return false;
     }
@@ -426,7 +419,8 @@ bool ExchangeMerger::RegisterExchange() {
   std::ostringstream port_str;
   port_str << socket_port_;
   return et->RegisterExchange(
-      ExchangeID(state_.exchange_id_, partition_offset_), port_str.str());
+      ExchangeID(state_.exchange_id_, partition_offset_), port_str.str(),
+      all_merged_block_buffer_);
 }
 /**
  * make sure each exchange merger at the same segment is registered, otherwise
@@ -868,8 +862,8 @@ for (auto &it : Pthis->lower_fd_to_passwd_) {
 
             //??? why is all ,not 1
             // multiple threads will still compete with lock
-            Pthis->sem_new_block_or_eof_.post(
-                Pthis->number_of_registered_expanded_threads_);
+            //    Pthis->sem_new_block_or_eof_.post(
+            //      Pthis->number_of_registered_expanded_threads_);
           } else {
 /** The newly obtained data block is the end-of-file.  **/
 #ifdef GLOG_STATUS
@@ -884,8 +878,8 @@ for (auto &it : Pthis->lower_fd_to_passwd_) {
              * threads waiting for the semaphore continue.
              **/
             Pthis->exhausted_lowers++;
-            Pthis->sem_new_block_or_eof_.post(
-                Pthis->number_of_registered_expanded_threads_);
+            // Pthis->sem_new_block_or_eof_.post(
+            //     Pthis->number_of_registered_expanded_threads_);
 
             if (Pthis->exhausted_lowers == Pthis->lower_num_) {
               /*
