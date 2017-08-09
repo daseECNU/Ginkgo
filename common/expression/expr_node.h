@@ -96,6 +96,7 @@ enum OperType {
   oper_agg_count,
   oper_is_not_null,
   oper_is_null,
+  oper_to_char,
 };
 struct ExprEvalCnxt {
   void* tuple[2];

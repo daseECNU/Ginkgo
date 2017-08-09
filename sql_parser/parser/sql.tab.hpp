@@ -370,7 +370,8 @@ extern int yydebug;
      FSUM = 579,
      FAVG = 580,
      FMIN = 581,
-     FMAX = 582
+     FMAX = 582,
+     TO_CHAR = 583
    };
 #endif
 
@@ -388,7 +389,7 @@ typedef union YYSTYPE
 
 
 /* Line 2579 of glr.c  */
-#line 392 "sql.tab.hpp"
+#line 393 "sql.tab.hpp"
 } YYSTYPE;
 # define YYSTYPE_IS_TRIVIAL 1
 # define yystype YYSTYPE /* obsolescent; will be withdrawn */

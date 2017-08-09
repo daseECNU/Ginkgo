@@ -73,6 +73,8 @@ bool ExprNode::IsEqualAttr(const Attribute& attr) {
 }
 Attribute ExprNode::ExprNodeToAttr(const int id, const unsigned table_id) {
   column_type* column = NULL;
+  unsigned size=0;
+
   if (t_string == this->return_type_ || t_decimal == this->return_type_) {
     column = new column_type(this->return_type_, this->value_size_);
   } else {
@@ -87,8 +89,54 @@ Attribute ExprNode::ExprNodeToAttr(const int id, const unsigned table_id) {
       attr_name = column->table_name_ + "." + column->column_name_;
     }  // else is for the case it's aliased
   }
-  Attribute attr_alais(table_id, id, attr_name, column->type, column->size);
-  return attr_alais;
+  // other data types convert to string,schema's attribute size changed
+  switch (get_type_){
+    case t_smallInt:
+    	size=8;
+    	break;
+    case t_u_smallInt:
+    	size=8;
+    	break;
+    case t_int:
+    	size=16;
+    	break;
+    case t_u_long:
+    	size=24;
+    	break;
+    case t_float:
+    	size=32;
+    	break;
+    case t_double:
+    	size=32;
+    	break;
+    case t_date:
+    	size=16;
+    	break;
+    case t_time:
+    	size=16;
+    	break;
+    case t_datetime:
+    	size=24;
+    	break;
+    case t_decimal:
+    	size=column->size;
+    	break;
+    case t_boolean:
+    	size=8;
+    	break;
+    case t_string:
+    	size=column->size;
+  }
+  if(return_type_ == t_string){
+	  Attribute attr_alais(table_id, id, attr_name, t_string, size);
+	  return attr_alais;
+  }else{
+	  Attribute attr_alais(table_id, id, attr_name, column->type, column->size);
+	  return attr_alais;
+  }
+
+
+
 }
 }  // namespace common
 }  // namespace claims

@@ -2132,6 +2132,11 @@ RetCode AstSelectStmt::GetLogicalPlanOfDistinct(LogicalOperator*& logic_plan) {
       select_expr->expr_->GetLogicalPlan(column_expr, logic_plan, NULL);
       distinct_attrs.push_back(column_expr);
       // distinct a, b from tb;
+    } else if (select_expr->expr_->ast_node_type() == AST_EXPR_UNARY) {
+      ExprNode* column_expr = NULL;
+      reinterpret_cast<AstExprUnary*>(select_expr->expr_)->arg0_
+          ->GetLogicalPlan(column_expr, logic_plan, NULL);
+      distinct_attrs.push_back(column_expr);
     }
     if (NULL != select_list->next_) {
          select_list = reinterpret_cast<AstSelectList*>(select_list->next_);
@@ -2139,8 +2144,8 @@ RetCode AstSelectStmt::GetLogicalPlanOfDistinct(LogicalOperator*& logic_plan) {
          select_list = NULL;
        }
      }
-  if (groupby_attrs_.size() == 0 && agg_attrs_.size() > 0) {
 
+  if (groupby_attrs_.size() == 0 && agg_attrs_.size() > 0) {
   } else {
     logic_plan =
         new LogicalAggregation(distinct_attrs, aggregation_attrs, logic_plan);

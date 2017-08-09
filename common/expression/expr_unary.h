@@ -19,11 +19,15 @@ class ExprUnary : public ExprNode {
   OperType oper_type_;
   ExprNode* arg0_;
   DataTypeOperFunc data_type_oper_func_;
+  string expr_type_;
   ExprUnary(ExprNodeType expr_node_type, data_type actual_type, string alias,
             OperType oper_type, ExprNode* arg0, bool is_distinct = 0);
   ExprUnary(ExprNodeType expr_node_type, data_type actual_type,
             data_type get_type, string alias, OperType oper_type,
             ExprNode* arg0, bool is_distinct = 0);
+  ExprUnary(ExprNodeType expr_node_type, data_type actual_type,
+            data_type get_type, string alias, OperType oper_type,
+            ExprNode* arg0,  string expr_type, bool is_distinct = 0);
   explicit ExprUnary(ExprUnary* expr);
   ExprUnary() {}
   ~ExprUnary() { delete arg0_; }
