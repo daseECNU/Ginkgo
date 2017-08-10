@@ -373,6 +373,59 @@ TEST_F(ElasticIteratorModelTest,showdeleteddatafromtableDEL){
 }
 #endif
 /*TEST_F(ElasticIteratorModelTest, droptestdata) {
+}
+//#if 0
+//TEST_F(ElasticIteratorModelTest,loaddata){
+//
+//  string datapathfile = "/home/imdb/data/part.tbl";
+//  /* this data file should be loaded by tester SELF and the structure of the data is the same as PART.
+//    just load the data of PART into PART2.
+//  */
+//#if 0
+//  cout << "please input the your data to load:" << endl;
+//  cin >> datapathfile;
+//#endif
+//
+//  string loaddataintopart2sql="load table PART2 from \""+ datapathfile +"\" with '|','\\n';";
+//
+//  cout << loaddataintopart2sql << endl;
+//
+//  ResultSet rs;
+//  std::string message;
+//  client_.submit(loaddataintopart2sql.c_str(),message,rs);
+//  EXPECT_STREQ("load data successfully\n", message.c_str());
+//
+//  cout << message << endl;
+//}
+//
+//TEST_F(ElasticIteratorModelTest,deletedata){
+//
+//
+//  string deletedatafrompart2sql="delete from PART2 where row_id < 10;";
+//
+//  ResultSet rs;
+//  std::string message;
+//  client_.submit(deletedatafrompart2sql.c_str(),message,rs);
+//  //EXPECT_STREQ("load data successfully", message.c_str());
+//
+//  cout << message << endl;
+//}
+//
+//TEST_F(ElasticIteratorModelTest,showdeleteddatafromtableDEL){
+//
+//
+//  string showdeletedatafrompart2sql="select * from PART2_DEL order by row_id_DEL;";
+//
+//  ResultSet rs;
+//  std::string message;
+//  client_.submit(showdeletedatafrompart2sql.c_str(),message,rs);
+//  DynamicBlockBuffer::Iterator it=rs.createIterator();
+//  BlockStreamBase::BlockStreamTraverseIterator *b_it=it.nextBlock()->createIterator();
+//  EXPECT_EQ(10,rs.getNumberOftuples());
+//  cout << message << endl;
+//}
+//#endif
+TEST_F(ElasticIteratorModelTest, droptestdata) {
   string droptablepart2sql = "drop table PART2;";
 
   ResultSet rs;
@@ -383,7 +436,8 @@ TEST_F(ElasticIteratorModelTest,showdeleteddatafromtableDEL){
       it.nextBlock()->createIterator();
   EXPECT_EQ("drop table successfully!\n", message);
   cout << message << endl;
-}*/
+}
+
 TEST_F(ElasticIteratorModelTest, to_char) {
   ResultSet rs;
   std::string message;

@@ -39,7 +39,7 @@ libstmthandler_a_SOURCES = \
 	insert_exec.cpp insert_exec.h \
 	load_exec.cpp	load_exec.h \
 	create_table_exec.cpp create_table_exec.h \
-	desc_exec.cpp desc_exec.h
-	
-
+	desc_exec.cpp desc_exec.h \
+	truncate_table_exec.cpp	truncate_table_exec.h \
+	drop_proj_exec.cpp drop_proj_exec.h
 	

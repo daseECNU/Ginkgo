@@ -152,8 +152,9 @@ RetCode CreateProjectionExec::CreateTableProjection(
                    columns, partition_attribute, partition_num),
           "failed to create projection");
 
-      int projection_index =
-          catalog->getTable(table_id)->getNumberOfProjection() - 1;
+      //      int projection_index =
+      //          catalog->getTable(table_id)->getNumberOfProjection() - 1;
+      int projection_index = catalog->getTable(table_id)->getMaxProjectionID();
       Partitioner* partitioner = catalog->getTable(table_id)
                                      ->getProjectoin(projection_index)
                                      ->getPartitioner();

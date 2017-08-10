@@ -81,6 +81,8 @@ class TableFileConnector {
                       const void* source, unsigned length);
   RetCode DeleteAllTableFiles();
 
+  RetCode DeleteOneProjectionFiles(string proj_id);
+
   RetCode UpdateWithNewProj();
 
  private:

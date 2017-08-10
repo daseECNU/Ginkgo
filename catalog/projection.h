@@ -80,6 +80,7 @@ class ProjectionDescriptor {
     return fileLocations;
   }
   inline ProjectionID getProjectionID() const { return projection_id_; }
+  inline vector<Column> getColumnList() const { return column_list_; }
   bool AllPartitionBound() const;
   std::vector<Attribute> getAttributeList() const;
   Schema* getSchema() const;
@@ -92,6 +93,7 @@ class ProjectionDescriptor {
    *           as this projection's cost
    */
   unsigned int getProjectionCost() const;
+
  private:
   //  ProjectionOffset projection_offset_;
   ProjectionID projection_id_;

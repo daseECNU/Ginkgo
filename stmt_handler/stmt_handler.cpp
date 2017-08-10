@@ -35,6 +35,8 @@
 #include "../stmt_handler/create_projection_exec.h"
 #include "../stmt_handler/desc_exec.h"
 #include "../stmt_handler/drop_table_exec.h"
+#include "../stmt_handler/truncate_table_exec.h"
+#include "../stmt_handler/drop_proj_exec.h"
 #include "../stmt_handler/show_exec.h"
 #include "../utility/Timer.h"
 #include "../common/error_define.h"
@@ -102,12 +104,20 @@ RetCode StmtHandler::GenerateStmtExec(AstNode* stmt_ast) {
       stmt_exec_ = new DropTableExec(stmt_ast);
       break;
     }
+    case AST_DROP_PROJECTION: {
+      stmt_exec_ = new DropProjExec(stmt_ast);
+      break;
+    }
     case AST_DELETE_STMT: {
       stmt_exec_ = new DeleteStmtExec(stmt_ast);
       break;
     }
     case AST_UPDATE_STMT: {
       stmt_exec_ = new UpdateStmtExec(stmt_ast);
+      break;
+    }
+    case AST_TRUNCATE_TABLE: {
+      stmt_exec_ = new TruncateTableExec(stmt_ast);
       break;
     }
     default: {

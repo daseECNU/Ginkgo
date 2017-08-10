@@ -236,6 +236,7 @@ TINYTEXT	{ return TINYTEXT; }
 TO	{ return TO; }
 TRAILING	{ return TRAILING; }
 TRIGGER	{ return TRIGGER; }
+TRUNCATE { return TRUNCATE; }
 UNDO	{ return UNDO; }
 UNION	{ return UNION; }
 UNIQUE	{ return UNIQUE; }
