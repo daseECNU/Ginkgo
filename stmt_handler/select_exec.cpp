@@ -206,6 +206,12 @@ RetCode SelectExec::Execute() {
   }
   logic_plan = new LogicalQueryPlanRoot(0, logic_plan, raw_sql_,
                                         LogicalQueryPlanRoot::kResultCollector);
+
+  if (Config::enable_prune_column &&
+      ((AstSelectList*)(select_ast_->select_list_))->is_all_ == false) {
+    set<string> attrs;
+    logic_plan->PruneProj(attrs);
+  }
   logic_plan->GetPlanContext();
   // if there is select * or select A.* , do not use prune_column
   bool prune_column_flag = true;

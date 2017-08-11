@@ -42,6 +42,7 @@ class ExprUnary : public ExprNode {
   void GetUniqueAttr(set<string>& attrs);
   // if is_distinct = true ,means count(distinct a) situation
   bool is_distinct_;
+
  private:
   friend class boost::serialization::access;
   template <class Archive>

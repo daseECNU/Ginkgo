@@ -50,3 +50,9 @@ local_disk_mode=1
 scan_batch=100
 
 enable_prune_column=1
+
+memory_utilization = 80
+
+hash_join_bucket_num = 1048576
+
+hash_join_bucket_size = 1024
