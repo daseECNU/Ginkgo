@@ -55,6 +55,7 @@ class DeleteStmtExec : public StmtExec {
 
  private:
   RetCode GenerateSelectStmt(const string table_name,
+                             const string table_alias,
                              AstNode *&appended_query_sel_stmt);
   RetCode GenerateSelectedColumns(const string table_name,
                                   vector<string> &partition_attributes);

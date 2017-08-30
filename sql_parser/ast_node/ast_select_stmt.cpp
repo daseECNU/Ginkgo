@@ -2155,6 +2155,7 @@ RetCode AstSelectStmt::GetLogicalPlanOfDistinct(LogicalOperator*& logic_plan) {
 
 RetCode AstSelectStmt::GetLogicalPlanOfProject(LogicalOperator*& logic_plan) {
   AstSelectList* select_list = reinterpret_cast<AstSelectList*>(select_list_);
+  AstFromList* from_list = reinterpret_cast<AstFromList*>(from_list_);
   vector<ExprNode*> expr_list;
   vector<AstNode*> ast_expr;
   ExprNode* tmp_expr = NULL;
@@ -2173,17 +2174,45 @@ RetCode AstSelectStmt::GetLogicalPlanOfProject(LogicalOperator*& logic_plan) {
       } break;
       case AST_COLUMN_ALL: {
         AstColumn* column = reinterpret_cast<AstColumn*>(select_expr->expr_);
-        vector<Attribute> attrs = Environment::getInstance()
-                                      ->getCatalog()
-                                      ->getTable(column->relation_name_)
-                                      ->getAttributes();
-        for (auto it = attrs.begin(); it != attrs.end(); ++it) {
-          ast_expr.push_back(new AstColumn(
-              AST_COLUMN, column->relation_name_,
-              it->attrName.substr(it->attrName.find('.') + 1), it->attrName));
+        vector<Attribute> attrs;
+        if (Environment::getInstance()->getCatalog()
+        ->getTable(column->relation_name_) != NULL ) {
+          attrs = Environment::getInstance()
+                             ->getCatalog()
+                             ->getTable(column->relation_name_)
+                             ->getAttributes();
+          for (auto it = attrs.begin(); it != attrs.end(); ++it) {
+            ast_expr.push_back(new AstColumn(
+                AST_COLUMN, column->relation_name_,
+                it->attrName.substr(it->attrName.find('.') + 1), it->attrName));
+          }
+        } else {
+          // solve alias problem like select A.* from test_a as A;
+          while (from_list) {
+            AstTable* table = reinterpret_cast<AstTable*>(from_list->args_);
+            if (table->table_alias_ != "NULL" &&
+                table->table_alias_ == column->relation_name_) {
+              attrs = Environment::getInstance()
+                                  ->getCatalog()
+                                  ->getTable(table->table_name_)
+                                  ->getAttributes();
+              for (auto it = attrs.begin(); it != attrs.end(); ++it) {
+                ast_expr.push_back(new AstColumn(
+                    AST_COLUMN, column->relation_name_,
+                    it->attrName.substr(it->attrName.find('.') + 1),
+                    column->relation_name_
+                    +it->attrName.substr(it->attrName.find('.'))));
+              }
+              break;
+            }
+            from_list = from_list->next_;
+          }
         }
+
       } break;
-      default: { ast_expr.push_back(select_expr->expr_); }
+      default: {
+        ast_expr.push_back(select_expr->expr_);
+      }
     }
 
     if (NULL != select_list->next_) {
