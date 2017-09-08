@@ -556,9 +556,10 @@ RetCode execSelectInto(StmtExecStatus* exec_status,
   TableDescriptor *insert_table =
       Environment::getInstance()->getCatalog()->getTable(table_name);
   DataInjector *injector = new DataInjector(insert_table);
-  string sel_result = exec_status->get_query_result()
-                      ->getResult(row_change);
-  ret = injector->InsertFromString(sel_result, exec_result);
+  vector<string> sel_result;
+  exec_status->get_query_result()
+                      ->getResult(row_change, sel_result);
+  ret = injector->InsertFromStringMultithread(sel_result, exec_result);
   if (rSuccess == ret) {
     ostr.clear();
     ostr << "insert data successfully. " << row_change

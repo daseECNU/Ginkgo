@@ -149,7 +149,9 @@ int find_pos(vector<unsigned> insert_index, unsigned number) {
     }
   }
 }
-string ResultSet::getResult(unsigned int &change_row) {
+void ResultSet::getResult(unsigned int &change_row,
+                             vector<string>& sel_result) {
+  unsigned int row_count = 0;
   Iterator it = this->createIterator();
   BlockStreamBase* block;
   BlockStreamBase::BlockStreamTraverseIterator* tuple_it;
@@ -178,18 +180,28 @@ string ResultSet::getResult(unsigned int &change_row) {
           }
         }
       }
-      change_row++;
       ostr <<"\n";
+      change_row++;
+      row_count++;
+      if (row_count == 1000000) {
+        sel_result.push_back(ostr.str());
+        row_count = 0;
+        ostr.str("");
+      }
     }
     delete tuple_it;
   }
-  return ostr.str();
+  // add last tuples
+  if (row_count >0)
+    sel_result.push_back(ostr.str());
 }
 
-string ResultSet::getResult(unsigned int &change_row,
+void ResultSet::getResult(unsigned int &change_row,
                             vector<unsigned> insert_index,
                             vector<Attribute> attributes,
-                            Schema* table_schema) {
+                            Schema* table_schema,
+                            vector<string>& sel_result) {
+  unsigned int row_count = 0;
   Iterator it = this->createIterator();
   BlockStreamBase* block;
   BlockStreamBase::BlockStreamTraverseIterator* tuple_it;
@@ -234,12 +246,20 @@ string ResultSet::getResult(unsigned int &change_row,
             ostr <<"|";
           }
       }
-      change_row++;
       ostr <<"\n";
+      change_row++;
+      row_count++;
+      if (row_count == 1000000) {
+        sel_result.push_back(ostr.str());
+        row_count = 0;
+        ostr.str("");
+      }
     }
     delete tuple_it;
   }
-  return ostr.str();
+  // deal last tuples
+  if (row_count >0)
+    sel_result.push_back(ostr.str());
 }
 
 

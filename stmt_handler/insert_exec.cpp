@@ -367,13 +367,14 @@ RetCode InsertExec::Execute(ExecutedResult *exec_result) {
           "equal to insert table column");
       ret =  claims::common::rFailure;
     } else {
+      vector<string> sel_result;
+      unsigned int row_change = 0;
       // insert into table select
       if (is_all_col_) {
-        unsigned int row_change = 0;
-        string sel_result =
-            exec_sel_result.result_->getResult(row_change);
+        exec_sel_result.result_->getResult(row_change, sel_result);
         DataInjector *injector = new DataInjector(table);
-        ret = injector->InsertFromString(sel_result, exec_result);
+//        for (int i = 0 ; i< sel_result.size(); i++)
+        ret = injector->InsertFromStringMultithread(sel_result, exec_result);
         if (rSuccess == ret) {
           ostr.clear();
           ostr << "insert data successfully. " << row_change
@@ -388,7 +389,6 @@ RetCode InsertExec::Execute(ExecutedResult *exec_result) {
         Environment::getInstance()->getCatalog()->saveCatalog();
       } else {
         // insert into table(A,B,C) select
-        unsigned int row_change = 0;
         vector<std::string> insert_column;
         vector<unsigned> insert_index;
         col = dynamic_cast<AstColumn *>(insert_ast_->col_list_);
@@ -419,12 +419,12 @@ RetCode InsertExec::Execute(ExecutedResult *exec_result) {
           }
           col = dynamic_cast<AstColumn *>(col->next_);
         }
-        string sel_result =
-            exec_sel_result.result_->getResult(row_change,
+        exec_sel_result.result_->getResult(row_change,
                              insert_index, attributes,
-                             table->getSchema());
+                             table->getSchema(),
+                             sel_result);
         DataInjector *injector = new DataInjector(table);
-        ret = injector->InsertFromString(sel_result, exec_result);
+        ret = injector->InsertFromStringMultithread(sel_result, exec_result);
         if (rSuccess == ret) {
           ostr.clear();
           ostr << "insert data successfully. " << row_change

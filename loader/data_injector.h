@@ -98,7 +98,14 @@ class DataInjector {
    * @return rSuccess if success or other on error
    */
   RetCode InsertFromString(const string tuples, ExecutedResult* result);
-
+  /**
+   * @brief Method description: insert tuples into table by multithread
+   * @param tuples: the the vectordata to insert into tables, which may be a line or
+   * multiple lines
+   * @return rSuccess if success or other on error
+   */
+  RetCode InsertFromStringMultithread(const vector<string>&tuples,
+                              ExecutedResult* result);
  private:
   RetCode LoadFromFileSingleThread(vector<string> input_file_names,
                                    FileOpenFlag open_flag,
