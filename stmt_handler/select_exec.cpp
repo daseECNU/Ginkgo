@@ -206,15 +206,11 @@ RetCode SelectExec::Execute() {
   }
   logic_plan = new LogicalQueryPlanRoot(0, logic_plan, raw_sql_,
                                         LogicalQueryPlanRoot::kResultCollector);
-
-  if (Config::enable_prune_column &&
-      ((AstSelectList*)(select_ast_->select_list_))->is_all_ == false) {
-    set<string> attrs;
-    logic_plan->PruneProj(attrs);
-  }
   logic_plan->GetPlanContext();
   // if there is select * or select A.* , do not use prune_column
   bool prune_column_flag = true;
+  if (((AstSelectList*)(select_ast_->select_list_))->is_all_ == 1)
+      prune_column_flag = false;
   if (sem_cnxt.is_all) prune_column_flag = false;
   for (auto it = sem_cnxt.table_to_column.begin();
       it != sem_cnxt.table_to_column.end(); it++) {
@@ -222,7 +218,7 @@ RetCode SelectExec::Execute() {
         prune_column_flag = false;
     }
   }
-  if (Config::enable_prune_column  &&prune_column_flag) {
+  if (Config::enable_prune_column  &prune_column_flag) {
     set<string> attrs;
     logic_plan->PruneProj(attrs);
   }
