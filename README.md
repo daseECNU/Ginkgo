@@ -24,7 +24,48 @@ Ginkgo employs a large set of optimization techniques to achieve efficient in-me
 ##### 5. Network communication optimization. 
 Parallel query processing imposes high burdens on network communication, which usually becomes performance bottleneck of the in-memory parallel databases due to the relatively slow network bandwidth. When compiling a user query into an execution plan, Ginkgo’s query optimizer leverages a sophisticated selectivity propagation system and cost model to generate physical query plans with minimized network communication cost. Furthermore, Ginkgo deploys a new data exchange implementation, which offers efficient, scalable and skew-resilient network data transfer among Ginkgo instances. These optimizations greatly reduce the response time for a large variety of queries.
 
+Currently, we are developing Ginkgo at East China Normal University. If you have any problems about this project, please contact us.
 
+Email: ginkgo.bigdata@gmail.com
+
+#### Team Members
+
+[Chuliang Weng], Professor in East China Normal University, is the person in charge of this project.
+
+[Zhuhe Fang] is mainly responsible for designing and implementing SQL query optimization.
+
+[Zhifang Li] is mainly responsible for data ingestion.
+
+[Zhenhui Zhao] is mainly responsible for improving system stability.
+
+[Tingting Sun] is mainly responsible for data format.
+
+[Zeyu He] is mainly responsible for transaction management.
+
+[QiuLi Huang] is mainly responsible for data migration.
+
+[BeiCheng Peng] is mainly responsible for testing.
+
+#### Former Team Members
+[Aoying Zhou](http://case.ecnu.edu.cn), Professor in East China Normal University, is the person in charge of this project.
+
+[Minqi Zhou](https://github.com/polpo1980), Associate Professor in East China Normal University, is the person in charge of this project.
+
+[Li Wang](https://github.com/wangli1426), Ph.D. student in East China Normal University, manages the master students in this team and is responsible for designing and implementing the key components, including query optimizer, catalog, physical operators, distributed communication infrastructure, storage layout, etc.
+
+[Lei Zhang](https://github.com/egraldlo) is responsible for designing and implementing the key components, including query optimizer, physical operators, persistent data exchange, storage management, etc.
+
+[Shaochan Dong](https://github.com/scdong) is responsible for designing and implementing in-memory index and index management, data types, as well as data loading and importing.
+
+[Xinzhou Zhang]() is mainly responsible for web UI design and implementing data importing model.
+
+[Zhuhe Fang](https://github.com/fzhedu) is mainly responsible for designing and implementing SQL DML parser and physical operators.
+
+[Yu Kai](https://github.com/yukai2014) is mainly responsible for designing and implementing SQL DDL parser, catalog persistence.
+
+[Yongfeng Li](https://github.com/NagamineLee) was a formal member of CLAIMS, who participated in designing and implementing catalog model.
+
+[Lin Gu]() is responsible for designing the demo cases.
 
 #### Quick Start
 Try our Ginkgo, please follow [Quick Start](https://github.com/daseECNU/Ginkgo/wiki/Installation-steps).
