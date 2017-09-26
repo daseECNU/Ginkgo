@@ -30,21 +30,21 @@ Email: ginkgo.bigdata@gmail.com
 
 #### Team Members
 
-[Chuliang Weng], Professor in East China Normal University, is the person in charge of this project.
+[Chuliang Weng]() , Professor in East China Normal University, is the person in charge of this project.
 
-[Zhuhe Fang] is mainly responsible for designing and implementing SQL query optimization.
+[Zhuhe Fang]()  is mainly responsible for designing and implementing SQL query optimization.
 
-[Zhifang Li] is mainly responsible for data ingestion.
+[Zhifang Li]()  is mainly responsible for data ingestion.
 
-[Zhenhui Zhao] is mainly responsible for improving system stability.
+[Zhenhui Zhao]()  is mainly responsible for improving system stability.
 
-[Tingting Sun] is mainly responsible for data format.
+[Tingting Sun]()  is mainly responsible for data format.
 
-[Zeyu He] is mainly responsible for transaction management.
+[Zeyu He]()  is mainly responsible for transaction management.
 
-[QiuLi Huang] is mainly responsible for data migration.
+[QiuLi Huang]()  is mainly responsible for data migration.
 
-[BeiCheng Peng] is mainly responsible for testing.
+[BeiCheng Peng]()  is mainly responsible for testing.
 
 #### Former Team Members
 [Aoying Zhou](http://case.ecnu.edu.cn), Professor in East China Normal University, is the person in charge of this project.
