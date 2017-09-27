@@ -38,9 +38,9 @@ Zhenhui Zhao, Postgraduate Student.
 
 Tingting Sun, Postgraduate Student
 
-Zeyu He, Postgraduate Studentt.
+Zeyu He, Postgraduate Student.
 
-QiuLi Huang, Postgraduate Studentt.
+QiuLi Huang, Postgraduate Student.
 
 BeiCheng Peng, Undergraduate Student.
 
