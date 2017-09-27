@@ -28,20 +28,20 @@ Learn more information, please go to [Wiki](https://github.com/daseECNU/Ginkgo/w
 
 #### Current Team Members
 
-Chuliang Weng, Professor.
-
+Chuliang Weng, Professor. 
+<br /> 
 Zhuhe Fang, Ph.D. Student.
-
+<br /> 
 Zhifang Li, Ph.D. Student.
-
+<br /> 
 Zhenhui Zhao, Postgraduate Student.
-
+<br /> 
 Tingting Sun, Postgraduate Student.
-
+<br /> 
 Zeyu He, Postgraduate Student.
-
+<br /> 
 Qiuli Huang, Postgraduate Student.
-
+<br /> 
 Beicheng Peng, Undergraduate Student.
 
 #### Former Team Members
