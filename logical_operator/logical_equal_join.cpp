@@ -736,12 +736,19 @@ PhysicalOperatorBase* LogicalEqualJoin::GetPhysicalPlan(
       right_child_->GetPhysicalPlan(block_size);
   PlanContext dataflow_right = right_child_->GetPlanContext();
 
+  // let the bucket_num adapt to the estimated cardinality of each table
+  int64_t bucket_num = dataflow_left.GetAggregatedDataCardinality() /
+                       dataflow_left.plan_partitioner_.GetNumberOfPartitions();
+  bucket_num = bucket_num < 16 ? 16 : bucket_num * 2;
+
   // create PhysicalHashJoinProbe
   PhysicalHashJoinProbe* join_probe;
   PhysicalHashJoinProbe::State state_probe;
   state_probe.join_id_ = join_id;
   state_probe.block_size_ = block_size;
-  state_probe.hashtable_bucket_num_ = Config::hash_join_bucket_num;
+  //  state_probe.hashtable_bucket_num_ = Config::hash_join_bucket_num;
+  state_probe.hashtable_bucket_num_ = bucket_num;
+
   // state.ht_nbuckets=1024;
   state_probe.input_schema_left_ = GetSchema(dataflow_left.attribute_list_);
   state_probe.input_schema_right_ = GetSchema(dataflow_right.attribute_list_);
@@ -1050,7 +1057,8 @@ PhysicalOperatorBase* LogicalEqualJoin::GetPhysicalPlan(
   PhysicalHashJoinBuild::State state_build;
   state_build.block_size_ = block_size;
   state_build.child_left_ = state_probe.child_left_;  // note
-  state_build.hashtable_bucket_num_ = Config::hash_join_bucket_num;
+  state_build.hashtable_bucket_num_ = bucket_num;
+  //  state_build.hashtable_bucket_num_ = Config::hash_join_bucket_num;
   state_build.hashtable_bucket_size_ = bucket_size;
   state_build.hashtable_schema_ = GetSchema(dataflow_left.attribute_list_);
   state_build.input_schema_left_ = GetSchema(dataflow_left.attribute_list_);
