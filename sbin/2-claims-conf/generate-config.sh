@@ -80,6 +80,8 @@ hash_join_bucket_num = $hash_join_bucket_num
 
 hash_join_bucket_size = $hash_join_bucket_size
 
+rank_computation = $rank_computation
+
 scheduler = "$scheduler"
 
 EOF

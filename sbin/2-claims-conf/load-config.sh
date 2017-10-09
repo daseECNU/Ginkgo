@@ -45,6 +45,7 @@ function load_config()
     getcfg $config tree_type tree_type
     getcfg $config enable_prune_column enable_prune_column
     getcfg $config binding_mode binding_mode
+    getcfg $config rank_computation rank_computation
 }
 
 function currdir()
@@ -84,6 +85,7 @@ echo "binding_mode:                         [$binding_mode]"
 echo "tree_type:                            [$tree_type]"
 echo "scheduler : 			    [$scheduler]"
 echo "expander_buffer_size:                 [$expander_buffer_size]"
+echo "rank_computation:                     [$rank_computation]"
 echo "=========cluster config end=========="
 }
 
