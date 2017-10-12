@@ -22,6 +22,10 @@
  *      Author: yuyang
  *		   Email: youngfish93@hotmail.com
  *
+ *	Modified on : Aug 8, 2017
+ *      Author: zyhe
+ *       Email: hzylab@gmail.com
+ *
  * Description:
  *
  */
@@ -41,38 +45,59 @@ class DropTableExec : public StmtExec {
  public:
   DropTableExec(AstNode* stmt);  // NOLINT
   virtual ~DropTableExec();
-
+  friend class DropProjExec;
+  friend class TruncateTableExec;
   RetCode Execute(ExecutedResult* exec_result);
 
  private:
   /**
-   * to check the table with given name, whether it is a base table or a del
-   * table. If the return value is true, then the table is the base table, if
-   * not, the table is the del table.
+   * @brief to check the table with given name, whether it is a base table or a
+   * del table. If the return value is true, then the table is the base table,
+   * if not, the table is the del table.
    * @param table_name the name of the given table
    */
-  bool CheckBaseTbl(const string& table_name) const;
+  static bool CheckBaseTbl(const string& table_name);
   /**
-   * delete the table from the catalog and the delete the associated files in
-   * the disk or in the hdfs
+   * @brief delete the table from the catalog and the delete the associated
+   * files in the disk or in the hdfs
    * @param table_name
    * @return
    */
   RetCode DropTable(const string& table_name);
 
   /**
-   * delete the table information from the catalog
+   * @brief delete the table information from the catalog
    * @param table_name
    * @return
    */
   RetCode DropTableFromCatalog(const string& table_name);
 
   /**
-   * delete the table files from the stroage
+   * @brief delete the table files from the stroage
    * @param table_name
    * @return
    */
-  RetCode DeleteTableFiles(const string& table_name);
+  static RetCode DeleteTableFiles(const string& table_name);
+
+  /**
+   * @brief delete all files of one projection from the stroage
+   * @param table_name, projection_id
+   * @author zyhe
+   * @return
+   */
+  static RetCode DeleteProjectionFiles(const string& table_name,
+                                       const string& proj_id);
+
+  /**
+   * @brief call the UnbindingEntireProjection() function to free the memory in
+   * the memory pool. The memory return to the memory pool rather than return to
+   * the operating system directly. It causes when you apply the memory next
+   * time thread will use the memory pool first.
+   * @param table_name
+   * @author zyhe
+   * @return
+   */
+  static bool FreeTableFromMemory(const string& table_name);
 
  private:
   AstDropTable* drop_table_ast_;

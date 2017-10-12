@@ -901,6 +901,81 @@ void* DataInjector::HandleTuple(void* ptr) {
   injector->finished_thread_sem_.post();
 }
 
+/*
+ * multi-thread version of InsertFromString
+ */
+RetCode DataInjector::InsertFromStringMultithread(const vector<string> &tuples,
+                                                  ExecutedResult* result) {
+  int ret = rSuccess;
+  uint64_t row_id_in_file = 0;
+  uint64_t inserted_tuples_in_file = 0;
+  uint64_t total_tuple_count = 0;
+  multi_thread_status_ = rSuccess;
+  all_tuple_read_ = false;
+  result_ = result;
+  thread_index_ = 0;
+  cout << endl;
+  EXEC_AND_RETURN_ERROR(ret, PrepareInitInfo(kAppendFile),
+                        "failed to prepare initialization info");
+#ifdef DATA_DO_LOAD
+  EXEC_AND_RETURN_ERROR(ret, connector_.Open(), " failed to open connector");
+#endif
+  LOG(INFO) << "\n------------------Insert  Begin!-----------------------\n";
+  // create threads handling tuples
+  int thread_count = Config::load_thread_num;
+  assert(thread_count >= 1);
+  task_lists_ = new std::list<LoadTask>[thread_count];
+  task_list_access_lock_ = new SpineLock[thread_count];
+  tuple_count_sem_in_lists_ = new semaphore[thread_count];
+  for (int i = 0; i < thread_count; ++i) {
+    Environment::getInstance()->getThreadPool()->AddTask(HandleTuple, this);
+  }
+  // create tuple
+  for (auto &c : tuples) {
+    string::size_type cur = 0;
+    int prev_cur = 0;
+      while (string::npos != (cur = c.find('\n', prev_cur))) {
+        DLOG_DI("cur: " << cur << " prev_cur: " << prev_cur);
+        string tuple_record = c.substr(prev_cur, cur - prev_cur - 1);
+        prev_cur = cur + 1;
+        ++row_id_in_file;
+        int list_index = row_id_in_file % thread_count;
+        {  // push into one thread local tuple pool
+          LockGuard<SpineLock> guard(
+          task_list_access_lock_[list_index]);  /// lock/sem
+          task_lists_[list_index].push_back(
+           std::move(LoadTask(tuple_record, "", row_id_in_file)));
+        }
+        tuple_count_sem_in_lists_[list_index].post();
+      }
+  }
+
+  __sync_add_and_fetch(&all_tuple_read_, 1);
+
+//   waiting for all threads finishing task
+  for (int i = 0; i < thread_count; ++i) finished_thread_sem_.wait();
+  LOG(INFO) << " all threads finished its job " << endl;
+  if (rSuccess != (ret = multi_thread_status_)) {
+    ELOG(multi_thread_status_, "failed to load using multi-thread ");
+    return ret;
+  }
+
+  for (int i = 0; i < thread_count; ++i) task_lists_[i].clear();
+  DELETE_ARRAY(task_lists_);
+  DELETE_ARRAY(task_list_access_lock_);
+  DELETE_ARRAY(tuple_count_sem_in_lists_);
+
+#ifdef DATA_DO_LOAD
+  EXEC_AND_LOG(ret, connector_.Close(), "closed connector.",
+               "Failed to close connector.");
+#endif
+  EXEC_AND_ONLY_LOG_ERROR(ret, UpdateCatalog(kAppendFile),
+                          "failed to update catalog information");
+
+  LOG(INFO) << "\n---------------------Insert End!---------------------\n";
+  return ret;
+}
+
 /**
  * check validity of all tuples,
  * if all OK, then insert into file and update catalog;

@@ -62,7 +62,7 @@ bool ProjectionBinding::BindingEntireProjection(
         Environment::getInstance()->getResourceManagerMaster();
     std::vector<NodeID> node_id_list = rmm->getSlaveIDList();
     unsigned allocate_cur = 0;
-    allocate_cur = GetRandomInt(node_id_list.size());
+    //    allocate_cur = GetRandomInt(node_id_list.size());
     for (unsigned i = 0; i < part->getNumberOfPartitions(); i++) {
       NodeID target = node_id_list[allocate_cur];
 
@@ -162,25 +162,28 @@ bool ProjectionBinding::UnbindingEntireProjection(Partitioner* part) {
     ResourceManagerMaster* rmm =
         Environment::getInstance()->getResourceManagerMaster();
     for (int i = 0; i < part->getNumberOfPartitions(); i++) {
-      unsigned budget = part->getPartitionDataSize(i);
-      switch (DESIRIABLE_STORAGE_LEVEL) {
-        case MEMORY: {
-          rmm->ReturnMemoryBuget(part->getPartitionLocation(i), budget);
-          break;
+      /* check the partition whether binds NodeID or not  --added by zyhe */
+      if (part->getPartitionLocation(i) >= 0) {
+        unsigned budget = part->getPartitionDataSize(i);
+        switch (DESIRIABLE_STORAGE_LEVEL) {
+          case MEMORY: {
+            rmm->ReturnMemoryBuget(part->getPartitionLocation(i), budget);
+            break;
+          }
+          case DISK: {
+            rmm->ReturnDiskBuget(part->getPartitionLocation(i), budget);
+            break;
+          }
+          default:
+            break;
         }
-        case DISK: {
-          rmm->ReturnDiskBuget(part->getPartitionLocation(i), budget);
-          break;
-        }
-        default:
-          break;
-      }
 
-      PartitionID partition_id(part->getProejctionID(), i);
-      NodeID node_id = part->getPartitionLocation(i);
-      BlockManagerMaster::getInstance()->SendUnbindingMessage(partition_id,
-                                                              node_id);
-      part->unbindPartitionToNode(i);
+        PartitionID partition_id(part->getProejctionID(), i);
+        NodeID node_id = part->getPartitionLocation(i);
+        BlockManagerMaster::getInstance()->SendUnbindingMessage(partition_id,
+                                                                node_id);
+        part->unbindPartitionToNode(i);
+      }
     }
     return true;
   }

@@ -706,6 +706,9 @@ class OperateString : public Operate {
       str = "";
     }
   }
+  inline unsigned getSize() {
+    return this->size;
+  }
 };
 
 class OperateDate : public Operate {
@@ -785,6 +788,7 @@ class OperateDate : public Operate {
     return boost::hash_value((*(boost::gregorian::date*)(key)).julian_day()) %
            mod;
   }
+
   Operate* duplicateOperator() const { return new OperateDate(this->nullable); }
 
   inline bool setNull(void* value) {
@@ -1277,6 +1281,12 @@ class OperateDecimal : public Operate {
     return false;
   }
 
+  inline int getPrecision() const{
+    return this->precision_;
+  }
+  inline int getScale() const{
+    return this->scale_;
+  }
   //  unsigned number_of_decimal_digits_;
 
   /**

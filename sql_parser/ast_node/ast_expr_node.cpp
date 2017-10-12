@@ -156,7 +156,7 @@ RetCode AstExprUnary::SemanticAnalisys(SemanticContext* sem_cnxt) {
   // agg couldn't in where or groupby
   if (expr_type_ == "SUM" || expr_type_ == "MAX" || expr_type_ == "MIN" ||
       expr_type_ == "AVG" || expr_type_ == "COUNT" ||
-      expr_type_ == "COUNT_ALL") {
+      expr_type_ == "COUNT_ALL" || expr_type_ == "TO_CHAR") {
     if (SemanticContext::kWhereClause == sem_cnxt->clause_type_) {
       ELOG(rAggCouldNotInWhereClause, "");
       return rAggCouldNotInWhereClause;
@@ -176,7 +176,8 @@ RetCode AstExprUnary::SemanticAnalisys(SemanticContext* sem_cnxt) {
     // upper node have agg and this node is agg, then error
     bool here_have_agg =
         (expr_type_ == "SUM" || expr_type_ == "MAX" || expr_type_ == "MIN" ||
-         expr_type_ == "AVG" || expr_type_ == "COUNT");
+         expr_type_ == "AVG" || expr_type_ == "COUNT"
+             || expr_type_ == "TO_CHAR");
 
     if (sem_cnxt->have_agg && here_have_agg) {
       ELOG(rAggHaveAgg, "");
@@ -228,11 +229,11 @@ void AstExprUnary::ReplaceAggregation(AstNode*& agg_column,
   // like a leaf node
   if (expr_type_ == "COUNT_ALL" || expr_type_ == "SUM" || expr_type_ == "MAX" ||
       expr_type_ == "MIN" || expr_type_ == "AVG" || expr_type_ == "COUNT") {
-    if (this->arg0_ != NULL &&
-        this->arg0_->ast_node_type_ == AST_DISTINCT_CLAUSE) {
-      // make this column different with no distinct column
-      this->expr_str_ = this->expr_str_+"_DIS";
-    }
+//    if (this->arg0_ != NULL &&
+//        this->arg0_->ast_node_type_ == AST_DISTINCT_CLAUSE) {
+//      // make this column different with no distinct column
+//      this->expr_str_ = this->expr_str_+"_DIS";
+//    }
     if (need_collect) {
       agg_node.insert(this);
     }
@@ -295,6 +296,8 @@ RetCode AstExprUnary::GetLogicalPlan(ExprNode*& logic_expr,
 
   } else if (expr_type_ == "SUM") {
     oper = OperType::oper_agg_sum;
+  } else if (expr_type_ == "TO_CHAR") {
+    oper = OperType::oper_to_char;
   }
   if (oper == OperType::oper_none) {
     LOG(ERROR) << "not support now!" << endl;
@@ -304,12 +307,8 @@ RetCode AstExprUnary::GetLogicalPlan(ExprNode*& logic_expr,
   RetCode ret = rSuccess;
   // count(*) = count(1)
   if (expr_type_ == "COUNT_ALL" || expr_type_ == "COUNT") {
-    if (arg0_ != NULL && arg0_->ast_node_type_ == AST_DISTINCT_CLAUSE) {
-      ret = arg0_->GetLogicalPlan(child_logic_expr, left_lplan, right_lplan);
-    } else {
       child_logic_expr =
           new ExprConst(ExprNodeType::t_qexpr, t_u_long, "COUNT(1)", "1");
-    }
   } else {
     ret = arg0_->GetLogicalPlan(child_logic_expr, left_lplan, right_lplan);
   }
@@ -318,14 +317,14 @@ RetCode AstExprUnary::GetLogicalPlan(ExprNode*& logic_expr,
   }
   assert(NULL != child_logic_expr);
   if (oper_flag == 0) {
-    logic_expr = new ExprUnary(ExprNodeType::t_qexpr_unary,
+    if (expr_type_== "TO_CHAR") {
+      logic_expr = new ExprUnary(ExprNodeType::t_qexpr_unary,
+       child_logic_expr->actual_type_, child_logic_expr->actual_type_,
+       expr_str_, oper, child_logic_expr, expr_type_);
+    } else {
+      logic_expr = new ExprUnary(ExprNodeType::t_qexpr_unary,
                                child_logic_expr->actual_type_, expr_str_, oper,
                                child_logic_expr);
-    if (arg0_ != NULL && arg0_->ast_node_type_ == AST_DISTINCT_CLAUSE) {
-      reinterpret_cast<ExprUnary*>(logic_expr)->is_distinct_ = 1;
-      if (expr_type_ == "COUNT_ALL" || expr_type_ == "COUNT") {
-        logic_expr->actual_type_ = t_u_long;
-      }
     }
   } else {
     logic_expr = new ExprUnary(ExprNodeType::t_qexpr_unary, t_boolean,

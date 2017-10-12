@@ -77,7 +77,10 @@ LogicalProject::~LogicalProject() {
 // construct a PlanContext from child
 PlanContext LogicalProject::GetPlanContext() {
   lock_->acquire();
-
+  //  if (NULL != plan_context_) {
+  //    lock_->release();
+  //    return *plan_context_;
+  //  }
   PlanContext ret;
   // get the PlanContext of child
   const PlanContext child_plan_context = child_->GetPlanContext();
@@ -141,10 +144,8 @@ PlanContext LogicalProject::GetPlanContext() {
   if (plan_context_ == NULL) {
     mid_table_id = MIDINADE_TABLE_ID++;
   } else {
-    mid_table_id =
-        plan_context_->attribute_list_[0].table_id_;
+    mid_table_id = plan_context_->attribute_list_[0].table_id_;
     DELETE_PTR(plan_context_);
-    plan_context_ == NULL;
   }
   GetColumnToId(child_plan_context.attribute_list_, licnxt.column_id0_);
   for (int i = 0; i < expr_list_.size(); ++i) {

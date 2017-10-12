@@ -1417,6 +1417,45 @@ RetCode AstLimitClause::GetLogicalPlan(LogicalOperator*& logical_plan) {
   logical_plan = new LogicalLimit(logical_plan, row_count, offset);
   return rSuccess;
 }
+
+
+
+
+AstSelectIntoClause::AstSelectIntoClause(AstNodeType ast_node_type,
+                                         AstNode* table,
+                                         string partition_key,
+                                         int partition_number)
+    :AstNode(ast_node_type), table_(table),
+     partition_key_(partition_key),
+     partition_number_(partition_number) {}
+AstSelectIntoClause::~AstSelectIntoClause() {
+  delete table_;
+}
+void AstSelectIntoClause::Print(int level = 0) const {
+  cout << setw(level * TAB_SIZE) << " "
+       << "|into clause| " << endl;
+  level++;
+  cout << setw(level * TAB_SIZE) << " "
+       << " into table: " << endl;
+  if (table_ != NULL) table_->Print(level + 1);
+  cout << setw((level+4)* TAB_SIZE) << " "
+         << "|partition info| " << endl;
+  cout << setw((level+4) * TAB_SIZE) << " "
+      <<" partitioned on " << partition_key_ <<endl
+      << setw((level+4) * TAB_SIZE) << " "
+      <<" partition number = " <<partition_number_ <<endl;
+}
+RetCode AstSelectIntoClause::SemanticAnalisys(SemanticContext* sem_cnxt) {
+  RetCode ret = rSuccess;
+  TableDescriptor* table = NULL;
+  table = Environment::getInstance()->getCatalog()->getTable(
+      reinterpret_cast<AstTable *>(table_)->table_name_);
+  if (table != NULL) {
+    ret = rTableAlreadyExist;
+  }
+  return ret;
+}
+
 AstColumn::AstColumn(AstNodeType ast_node_type, std::string relation_name,
                      std::string column_name)
     : AstNode(ast_node_type),
@@ -1988,6 +2027,9 @@ RetCode AstSelectStmt::SemanticAnalisys(SemanticContext* sem_cnxt) {
       return rAggSelectExprHaveOtherColumn;
     }
   }
+  if (select_into_clause_) {
+    ret = select_into_clause_->SemanticAnalisys(sem_cnxt);
+  }
   // for select clause rebuild table column
   sem_cnxt->RebuildTableColumn();
 #ifdef PRINTCONTEXT
@@ -2090,6 +2132,11 @@ RetCode AstSelectStmt::GetLogicalPlanOfDistinct(LogicalOperator*& logic_plan) {
       select_expr->expr_->GetLogicalPlan(column_expr, logic_plan, NULL);
       distinct_attrs.push_back(column_expr);
       // distinct a, b from tb;
+    } else if (select_expr->expr_->ast_node_type() == AST_EXPR_UNARY) {
+      ExprNode* column_expr = NULL;
+      reinterpret_cast<AstExprUnary*>(select_expr->expr_)->arg0_
+          ->GetLogicalPlan(column_expr, logic_plan, NULL);
+      distinct_attrs.push_back(column_expr);
     }
     if (NULL != select_list->next_) {
          select_list = reinterpret_cast<AstSelectList*>(select_list->next_);
@@ -2097,8 +2144,8 @@ RetCode AstSelectStmt::GetLogicalPlanOfDistinct(LogicalOperator*& logic_plan) {
          select_list = NULL;
        }
      }
-  if (groupby_attrs_.size() == 0 && agg_attrs_.size() > 0) {
 
+  if (groupby_attrs_.size() == 0 && agg_attrs_.size() > 0) {
   } else {
     logic_plan =
         new LogicalAggregation(distinct_attrs, aggregation_attrs, logic_plan);
@@ -2108,6 +2155,7 @@ RetCode AstSelectStmt::GetLogicalPlanOfDistinct(LogicalOperator*& logic_plan) {
 
 RetCode AstSelectStmt::GetLogicalPlanOfProject(LogicalOperator*& logic_plan) {
   AstSelectList* select_list = reinterpret_cast<AstSelectList*>(select_list_);
+  AstFromList* from_list = reinterpret_cast<AstFromList*>(from_list_);
   vector<ExprNode*> expr_list;
   vector<AstNode*> ast_expr;
   ExprNode* tmp_expr = NULL;
@@ -2126,17 +2174,45 @@ RetCode AstSelectStmt::GetLogicalPlanOfProject(LogicalOperator*& logic_plan) {
       } break;
       case AST_COLUMN_ALL: {
         AstColumn* column = reinterpret_cast<AstColumn*>(select_expr->expr_);
-        vector<Attribute> attrs = Environment::getInstance()
-                                      ->getCatalog()
-                                      ->getTable(column->relation_name_)
-                                      ->getAttributes();
-        for (auto it = attrs.begin(); it != attrs.end(); ++it) {
-          ast_expr.push_back(new AstColumn(
-              AST_COLUMN, column->relation_name_,
-              it->attrName.substr(it->attrName.find('.') + 1), it->attrName));
+        vector<Attribute> attrs;
+        if (Environment::getInstance()->getCatalog()
+        ->getTable(column->relation_name_) != NULL ) {
+          attrs = Environment::getInstance()
+                             ->getCatalog()
+                             ->getTable(column->relation_name_)
+                             ->getAttributes();
+          for (auto it = attrs.begin(); it != attrs.end(); ++it) {
+            ast_expr.push_back(new AstColumn(
+                AST_COLUMN, column->relation_name_,
+                it->attrName.substr(it->attrName.find('.') + 1), it->attrName));
+          }
+        } else {
+          // solve alias problem like select A.* from test_a as A;
+          while (from_list) {
+            AstTable* table = reinterpret_cast<AstTable*>(from_list->args_);
+            if (table->table_alias_ != "NULL" &&
+                table->table_alias_ == column->relation_name_) {
+              attrs = Environment::getInstance()
+                                  ->getCatalog()
+                                  ->getTable(table->table_name_)
+                                  ->getAttributes();
+              for (auto it = attrs.begin(); it != attrs.end(); ++it) {
+                ast_expr.push_back(new AstColumn(
+                    AST_COLUMN, column->relation_name_,
+                    it->attrName.substr(it->attrName.find('.') + 1),
+                    column->relation_name_
+                    +it->attrName.substr(it->attrName.find('.'))));
+              }
+              break;
+            }
+            from_list = from_list->next_;
+          }
         }
+
       } break;
-      default: { ast_expr.push_back(select_expr->expr_); }
+      default: {
+        ast_expr.push_back(select_expr->expr_);
+      }
     }
 
     if (NULL != select_list->next_) {

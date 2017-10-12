@@ -236,6 +236,7 @@ TINYTEXT	{ return TINYTEXT; }
 TO	{ return TO; }
 TRAILING	{ return TRAILING; }
 TRIGGER	{ return TRIGGER; }
+TRUNCATE { return TRUNCATE; }
 UNDO	{ return UNDO; }
 UNION	{ return UNION; }
 UNIQUE	{ return UNIQUE; }
@@ -363,6 +364,11 @@ MAX    { int c = yyinput(pp->yyscan_info_); unput(c);
            if(c == '(') return FMAX;
            yylval->strval = strdup(yytext);
            return NAME; } 
+TO_CHAR  { int c = yyinput(pp->yyscan_info_); unput(c);
+           if(c == '(') return TO_CHAR;
+           yylval->strval = strdup(yytext);
+           return NAME; } 
+      
            
 [A-Za-z][A-Za-z0-9_]*	{ yylval->strval = strdup(yytext);
                           return NAME; }

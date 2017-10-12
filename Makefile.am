@@ -7,12 +7,11 @@ AM_CPPFLAGS=-fPIC  -DTHERON_XS\
 -I${GTEST_HOME}/include \
 -I${CAF_HOME}/libcaf_io	\
 -I${CAF_HOME}/libcaf_core
-#-L/usr/local/lib \
+#-L/usr/local/lib \-lprofiler
 #-I/usr/local/include
 AM_LDFLAGS=  -lc -lm -lrt -lcaf_core -lcaf_io -lpthread -lboost_serialization -lboost_date_time -lboost_system  \
 	-lconfig++ -lxs -lnuma -lreadline -lhistory -lz -ltinfo -Wl,--no-as-needed -ldl -rdynamic -lglog  -lsnappy
 	
-
 if OPT_TCMALLOC
 AM_CPPFLAGS+=-fno-builtin-malloc -fno-builtin-calloc -fno-builtin-realloc -fno-builtin-free
 AM_LDFLAGS+=-ltcmalloc 
@@ -63,7 +62,7 @@ LDADD =  \
 	${BOOST_HOME}/stage/lib/libboost_serialization.a \
 	${BOOST_HOME}/stage/lib/libboost_serialization.so \
 	${BOOST_HOME}/stage/lib/libboost_system.so \
-	${HADOOP_HOME}/lib/native/libhdfs.so\
+	${HADOOP_HOME}/lib/native/libhdfs.a\
 	${JAVA_HOME}/jre/lib/amd64/server/libjvm.so\
 	${GTEST_HOME}/libgtest.a \
 	${GLOG_HOME}/.libs/libglog.so.0 \

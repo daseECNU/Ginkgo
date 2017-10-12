@@ -65,6 +65,9 @@ RetCode DeleteStmtExec::Execute(ExecutedResult* exec_result) {
   string table_base_name = dynamic_cast<AstTable*>(
       dynamic_cast<AstFromList*>(delete_stmt_ast_->from_list_)->args_)
                                ->table_name_;
+  string table_alias_name = dynamic_cast<AstTable*>(
+       dynamic_cast<AstFromList*>(delete_stmt_ast_->from_list_)->args_)
+                                ->table_alias_;
   TableDescriptor* new_table =
       Environment::getInstance()->getCatalog()->getTable(table_base_name);
 
@@ -84,7 +87,8 @@ RetCode DeleteStmtExec::Execute(ExecutedResult* exec_result) {
    * SELECT row_id FROM tbA WHERE colA = 10;
    */
   AstNode* appended_query_sel_stmt;
-  ret = GenerateSelectStmt(table_base_name, appended_query_sel_stmt);
+  ret = GenerateSelectStmt(table_base_name, table_alias_name,
+                           appended_query_sel_stmt);
   if (rSuccess == ret) {
     appended_query_sel_stmt->Print();
     // ExecutedResult* appended_result = new ExecutedResult();
@@ -130,6 +134,7 @@ RetCode DeleteStmtExec::Execute(ExecutedResult* exec_result) {
 }
 
 RetCode DeleteStmtExec::GenerateSelectStmt(const string table_name,
+                                           const string table_alias,
                                            AstNode*& appended_query_sel_stmt) {
   RetCode ret = rSuccess;
   vector<string> column_names;
@@ -153,10 +158,16 @@ RetCode DeleteStmtExec::GenerateSelectStmt(const string table_name,
   AstNode* appended_query_sel_list_last = NULL;
   vector<string>::reverse_iterator r_iter = column_names.rbegin();
   // -1 means the column row_id of the base table do not need to be selected
+  // consider alias
+  string tab_name;
+  if ( table_alias != "NULL" )
+    tab_name = table_alias;
+  else
+    tab_name = table_name;
   for (; r_iter != column_names.rend() - 1; r_iter++) {
     if ("row_id_DEL" != *r_iter) {
       AstNode* appended_query_col =
-          new AstColumn(AST_COLUMN, table_name, *r_iter, NULL);
+          new AstColumn(AST_COLUMN, tab_name, *r_iter, NULL);
       AstNode* appended_query_sel_expr =
           new AstSelectExpr(AST_SELECT_EXPR, "", appended_query_col);
       appended_query_sel_list =
@@ -167,7 +178,7 @@ RetCode DeleteStmtExec::GenerateSelectStmt(const string table_name,
       column_name = *r_iter;
       column_name = column_name.substr(0, column_name.size() - 4);
       AstNode* appended_query_col =
-          new AstColumn(AST_COLUMN, table_name, column_name, NULL);
+          new AstColumn(AST_COLUMN, tab_name, column_name, NULL);
       AstNode* appended_query_sel_expr =
           new AstSelectExpr(AST_SELECT_EXPR, "", appended_query_col);
       appended_query_sel_list =

@@ -1,0 +1,14 @@
+create table if not exists a(c1 int, c2 int);
+
+create projection on a(c1,c2) number = 3 partitioned on c1;
+
+create table if not exists b(c1 int, c2 int);
+
+create projection on b(c1,c2) number = 3 partitioned on c1;
+
+insert into b values(1,2);
+insert into a(c1,c2) select c1,c2 from b;
+
+
+drop table a,b;
+exit;
