@@ -331,6 +331,31 @@ RetCode AstExprUnary::GetLogicalPlan(ExprNode*& logic_expr,
                                child_logic_expr->actual_type_, expr_str_, oper,
                                child_logic_expr);
   }
+  switch (child_logic_expr->actual_type_) {
+    case t_string:
+    {
+      if (oper == oper_agg_sum || oper == oper_max
+          ||oper == oper_min || oper == oper_agg_avg) {
+        LOG(ERROR) <<expr_type_ << " operation is not supported on column  "
+            << child_logic_expr->alias_  <<"  !" <<endl;
+        return rNotSupport;
+      }
+    }
+      break;
+    case t_date:
+    case t_time:
+    case t_datetime:
+    {
+      if (oper == oper_agg_sum || oper == oper_agg_avg) {
+        LOG(ERROR) <<expr_type_ << " operation is not supported on column  "
+            << child_logic_expr->alias_  <<"   !" <<endl;
+        return rNotSupport;
+      }
+    }
+      break;
+    default:
+      break;
+  }
 
   return rSuccess;
 }
