@@ -43,6 +43,12 @@ void* ExprColumn::ExprEvaluate(ExprEvalCnxt& eecnxt) {
       attr_id_, eecnxt.tuple[table_id_]);
   return type_cast_func_(result, value_);
 }
+
+bool ExprColumn::isNullValue(ExprEvalCnxt& eecnxt) {
+  void* result = eecnxt.schema[table_id_]->getColumnAddess(
+      attr_id_, eecnxt.tuple[table_id_]);
+  return eecnxt.schema[table_id_]->getcolumn(attr_id_).operate->isNull(result);
+}
 // checking the column belongs to witch table
 void ExprColumn::InitExprAtLogicalPlan(LogicInitCnxt& licnxt) {
   return_type_ = licnxt.return_type_;

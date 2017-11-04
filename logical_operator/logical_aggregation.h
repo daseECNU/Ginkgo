@@ -134,7 +134,7 @@ class LogicalAggregation : public LogicalOperator {
   vector<ExprNode*> group_by_attrs_;
   vector<ExprUnary*> aggregation_attrs_;
   vector<unsigned> avg_id_in_agg_;
-  int count_column_id_;
+  map<unsigned, unsigned> avg_id_to_count_;
   PlanContext* plan_context_;
   AggregationStyle aggregation_style_;
 };

@@ -72,15 +72,15 @@ inline void *int_to_decimal(void *value, void *tovalue) {
   return tovalue;
 }
 inline void *int_to_boolean(void *value, void *tovalue) {
-  *(bool *)tovalue = (*(int *)value == 0 ? 0 : 1);
+  *(int *)tovalue = (*(int *)value == 0 ? 0 : 1);
   return tovalue;
 }
 inline void *int_to_string(void *value, void *tovalue) {
   int tvalue = *(int *)value;
   stringstream va;
   va << tvalue;
-  strncpy((char *)tovalue, va.str().c_str(),16);
-  *((char *)tovalue + 15)='\0';
+  strncpy((char *)tovalue, va.str().c_str(), 16);
+  *((char *)tovalue + 15) = '\0';
   va.clear();
   return tovalue;
 }
@@ -136,7 +136,7 @@ inline void *string_to_decimal(void *value, void *tovalue) {
   return tovalue;
 }
 inline void *string_to_boolean(void *value, void *tovalue) {
-  *(bool *)tovalue = ((char *)value == NULL ? 0 : 1);
+  *(int *)tovalue = ((char *)value == NULL ? 0 : 1);
   return tovalue;
 }
 inline void *string_to_date(void *value, void *tovalue) {
@@ -195,15 +195,15 @@ inline void *ulong_to_decimal(void *value, void *tovalue) {
   return tovalue;
 }
 inline void *ulong_to_boolean(void *value, void *tovalue) {
-  *(bool *)tovalue = (*(unsigned long *)value == 0 ? 0 : 1);
+  *(int *)tovalue = (*(unsigned long *)value == 0 ? 0 : 1);
   return tovalue;
 }
 inline void *ulong_to_string(void *value, void *tovalue) {
   unsigned long tvalue = *(unsigned long *)value;
   stringstream va;
   va << tvalue;
-  strncpy((char *)tovalue, va.str().c_str(),24);
-  *((char *)tovalue + 23)='\0';
+  strncpy((char *)tovalue, va.str().c_str(), 24);
+  *((char *)tovalue + 23) = '\0';
   va.clear();
   return tovalue;
 }
@@ -238,13 +238,13 @@ inline void *smallInt_to_string(void *value, void *tovalue) {
   short int tvalue = *(short int *)value;
   stringstream va;
   va << tvalue;
-  strncpy((char *)tovalue, va.str().c_str(),8);
-  *((char *)tovalue + 7)='\0';
+  strncpy((char *)tovalue, va.str().c_str(), 8);
+  *((char *)tovalue + 7) = '\0';
   va.clear();
   return tovalue;
 }
 inline void *smallInt_to_boolean(void *value, void *tovalue) {
-  *(bool *)tovalue = (*(short int *)value == 0 ? 0 : 1);
+  *(int *)tovalue = (*(short int *)value == 0 ? 0 : 1);
   return tovalue;
 }
 inline void *smallInt_to_decimal(void *value, void *tovalue) {
@@ -285,13 +285,13 @@ inline void *usmallInt_to_string(void *value, void *tovalue) {
   unsigned short tvalue = *(unsigned short *)value;
   stringstream va;
   va << tvalue;
-  strncpy((char *)tovalue, va.str().c_str(),8);
-  *((char *)tovalue + 7)='\0';
+  strncpy((char *)tovalue, va.str().c_str(), 8);
+  *((char *)tovalue + 7) = '\0';
   va.clear();
   return tovalue;
 }
 inline void *usmallInt_to_boolean(void *value, void *tovalue) {
-  *(bool *)tovalue = (*(unsigned short *)value == 0 ? 0 : 1);
+  *(int *)tovalue = (*(unsigned short *)value == 0 ? 0 : 1);
   return tovalue;
 }
 inline void *usmallInt_to_decimal(void *value, void *tovalue) {
@@ -316,13 +316,13 @@ inline void *float_to_string(void *value, void *tovalue) {
   float tvalue = *(float *)value;
   stringstream va;
   va << tvalue;
-  strncpy((char *)tovalue, va.str().c_str(),32);
-  *((char *)tovalue + 31)='\0';
+  strncpy((char *)tovalue, va.str().c_str(), 32);
+  *((char *)tovalue + 31) = '\0';
   va.clear();
   return tovalue;
 }
 inline void *float_to_boolean(void *value, void *tovalue) {
-  *(bool *)tovalue = (*(float *)value == 0 ? 0 : 1);
+  *(int *)tovalue = (*(float *)value == 0 ? 0 : 1);
   return tovalue;
 }
 inline void *float_to_decimal(void *value, void *tovalue) {
@@ -344,13 +344,13 @@ inline void *double_to_string(void *value, void *tovalue) {
   double tvalue = *(double *)value;
   stringstream va;
   va << tvalue;
-  strncpy((char *)tovalue, va.str().c_str(),32);
-  *((char *)tovalue + 31)='\0';
+  strncpy((char *)tovalue, va.str().c_str(), 32);
+  *((char *)tovalue + 31) = '\0';
   va.clear();
   return tovalue;
 }
 inline void *double_to_boolean(void *value, void *tovalue) {
-  *(bool *)tovalue = (*(double *)value == 0 ? 0 : 1);
+  *(int *)tovalue = (*(double *)value == 0 ? 0 : 1);
   return tovalue;
 }
 inline void *double_to_decimal(void *value, void *tovalue) {
@@ -366,46 +366,46 @@ inline void *double_to_decimal(void *value, void *tovalue) {
 
 /***************boolean****************************/
 inline void *boolean_to_smallInt(void *value, void *tovalue) {
-  *(short int *)tovalue = (*(bool *)value);
+  *(short int *)tovalue = (*(int *)value);
   return tovalue;
 }
 inline void *boolean_to_usmallInt(void *value, void *tovalue) {
-  *(unsigned short int *)tovalue = (*(bool *)value);
+  *(unsigned short int *)tovalue = (*(int *)value);
   return tovalue;
 }
 inline void *boolean_to_int(void *value, void *tovalue) {
-  *(int *)tovalue = (*(bool *)value);
+  *(int *)tovalue = (*(int *)value);
   return tovalue;
 }
 inline void *boolean_to_float(void *value, void *tovalue) {
-  *(float *)tovalue = (*(bool *)value);
+  *(float *)tovalue = (*(int *)value);
   return tovalue;
 }
 inline void *boolean_to_double(void *value, void *tovalue) {
-  *(double *)tovalue = (*(bool *)value);
+  *(double *)tovalue = (*(int *)value);
   return tovalue;
 }
 inline void *boolean_to_boolean(void *value, void *tovalue) {
-  *(bool *)tovalue = *(bool *)value;
+  *(int *)tovalue = *(int *)value;
   return tovalue;
 }
 inline void *boolean_to_ulong(void *value, void *tovalue) {
-  *(unsigned long *)tovalue = (*(bool *)value);
+  *(unsigned long *)tovalue = (*(int *)value);
   return tovalue;
 }
 inline void *boolean_to_decimal(void *value, void *tovalue) {
   stringstream va;
-  va << *(bool *)value;
+  va << *(int *)value;
   *(Decimal *)tovalue = Decimal(DECIMAL_PSUBS, 0, va.str());
   va.clear();
   return tovalue;
 }
 inline void *boolean_to_string(void *value, void *tovalue) {
-  bool tvalue = *(bool*)value;
+  int tvalue = *(int *)value;
   stringstream va;
   va << tvalue;
-  strncpy((char *)tovalue, va.str().c_str(),8);
-  *((char *)tovalue + 7)='\0';
+  strncpy((char *)tovalue, va.str().c_str(), 16);
+  *((char *)tovalue + 15) = '\0';
   va.clear();
   return tovalue;
 }
@@ -419,19 +419,19 @@ inline void *decimal_to_decimal(void *value, void *tovalue) {
 static Decimal zero(1, 0, "0");
 inline void *decimal_to_boolean(void *value, void *tovalue) {
   Decimal tvalue = *(Decimal *)value;
-  *(bool *)tovalue = tvalue.op_equals(zero);
+  *(int *)tovalue = tvalue.op_equals(zero);
   return tovalue;
 }
 
 inline void *decimal_to_string(void *value, void *tovalue) {
   Decimal tvalue = *(Decimal *)value;
-  int precision = *(int*)tovalue;
-  int decimal_size=(precision/1000)+4;
+  int precision = *(int *)tovalue;
+  int decimal_size = (precision / 1000) + 4;
   stringstream va;
-  precision=precision%1000;
+  precision = precision % 1000;
   va << tvalue.toString(precision);
   strncpy((char *)tovalue, va.str().c_str(), decimal_size);
-  *((char *)tovalue + decimal_size-1)='\0';
+  *((char *)tovalue + decimal_size - 1) = '\0';
   va.clear();
   return tovalue;
 }
@@ -445,7 +445,7 @@ inline void *date_to_date(void *value, void *tovalue) {
 inline void *date_to_boolean(void *value,
                              void *tovalue)  // now return true everytime
 {
-  *(bool *)tovalue = true;
+  *(int *)tovalue = true;
   return tovalue;
 }
 inline void *date_to_string(void *value, void *tovalue) {
@@ -484,7 +484,6 @@ inline void *errormsg(void *value, void *tovalue) {
   return NULL;
 }
 inline void InitTypeCastFunc() {
-
   // t_smallInt
   ExprTypeCast::type_cast_func_[t_smallInt][t_smallInt] = smallInt_to_smallInt;
   ExprTypeCast::type_cast_func_[t_smallInt][t_u_smallInt] =

@@ -495,11 +495,12 @@ stmt: select_stmt { $$ = $1;}
 	;
 
 select_stmt: 
-	SELECT select_opts select_expr_list
+	/*SELECT select_opts select_expr_list
 	{
 		$$=new AstSelectStmt(AST_SELECT_STMT, $2,$3,NULL,NULL,NULL,NULL,NULL,NULL,NULL);
 	}
-	| SELECT select_opts select_expr_list opt_into_list FROM table_references opt_where 
+	|*/
+	SELECT select_opts select_expr_list opt_into_list FROM table_references opt_where 
     			opt_groupby opt_having opt_orderby opt_limit  
 	{
 		$$=new AstSelectStmt(AST_SELECT_STMT, $2,$3,$6,$7,$8,$9,$10,$11,$4);

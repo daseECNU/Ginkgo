@@ -340,32 +340,32 @@ RetCode InsertExec::Execute(ExecutedResult *exec_result) {
     vector<int> res_pos;
     if (is_all_col_ == true) {
       // insert all into table
-      col_count = table->getNumberOfAttribute()-1;
-      }
+      col_count = table->getNumberOfAttribute() - 1;
+    }
     // record the column position
-    SelectExec*  sel_exec_  = new SelectExec(insert_ast_->select_stmt_);
+    SelectExec *sel_exec_ = new SelectExec(insert_ast_->select_stmt_);
     ExecutedResult exec_sel_result;
     sel_exec_->Execute(&exec_sel_result);
-    unsigned int sel_count = exec_sel_result.result_
-        ->column_header_list_.size();
-//     we need add one column like select column from Table.
-//     because we need consider "row_id".
+    unsigned int sel_count =
+        exec_sel_result.result_->column_header_list_.size();
+    //     we need add one column like select column from Table.
+    //     because we need consider "row_id".
     set<int> row_id_pos;
-    for (int i = 0 ; i < exec_sel_result.result_
-    ->column_header_list_.size(); i++) {
-      if (exec_sel_result.result_
-          ->column_header_list_[i].find("row_id") != exec_sel_result.result_
-          ->column_header_list_[i].npos) {
+    for (int i = 0; i < exec_sel_result.result_->column_header_list_.size();
+         i++) {
+      if (exec_sel_result.result_->column_header_list_[i].find("row_id") !=
+          exec_sel_result.result_->column_header_list_[i].npos) {
         row_id_pos.insert(i);
       }
     }
     sel_count -= row_id_pos.size();
     if (sel_count != col_count) {
       LOG(ERROR) << "select result column is not "
-          "equal to insert table column" << endl;
-      exec_result->SetError("select result column is not "
+                    "equal to insert table column" << endl;
+      exec_result->SetError(
+          "select result column is not "
           "equal to insert table column");
-      ret =  claims::common::rFailure;
+      ret = claims::common::rFailure;
     } else {
       vector<string> sel_result;
       unsigned int row_change = 0;
@@ -373,16 +373,16 @@ RetCode InsertExec::Execute(ExecutedResult *exec_result) {
       if (is_all_col_) {
         exec_sel_result.result_->getResult(row_change, sel_result);
         DataInjector *injector = new DataInjector(table);
-//        for (int i = 0 ; i< sel_result.size(); i++)
+        //        for (int i = 0 ; i< sel_result.size(); i++)
         ret = injector->InsertFromStringMultithread(sel_result, exec_result);
         if (rSuccess == ret) {
           ostr.clear();
           ostr << "insert data successfully. " << row_change
-              << " rows changed.";
+               << " rows changed.";
           exec_result->SetResult(ostr.str(), NULL);
         } else {
           LOG(ERROR) << "failed to insert tuples into table:"
-              << table->getTableName() << endl;
+                     << table->getTableName() << endl;
           exec_result->SetError("failed to insert tuples into table ");
         }
         DELETE_PTR(injector);
@@ -392,12 +392,13 @@ RetCode InsertExec::Execute(ExecutedResult *exec_result) {
         vector<std::string> insert_column;
         vector<unsigned> insert_index;
         col = dynamic_cast<AstColumn *>(insert_ast_->col_list_);
-        vector<Attribute> attributes =  table_desc_->getAttributes();
+        vector<Attribute> attributes = table_desc_->getAttributes();
         while (col) {
-          string col_name = table_desc_->getTableName()+ "."+col->column_name_;
+          string col_name =
+              table_desc_->getTableName() + "." + col->column_name_;
           if (table_desc_->isExist(col_name) == false) {
             exec_result->SetError("insert column is not found in table");
-            ret =  claims::common::rFailure;
+            ret = claims::common::rFailure;
             return ret;
           }
           // avoid insert into table A (c,c,a)
@@ -405,34 +406,32 @@ RetCode InsertExec::Execute(ExecutedResult *exec_result) {
           for (auto it : insert_column) {
             if (it == col_name) {
               exec_result->SetError("insert column is appeared more than once");
-              ret =  claims::common::rFailure;
+              ret = claims::common::rFailure;
               return ret;
             }
           }
-          insert_column.push_back(table_desc_->getTableName()
-                                  + "."+col->column_name_);
+          insert_column.push_back(table_desc_->getTableName() + "." +
+                                  col->column_name_);
           for (auto it : attributes) {
-            if (it.attrName == table_desc_->getTableName()
-                + "."+col->column_name_) {
+            if (it.attrName ==
+                table_desc_->getTableName() + "." + col->column_name_) {
               insert_index.push_back(it.index);
             }
           }
           col = dynamic_cast<AstColumn *>(col->next_);
         }
-        exec_sel_result.result_->getResult(row_change,
-                             insert_index, attributes,
-                             table->getSchema(),
-                             sel_result);
+        exec_sel_result.result_->getResult(row_change, insert_index, attributes,
+                                           table->getSchema(), sel_result);
         DataInjector *injector = new DataInjector(table);
         ret = injector->InsertFromStringMultithread(sel_result, exec_result);
         if (rSuccess == ret) {
           ostr.clear();
           ostr << "insert data successfully. " << row_change
-              << " rows changed.";
+               << " rows changed.";
           exec_result->SetResult(ostr.str(), NULL);
         } else {
           LOG(ERROR) << "failed to insert tuples into table:"
-              << table->getTableName() << endl;
+                     << table->getTableName() << endl;
           exec_result->SetError("failed to insert tuples into table ");
         }
         DELETE_PTR(injector);

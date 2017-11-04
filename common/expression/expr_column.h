@@ -31,7 +31,7 @@ class ExprColumn : public ExprNode {
   ExprColumn() {}
   ~ExprColumn() {}
   void* ExprEvaluate(ExprEvalCnxt& eecnxt);
-
+  bool isNullValue(ExprEvalCnxt& eecnxt);
   void InitExprAtLogicalPlan(LogicInitCnxt& licnxt);
 
   void InitExprAtPhysicalPlan();

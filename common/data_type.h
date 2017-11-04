@@ -109,7 +109,7 @@ typedef void (*fun)(void*, void*);
 #define NULL_DATETIME neg_infin
 #define NULL_DECIMAL nvalue_null
 #define NULL_U_SMALL_INT USHRT_MAX
-#define NULL_BOOLEAN 2
+#define NULL_BOOLEAN INT_MAX
 
 extern int null_int_value;
 extern float null_float_value;
@@ -436,8 +436,9 @@ class OperateFloat : public Operate {
   }
 
   inline bool isNull(void* value) const {
-    if (this->nullable == true && (*(int*)value) == (int)NULL_FLOAT)
+    if (this->nullable == true && (*(float*)value) == (float)NULL_FLOAT) {
       return true;
+    }
     return false;
   }
   RetCode CheckSet(string& str) const;
@@ -518,7 +519,7 @@ class OperateDouble : public Operate {
   }
 
   inline bool isNull(void* value) const {
-    if (this->nullable == true && (*(int*)value) == (int)NULL_DOUBLE)
+    if (this->nullable == true && (*(double*)value) == (double)NULL_DOUBLE)
       return true;
     return false;
   }
@@ -706,9 +707,7 @@ class OperateString : public Operate {
       str = "";
     }
   }
-  inline unsigned getSize() {
-    return this->size;
-  }
+  inline unsigned getSize() { return this->size; }
 };
 
 class OperateDate : public Operate {
@@ -1281,12 +1280,8 @@ class OperateDecimal : public Operate {
     return false;
   }
 
-  inline int getPrecision() const{
-    return this->precision_;
-  }
-  inline int getScale() const{
-    return this->scale_;
-  }
+  inline int getPrecision() const { return this->precision_; }
+  inline int getScale() const { return this->scale_; }
   //  unsigned number_of_decimal_digits_;
 
   /**
@@ -1325,13 +1320,22 @@ class OperateBool : public Operate {
   }
   inline void toValue(void* target, const char* string) {
     std::string f = "FALSE";
+    std::string sf = "false";
     std::string t = "TRUE";
+    std::string st = "true";
     std::string n = "NULL";
-    if ((strcmp(string, n.c_str()) == 0) && this->nullable == true) {
+    std::string sn = "null";
+    std::string em = "";
+    if (((strcmp(string, n.c_str()) == 0) ||
+         (strcmp(string, sn.c_str()) == 0) ||
+         (strcmp(string, em.c_str()) == 0)) &&
+        this->nullable == true) {
       *(int*)target = NULL_BOOLEAN;
-    } else if (strcmp(f.c_str(), string) == 0) {
+    } else if (strcmp(f.c_str(), string) == 0 ||
+               strcmp(sf.c_str(), string) == 0) {
       *(int*)target = 0;
-    } else {
+    } else if (strcmp(t.c_str(), string) == 0 ||
+               strcmp(st.c_str(), string) == 0) {
       *(int*)target = 1;
     }
   }
@@ -1383,7 +1387,7 @@ class OperateBool : public Operate {
   }
 
   inline bool isNull(void* value) const {
-    if (this->nullable == true && (*(int*)value) == NULL_SMALL_INT) return true;
+    if (this->nullable == true && (*(int*)value) == NULL_BOOLEAN) return true;
     return false;
   }
 
