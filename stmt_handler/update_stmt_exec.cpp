@@ -237,8 +237,20 @@ void UpdateStmtExec::InsertUpdatedDataIntoTable(string table_name,
 
   DataInjector* injector = new DataInjector(table);
   injector->InsertFromString(ostr.str(), exec_result);
-  Environment::getInstance()->getCatalog()->saveCatalog();
 }
 
+RetCode UpdateStmtExec::GetWriteAndReadTables(
+    vector<vector<pair<int, string>>>& stmt_to_table_list) {
+  RetCode ret = rSuccess;
+  vector<pair<int, string>> table_list;
+  pair<int, string> table_status;
+  string name =
+      dynamic_cast<AstTable*>(update_stmt_ast_->update_table_)->table_name_;
+  table_status.first = 1;
+  table_status.second = name;
+  table_list.push_back(table_status);
+  stmt_to_table_list.push_back(table_list);
+  return ret;
+}
 } /* namespace stmt_handler */
 } /* namespace claims */

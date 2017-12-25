@@ -52,6 +52,8 @@ class SelectExec : public StmtExec {
   virtual ~SelectExec();
   RetCode Execute(ExecutedResult* exec_result);
 
+  RetCode GetWriteAndReadTables(
+      vector<vector<pair<int, string>>>& stmt_to_table_list);
   RetCode Execute();
 
  private:

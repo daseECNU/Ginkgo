@@ -53,6 +53,9 @@ class DeleteStmtExec : public StmtExec {
    */
   RetCode Execute(ExecutedResult *exec_result);
 
+  RetCode GetWriteAndReadTables(
+      vector<vector<pair<int, string>>> &stmt_to_table_list);
+
  private:
   RetCode GenerateSelectStmt(const string table_name,
                              const string table_alias,

@@ -62,12 +62,14 @@ DeleteStmtExec::~DeleteStmtExec() {}
 
 RetCode DeleteStmtExec::Execute(ExecutedResult* exec_result) {
   RetCode ret = rSuccess;
-  string table_base_name = dynamic_cast<AstTable*>(
-      dynamic_cast<AstFromList*>(delete_stmt_ast_->from_list_)->args_)
-                               ->table_name_;
-  string table_alias_name = dynamic_cast<AstTable*>(
-       dynamic_cast<AstFromList*>(delete_stmt_ast_->from_list_)->args_)
-                                ->table_alias_;
+  string table_base_name =
+      dynamic_cast<AstTable*>(
+          dynamic_cast<AstFromList*>(delete_stmt_ast_->from_list_)->args_)
+          ->table_name_;
+  string table_alias_name =
+      dynamic_cast<AstTable*>(
+          dynamic_cast<AstFromList*>(delete_stmt_ast_->from_list_)->args_)
+          ->table_alias_;
   TableDescriptor* new_table =
       Environment::getInstance()->getCatalog()->getTable(table_base_name);
 
@@ -160,7 +162,7 @@ RetCode DeleteStmtExec::GenerateSelectStmt(const string table_name,
   // -1 means the column row_id of the base table do not need to be selected
   // consider alias
   string tab_name;
-  if ( table_alias != "NULL" )
+  if (table_alias != "NULL")
     tab_name = table_alias;
   else
     tab_name = table_name;
@@ -241,9 +243,9 @@ void DeleteStmtExec::InsertDeletedDataIntoTableDEL(
   BlockStreamBase* block = NULL;
   BlockStreamBase::BlockStreamTraverseIterator* tuple_it = NULL;
 
-  cout << "insert del table name : " << table_del_name.c_str() <<"!!!" <<endl;
-  LOG(INFO) << "insert del table name : " << table_del_name.c_str()
-      <<"!!!" <<endl;
+  cout << "insert del table name : " << table_del_name.c_str() << "!!!" << endl;
+  LOG(INFO) << "insert del table name : " << table_del_name.c_str() << "!!!"
+            << endl;
   TableDescriptor* table_del =
       Environment::getInstance()->getCatalog()->getTable(table_del_name);
   if (NULL == table_del) {
@@ -263,12 +265,12 @@ void DeleteStmtExec::InsertDeletedDataIntoTableDEL(
     while (tuple = tuple_it->nextTuple()) {
       for (unsigned i = 0; i < exec_result->result_->column_header_list_.size();
            i++) {
-//         check whether the row has been deleted or not.
-          ostr << exec_result->result_->schema_->getcolumn(i)
-                      .operate->toString(exec_result->result_->schema_
-                                             ->getColumnAddess(i, tuple))
-                      .c_str();
-          ostr << "|";
+        //         check whether the row has been deleted or not.
+        ostr << exec_result->result_->schema_->getcolumn(i)
+                    .operate->toString(exec_result->result_->schema_
+                                           ->getColumnAddess(i, tuple))
+                    .c_str();
+        ostr << "|";
       }
       ostr << "\n";
       ++row_count;
@@ -280,10 +282,9 @@ void DeleteStmtExec::InsertDeletedDataIntoTableDEL(
     }
     delete tuple_it;
   }
-  if (row_count >0)
-    sel_result.push_back(ostr.str());
+  if (row_count > 0) sel_result.push_back(ostr.str());
 
-//  injector->InsertFromString(ostr.str(), exec_result);
+  //  injector->InsertFromString(ostr.str(), exec_result);
   //  HdfsLoader* Hl = new HdfsLoader(tabledel);
   //  string tmp = ostr.str();
   //  Hl->append(ostr.str());
@@ -291,7 +292,7 @@ void DeleteStmtExec::InsertDeletedDataIntoTableDEL(
   DataInjector* injector = new DataInjector(table_del);
   RetCode ret = rSuccess;
 
-  if ( sel_result.size() >0 ) {
+  if (sel_result.size() > 0) {
     ret = injector->InsertFromStringMultithread(sel_result, exec_result);
   }
 
@@ -300,7 +301,28 @@ void DeleteStmtExec::InsertDeletedDataIntoTableDEL(
                       " insert operation failed." << std::endl;
   }
   DELETE_PTR(injector);
-  Environment::getInstance()->getCatalog()->saveCatalog();
+}
+
+RetCode DeleteStmtExec::GetWriteAndReadTables(
+    vector<vector<pair<int, string>>>& stmt_to_table_list) {
+  RetCode ret = rSuccess;
+  vector<pair<int, string>> table_list;
+  pair<int, string> table_status;
+  AstFromList* from_list =
+      reinterpret_cast<AstFromList*>(delete_stmt_ast_->from_list_);
+  AstTable* table = reinterpret_cast<AstTable*>(from_list->args_);
+  table_status.first = 1;
+  table_status.second = table->table_name_;
+  table_list.push_back(table_status);
+  while (from_list->next_ != NULL) {
+    from_list = reinterpret_cast<AstFromList*>(from_list->next_);
+    AstTable* table = reinterpret_cast<AstTable*>(from_list->args_);
+    table_status.first = 1;
+    table_status.second = table->table_name_;
+    table_list.push_back(table_status);
+  }
+  stmt_to_table_list.push_back(table_list);
+  return ret;
 }
 
 } /* namespace stmt_handler */

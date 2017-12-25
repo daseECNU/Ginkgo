@@ -1,5 +1,5 @@
 /*
- * Copyright [2012-2015] DaSE@ECNU
+ * Copyright [2012-2017] DaSE@ECNU
  *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -16,38 +16,38 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * /Claims/common/file_handle/disk_handle_imp.h
+ * /Claims/common/file_handle/zk_file_handle_imp.h
  *
- *  Created on: Oct 20, 2015
- *      Author: yukai
- *		   Email: yukai2014@gmail.com
+ *  Created on: May 25, 2017
+ *      Author: huangchengsheng
+ *                 Email: 285649461@qq.com
  *
- * Description: implementation class of handling disk file
+ * Description:
  *
  */
 
-#ifndef COMMON_FILE_HANDLE_DISK_FILE_HANDLE_IMP_H_
-#define COMMON_FILE_HANDLE_DISK_FILE_HANDLE_IMP_H_
-#include <unistd.h>
-#include <string>
-#include "../common/error_define.h"
+#ifndef COMMON_FILE_HANDLE_ZK_FILE_HANDLE_IMP_H_
+#define COMMON_FILE_HANDLE_ZK_FILE_HANDLE_IMP_H_
+
 #include "./file_handle_imp.h"
+#include "../../loader/zk_connector.h"
+#include "../../Config.h"
 
 namespace claims {
 namespace common {
-
 class FileHandleImpFactory;
-
-class DiskFileHandleImp : public FileHandleImp {
+class ZkFileHandleImp : public FileHandleImp {
   friend FileHandleImpFactory;
 
  private:
-  explicit DiskFileHandleImp(std::string file_name)
-      : fd_(-1), FileHandleImp(file_name) {}
+  explicit ZkFileHandleImp(std::string file_name)
+      : FileHandleImp(file_name),
+        zh_(ZkConnector::Instance()),
+        zk_znode_name_(Config::zk_znode_name.data()) {}
+  NO_COPY_AND_ASSIGN(ZkFileHandleImp);
 
  public:
-  virtual ~DiskFileHandleImp();
-  // see more in FileHandleImp class
+  virtual ~ZkFileHandleImp() {}
   virtual RetCode Append(const void* buffer, const size_t length);
   virtual RetCode AppendNoCompress(const void* buffer, const size_t length);
 
@@ -63,32 +63,44 @@ class DiskFileHandleImp : public FileHandleImp {
                                   function<void()> unlock_func);
 
   virtual RetCode Close();
-  // see more in FileHandleImp class
-  virtual RetCode ReadTotalFile(void*& buffer, size_t* length);
-  // see more in FileHandleImp class
+  virtual RetCode ReadTotalFile(void*& buffer, size_t* length);  // NOLINT
+
+  /**
+                       * @brief Method description: read length bytes from file
+   * into memory, usually
+                       *        called after SetPosition()
+                       * @param buffer: hold the data read from file
+                       * @param length: the no. of bytes to read
+                       * @return rSuccess if succeed
+                       */
   virtual RetCode Read(void* buffer, size_t length);
+  RetCode PRead(void* buffer, size_t length, size_t start_pos);
   virtual bool CanAccess(std::string file_name) {
-    return 0 == access(file_name.c_str(), 0);
+    assert(zh_ != NULL && "failed to connect Zkserver");
+    return ZOK == zoo_wexists(zh_, zk_znode_name_, zk_wexists_watcher,
+                              (void*)"test", NULL);
+    ;
   }
 
   virtual RetCode DeleteFile();
 
+  const string& get_file_name() { return file_name_; }
   virtual RetCode SwitchStatus(FileStatus status_to_be);
 
-  virtual RetCode Truncate(const size_t newlength);
+  RetCode Truncate(const size_t newlength);
 
  protected:
   virtual RetCode SetPosition(size_t pos);
 
  private:
-  RetCode Write(const void* buffer, const size_t length);
   RetCode WriteNoCompress(const void* buffer, const size_t length);
 
  private:
-  int fd_;
+  zhandle_t* zh_;
+  char* zk_znode_name_;
+  string tmp_;
 };
+}
+}
 
-}  // namespace common
-} /* namespace claims */
-
-#endif  // COMMON_FILE_HANDLE_DISK_FILE_HANDLE_IMP_H_
+#endif

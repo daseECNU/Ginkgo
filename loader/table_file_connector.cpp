@@ -216,6 +216,10 @@ RetCode TableFileConnector::AtomicFlush(unsigned projection_offset,
     assert(false && "Can't flush a file opened with read mode");
     return common::rFailure;
   }
+  table_->SetLogicalFilesLength(
+      projection_offset, partition_offset,
+      file_handles_[projection_offset][partition_offset]
+          ->get_logical_file_length());
   return ret;
 }
 
@@ -336,5 +340,15 @@ RetCode TableFileConnector::UpdateWithNewProj() {
   return rSuccess;
 }
 
+RetCode TableFileConnector::FileTruncate(unsigned projection_offset,
+                                         unsigned partition_offset,
+                                         const unsigned length) {
+  RetCode ret = rSuccess;
+  EXEC_AND_RETURN_ERROR(
+      ret, file_handles_[projection_offset][partition_offset]->Truncate(length),
+      "failed to truncate file " +
+          file_handles_[projection_offset][partition_offset]->get_file_name());
+  return ret;
+}
 } /* namespace loader */
 } /* namespace claims */

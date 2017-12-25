@@ -334,7 +334,6 @@ RetCode InsertExec::Execute(ExecutedResult *exec_result) {
       exec_result->SetError("failed to insert tuples into table ");
     }
     DELETE_PTR(injector);
-    Environment::getInstance()->getCatalog()->saveCatalog();
   } else if (insert_ast_->select_stmt_ != NULL) {
     std::ostringstream ostr;
     vector<int> res_pos;
@@ -386,7 +385,6 @@ RetCode InsertExec::Execute(ExecutedResult *exec_result) {
           exec_result->SetError("failed to insert tuples into table ");
         }
         DELETE_PTR(injector);
-        Environment::getInstance()->getCatalog()->saveCatalog();
       } else {
         // insert into table(A,B,C) select
         vector<std::string> insert_column;
@@ -435,7 +433,6 @@ RetCode InsertExec::Execute(ExecutedResult *exec_result) {
           exec_result->SetError("failed to insert tuples into table ");
         }
         DELETE_PTR(injector);
-        Environment::getInstance()->getCatalog()->saveCatalog();
       }
       exec_sel_result.result_->destory();
       delete exec_sel_result.result_;
@@ -444,6 +441,18 @@ RetCode InsertExec::Execute(ExecutedResult *exec_result) {
       return ret;
     }
   }
+}
+
+RetCode InsertExec::GetWriteAndReadTables(
+    vector<vector<pair<int, string>>> &stmt_to_table_list) {
+  RetCode ret = rSuccess;
+  vector<pair<int, string>> table_list;
+  pair<int, string> table_status;
+  table_status.first = 1;
+  table_status.second = insert_ast_->table_name_;
+  table_list.push_back(table_status);
+  stmt_to_table_list.push_back(table_list);
+  return ret;
 }
 }  // namespace stmt_handler
 }  // namespace claims

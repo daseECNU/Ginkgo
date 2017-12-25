@@ -237,25 +237,25 @@ RetCode CreateTableExec::Execute(ExecutedResult* exec_result) {
             int scale = 0;
             if (datatype->length_) {
               AstOptLength* l = dynamic_cast<AstOptLength*>(datatype->length_);
-              if((l->data1_>0))
-              {
+              if ((l->data1_ > 0)) {
                 precision = l->data1_;
                 scale = l->data2_;
               }
             }
-            /* here 1000 used for separating precision and scale, 
-                 you will always see multiply or divide 1000 during process decimal type  */
-            //TODO: define an marco value of 1000 in global file.
-            int max_length = precision*1000+scale;
+            /* here 1000 used for separating precision and scale,
+                 you will always see multiply or divide 1000 during process
+               decimal type  */
+            // TODO: define an marco value of 1000 in global file.
+            int max_length = precision * 1000 + scale;
             if (column_atts && (column_atts->datatype_ & 01)) {
-              table_desc_->addAttribute(colname, data_type(t_decimal), max_length,
-                                        true, false);
+              table_desc_->addAttribute(colname, data_type(t_decimal),
+                                        max_length, true, false);
             } else if (column_atts && (column_atts->datatype_ & 02)) {
-              table_desc_->addAttribute(colname, data_type(t_decimal), max_length,
-                                        true, true);
+              table_desc_->addAttribute(colname, data_type(t_decimal),
+                                        max_length, true, true);
             } else {
-              table_desc_->addAttribute(colname, data_type(t_decimal), max_length,
-                                        true);
+              table_desc_->addAttribute(colname, data_type(t_decimal),
+                                        max_length, true);
             }
             LOG(INFO) << colname + " is created" << std::endl;
             break;
@@ -380,18 +380,17 @@ RetCode CreateTableExec::Execute(ExecutedResult* exec_result) {
     if (exec_result->status_) {
       Environment::getInstance()->getCatalog()->add_table(table_desc_);
       Environment::getInstance()->getCatalog()->add_table(table_del);
-      Environment::getInstance()->getCatalog()->saveCatalog();
 #ifdef NEWRESULT
       exec_result->info_ = "create table successfully";
       LOG(INFO) << "create table successfully" << std::endl;
       exec_result->result_ = NULL;
       result_flag_ = true;
-      ret = common::rStmtHandlerCreateTableSuccess;
+      ret = common::rSuccess;
 #else
       info_ = "create table successfully";
       LOG(INFO) << "create table successfully" << std::endl;
       result_set_ = NULL;
-      ret = common::rStmtHandlerCreateTableSuccess;
+      ret = common::rSuccess;
 #endif
     }
 #ifdef sem_cnxt
@@ -432,6 +431,16 @@ RetCode CreateTableExec::CreateDelTable(const string& table_name,
   LOG(ERROR) << ret << "Create table" + table_name + " failed!" << std::endl;
   return ret;
 }
-
+RetCode CreateTableExec::GetWriteAndReadTables(
+    vector<vector<pair<int, string>>>& stmt_to_table_list) {
+  RetCode ret = rSuccess;
+  vector<pair<int, string>> table_list;
+  pair<int, string> table_status;
+  table_status.first = 3;
+  table_status.second = "";
+  table_list.push_back(table_status);
+  stmt_to_table_list.push_back(table_list);
+  return ret;
+}
 }  // namespace stmt_handler
 }  // namespace claims

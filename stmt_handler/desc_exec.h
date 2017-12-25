@@ -43,6 +43,10 @@ class DescExec : public StmtExec {
    */
   DescExec(AstNode *stmt);  // NOLINT
   ~DescExec();
+
+  RetCode GetWriteAndReadTables(
+      vector<vector<pair<int, string>>> &stmt_to_table_list);
+
   /**
    * @brief the concrete operation of show statement.
    */

@@ -1815,6 +1815,8 @@ AstSelectStmt::AstSelectStmt(AstNodeType ast_node_type,
   agg_attrs_.clear();
 }
 
+
+
 AstSelectStmt::~AstSelectStmt() {
   delete select_list_;
   delete from_list_;
@@ -1889,6 +1891,8 @@ RetCode AstSelectStmt::SemanticAnalisys(SemanticContext* sem_cnxt) {
       return ret;
     }
   }
+
+
 #ifdef PRINTCONTEXT
   sem_cnxt->PrintContext("after scan");
 #endif
@@ -2036,6 +2040,7 @@ RetCode AstSelectStmt::SemanticAnalisys(SemanticContext* sem_cnxt) {
   sem_cnxt->PrintContext("after select");
 #endif
 
+
   return ret;
 }
 
@@ -2048,6 +2053,7 @@ RetCode AstSelectStmt::PushDownCondition(PushDownConditionContext& pdccnxt) {
   from_list_->PushDownCondition(pdccnxt);
 
   //  from_list_->Print();
+
   return rSuccess;
 }
 // should support expression in aggregation

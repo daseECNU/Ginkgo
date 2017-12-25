@@ -127,11 +127,11 @@ RetCode HdfsFileHandleImp::Write(const void* buffer, const size_t length) {
   string* result = new string;
   size_t compress_length =
       Compress(static_cast<const char*>(buffer), length, result);
-//  LOG(INFO) << "Compress length: " << compress_length << endl;
+  //  LOG(INFO) << "Compress length: " << compress_length << endl;
   char head[100];
   sprintf(head, "%d", compress_length);
 
-  //total_write_num <compress_length + sizeof(head); //by Han compression
+  // total_write_num <compress_length + sizeof(head); //by Han compression
 
   size_t total_write_num = 0;
   int32_t write_num = hdfsWrite(fs_, file_, head, sizeof(head));
@@ -145,6 +145,7 @@ RetCode HdfsFileHandleImp::Write(const void* buffer, const size_t length) {
     }
     total_write_num += write_num;
   }
+  logical_file_length_ = hdfsTell(fs_, file_);
   //  if (length > 100) {
   //    LOG(INFO) << "write " << length << " length data from " << buffer
   //              << " into hdfs file:" << file_name_ << endl;
@@ -255,6 +256,9 @@ RetCode HdfsFileHandleImp::Append(const void* buffer, const size_t length) {
   //  RefHolder holder(reference_count_);
   assert(NULL != fs_ && "failed to connect hdfs");
   int ret = rSuccess;
+  size_t file_length = 0;
+  EXEC_AND_RETURN_ERROR(ret, Truncate(logical_file_length_),
+                        "failed to truncate file");
   EXEC_AND_RETURN_ERROR(ret, SwitchStatus(kInAppending),
                         "failed to switch status");
 
@@ -305,16 +309,17 @@ RetCode HdfsFileHandleImp::DeleteFile() {
   EXEC_AND_ONLY_LOG_ERROR(ret, Close(), "file name: " << file_name_);
   if (CanAccess(file_name_)) {
     if (0 != hdfsDelete(fs_, file_name_.c_str(), 0)) {
-      LOG(ERROR) << "Failed to delete file : [" + file_name_ + "]."
-                 << std::endl;
+      LOG(ERROR) << "Failed to delete file : [" + file_name_ + "]." << endl;
       return rFailure;
     } else {
-      LOG(INFO) << "The file " << file_name_ << " is deleted successfully";
+      LOG(INFO) << "The file " << file_name_ << " is deleted successfully"
+                << endl;
+      ;
     }
   } else {
     file_ = NULL;
     file_status_ = kClosed;
-    LOG(WARNING) << "The file " << file_name_ << "is not exits!\n" << std::endl;
+    LOG(WARNING) << "The file " << file_name_ << " is not exits!\n" << endl;
   }
   return rSuccess;
 }
@@ -366,6 +371,52 @@ RetCode HdfsFileHandleImp::AppendNoCompress(const void* buffer,
                         "failed to switch status");
 
   return WriteNoCompress(buffer, length);
+}
+
+RetCode HdfsFileHandleImp::ReadFileLength(size_t& file_length) {
+  assert(NULL != fs_ && "failed to connect hdfs");
+  int ret = rSuccess;
+  EXEC_AND_ONLY_LOG_ERROR(ret, Close(), "file name: " << file_name_);
+  if (CanAccess(file_name_)) {
+    file_length = hdfsTell(fs_, file_);
+    LOG(INFO) << "The length of HdfsFile " << file_name_ << " is "
+              << file_length << endl;
+    if (file_length < 0) {
+      LOG(ERROR) << "The length of HdfsFile " << file_name_ << " is error!\n"
+                 << endl;
+      return rFailure;
+    }
+  } else {
+    file_ = NULL;
+    file_status_ = kClosed;
+    LOG(WARNING) << "The file " << file_name_ << " is not exits!\n" << endl;
+    return rFailure;
+  }
+  return rSuccess;
+}
+
+RetCode HdfsFileHandleImp::Truncate(const size_t newlength) {
+  assert(NULL != fs_ && "failed to connect hdfs");
+  RetCode ret = rSuccess;
+  size_t actul_file_length = ReadFileLength(actul_file_length);
+  EXEC_AND_ONLY_LOG_ERROR(ret, Close(), "file name: " << file_name_);
+  if (actul_file_length > newlength) {
+    int i = hdfsTruncateFile(fs_, file_name_.c_str(), newlength);
+    if (1 == i) {
+      LOG(INFO) << "The file " << file_name_ << " is truncated successfully"
+                << endl;
+    } else {
+      if (0 == i) {
+        LOG(ERROR) << "A background process of adjusting the length of the "
+                      "last block has been started. " << endl;
+      }
+      LOG(ERROR) << "Failed to truncate file : [" + file_name_ + "]." << endl;
+      return rFailure;
+    }
+  } else if (actul_file_length < newlength) {
+    return rFailure;
+  }
+  return ret;
 }
 
 }  // namespace common

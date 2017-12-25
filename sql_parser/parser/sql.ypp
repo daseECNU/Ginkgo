@@ -4,7 +4,7 @@
 %pure-parser
 %parse-param { struct ParseResult* result}
 %glr-parser
-%expect 34
+%expect 36
 %expect-rr 84
 %defines
 %{
@@ -457,10 +457,10 @@ stmt_list: stmt ';'
 		} 
   						
   	}	
-	| stmt_list stmt ';'	
+	| stmt ';' stmt_list
 	{ 	
 		printf(">> \n"); 
-		$$=new AstStmtList(AST_STMT_LIST,$2,$1);
+		$$=new AstStmtList(AST_STMT_LIST,$1,$3);
 		if (result->error_number == 0)
 		{
 			result->ast  = $$;

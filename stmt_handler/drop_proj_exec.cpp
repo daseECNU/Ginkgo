@@ -138,7 +138,6 @@ RetCode DropProjExec::Execute(ExecutedResult* exec_result) {
       return ret;
     }
   }
-  local_catalog->saveCatalog();
   exec_result->status_ = true;
   exec_result->result_ = NULL;
   return ret;
@@ -267,5 +266,16 @@ bool DropProjExec::FreeProjectionFromMemory(const string& table_name,
   return true;
 }
 
+RetCode DropProjExec::GetWriteAndReadTables(
+    vector<vector<pair<int, string>>>& stmt_to_table_list) {
+  RetCode ret = rSuccess;
+  vector<pair<int, string>> table_list;
+  pair<int, string> table_status;
+  table_status.first = 1;
+  table_status.second = drop_proj_ast_->table_name_;
+  table_list.push_back(table_status);
+  stmt_to_table_list.push_back(table_list);
+  return ret;
+}
 } /* namespace stmt_handler */
 } /* namespace claims */

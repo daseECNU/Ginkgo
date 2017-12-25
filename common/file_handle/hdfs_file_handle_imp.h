@@ -92,6 +92,16 @@ class HdfsFileHandleImp : public FileHandleImp {
 
   virtual RetCode SwitchStatus(FileStatus status_to_be);
 
+  /**
+   * ReadFileLength - Read the actual file length.
+   * @param file_length Record the length.
+   * @return Return rSuccess if succeed.
+   * @author zyhe.
+   */
+  virtual RetCode ReadFileLength(size_t& file_length);
+
+  RetCode Truncate(const size_t newlength);
+
  protected:
   virtual RetCode SetPosition(size_t pos);
 

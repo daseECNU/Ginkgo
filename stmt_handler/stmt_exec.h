@@ -33,6 +33,9 @@
 
 #define GLOG_NO_ABBREVIATED_SEVERITIES
 #include <glog/logging.h>
+#include <utility>
+#include <vector>
+#include <string>
 #include "../common/Block/ResultSet.h"
 #include "../catalog/table.h"
 #include "../common/data_type.h"
@@ -54,6 +57,8 @@ class StmtExec {
   StmtExec(AstNode* stmt);
   virtual ~StmtExec();
   virtual int Execute(ExecutedResult* exec_result);
+  virtual RetCode GetWriteAndReadTables(
+      vector<vector<pair<int, string>>>& stmt_to_table_list) = 0;
   StmtExecStatus* get_stmt_exec_status() { return stmt_exec_status_; }
   void set_stmt_exec_status(StmtExecStatus* stmt_exec_status) {
     stmt_exec_status_ = stmt_exec_status;

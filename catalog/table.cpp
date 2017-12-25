@@ -88,6 +88,13 @@ RetCode TableDescriptor::InitFileConnector() {
 void TableDescriptor::InitTableData() {
   row_number_ = 0;
   has_deleted_tuples_ = false;
+  for (int i = 0; i < getNumberOfProjection(); i++) {
+    for (int j = 0;
+         j < projection_list_[i]->getPartitioner()->getNumberOfPartitions();
+         ++j) {
+      logical_files_length_[i][j] = 0;
+    }
+  }
 }
 
 RetCode TableDescriptor::createHashPartitionedProjection(
@@ -253,6 +260,31 @@ Schema* TableDescriptor::getSchema() const {
     columns.push_back(*(attributes[i].attrType));
   }
   return new SchemaFix(columns);
+}
+RetCode TableDescriptor::CreateLogicalFilesLength(
+    vector<unsigned> part_files_length) {
+  logical_files_length_.push_back(part_files_length);
+  return rSuccess;
+}
+RetCode TableDescriptor::SetLogicalFilesLength(unsigned projection_offset,
+                                               unsigned partition_offset,
+                                               unsigned file_length) {
+  logical_files_length_[projection_offset][partition_offset] = file_length;
+  return rSuccess;
+}
+RetCode TableDescriptor::RestoreAllTableFiles() {
+  RetCode ret = rSuccess;
+  for (int i = 0; i < getNumberOfProjection(); i++) {
+    for (int j = 0;
+         j < projection_list_[i]->getPartitioner()->getNumberOfPartitions();
+         ++j) {
+      ret = write_connector_->FileTruncate(i, j, logical_files_length_[i][j]);
+      if (rSuccess != ret) {
+        return ret;
+      }
+    }
+  }
+  return ret;
 }
 
 } /* namespace catalog */

@@ -112,7 +112,6 @@ RetCode DropTableExec::Execute(ExecutedResult* exec_result) {
     }
     table_list = dynamic_cast<AstDropTableList*>(table_list->next_);
   }
-  local_catalog->saveCatalog();
   exec_result->status_ = true;
   exec_result->result_ = NULL;
   return ret;
@@ -283,6 +282,24 @@ static bool DropTableExec::FreeTableFromMemory(const string& table_name) {
   }
   return true;
 }
-
+RetCode DropTableExec::GetWriteAndReadTables(
+    vector<vector<pair<int, string>>>& stmt_to_table_list) {
+  RetCode ret = rSuccess;
+  vector<pair<int, string>> table_list;
+  pair<int, string> table_status;
+  AstDropTableList* drop_list =
+      reinterpret_cast<AstDropTableList*>(drop_table_ast_->table_list_);
+  table_status.first = 2;
+  table_status.second = drop_list->table_name_;
+  table_list.push_back(table_status);
+  while (drop_list->next_ != NULL) {
+    drop_list = reinterpret_cast<AstDropTableList*>(drop_list->next_);
+    table_status.first = 2;
+    table_status.second = drop_list->table_name_;
+    table_list.push_back(table_status);
+  }
+  stmt_to_table_list.push_back(table_list);
+  return ret;
+}
 } /* namespace stmt_handler */
 } /* namespace claims */

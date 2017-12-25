@@ -47,6 +47,9 @@ class LoadExec : public StmtExec {
    */
   RetCode Execute(ExecutedResult* exec_result);
 
+  RetCode GetWriteAndReadTables(
+      vector<vector<pair<int, string>>>& stmt_to_table_list);
+
  private:
   /**
    * this pointer describes the abstract syntax tree about load data into

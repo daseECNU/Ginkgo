@@ -770,7 +770,6 @@ void *ClientListener::sendHandler(void *para) {
           //              result.fd_);
           server->write(result.fd_, cliRes);
           printf("send ok response packet ok\n");
-
           cliRes.setSchema(result.result_->schema_);
           //          ClientListenerLogging::log(
           //              "to send data response-- status:%d  length:%d

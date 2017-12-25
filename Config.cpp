@@ -91,6 +91,9 @@ int Config::thread_pool_init_thread_num;
 
 int Config::load_thread_num;
 int Config::memory_utilization;
+std::string Config::zk_znode_name;
+
+std::string Config::zookeeper_host_list;
 
 int Config::hash_join_bucket_num;
 int Config::hash_join_bucket_size;
@@ -160,6 +163,10 @@ void Config::initialize() {
   memory_utilization = getInt("memory_utilization", 100);
 
   enable_prune_column = getBoolean("enable_prune_column", true);
+
+  zk_znode_name = getString("zk_znode_name", data_dir + "CATALOG");
+
+  zookeeper_host_list = getString("zookeeper_host_list", "127.0.0.1:2181");
 
   hash_join_bucket_num = getInt("hash_join_bucket_num", 1024 * 1024);
 

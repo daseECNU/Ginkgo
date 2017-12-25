@@ -79,8 +79,9 @@ class Config {
   static std::string catalog_file;
   static int thread_pool_init_thread_num;
   static int memory_utilization;
-
+  static std::string zk_znode_name;
   static int load_thread_num;
+  static std::string zookeeper_host_list;
   static int hash_join_bucket_size;
   static int hash_join_bucket_num;
   static int expander_buffer_size;

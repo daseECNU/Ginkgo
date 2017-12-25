@@ -35,11 +35,12 @@
 #include "./file_handle_imp.h"
 #include "./disk_file_handle_imp.h"
 #include "./hdfs_file_handle_imp.h"
+#include "./zk_file_handle_imp.h"
 
 namespace claims {
 namespace common {
 
-enum FilePlatform { kDisk, kHdfs };
+enum FilePlatform { kDisk, kHdfs ,kZk};
 
 /***
  * @brief factory class as singleton for generating specify FileHandleImp
@@ -55,6 +56,8 @@ class FileHandleImpFactory {
       return new HdfsFileHandleImp(file_name);
     else if (kDisk == platform)
       return new DiskFileHandleImp(file_name);
+    else if (kZk == platform)
+      return new ZkFileHandleImp(file_name);
     assert(false && "FilePlatform flag is invalid");
     return NULL;
   }

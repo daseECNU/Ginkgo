@@ -53,6 +53,9 @@ class CreateTableExec : public StmtExec {
    */
   virtual ~CreateTableExec();
 
+  RetCode GetWriteAndReadTables(
+      vector<vector<pair<int, string>>>& stmt_to_table_list);
+
   /**
    * @brief the concrete operation of creating a table.
    */

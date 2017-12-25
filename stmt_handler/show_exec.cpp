@@ -73,5 +73,18 @@ RetCode ShowExec::Execute(ExecutedResult* exec_result) {
     }
   }
 }
+
+RetCode ShowExec::GetWriteAndReadTables(
+    vector<vector<pair<int, string>>>& stmt_to_table_list) {
+  RetCode ret = rSuccess;
+  vector<pair<int, string>> table_list;
+  pair<int, string> table_status;
+  table_status.first = 3;
+  table_status.second = "";
+  table_list.push_back(table_status);
+  stmt_to_table_list.push_back(table_list);
+  return ret;
+}
+
 }  // namespace stmt_handler
 }  // namespace claims

@@ -85,11 +85,15 @@ class TableFileConnector {
 
   RetCode UpdateWithNewProj();
 
+  RetCode FileTruncate(unsigned projection_offset, unsigned partition_offset,
+                       const unsigned length);
+
  private:
   common::FilePlatform platform_;
   vector<vector<common::FileHandleImp*>> file_handles_;
   vector<vector<string>> write_path_name_;
   TableDescriptor* table_;
+  vector<vector<unsigned>> logical_files_length_;
 
   common::FileOpenFlag open_flag_ = static_cast<common::FileOpenFlag>(-1);
 

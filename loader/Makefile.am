@@ -4,9 +4,11 @@ AM_CPPFLAGS= -fPIC -fpermissive \
 -I${BOOST_HOME}/boost/serialization \
 -I${HADOOP_HOME}/include\
 -I${JAVA_HOME}/include\
--I${JAVA_HOME}/include/linux 
+-I${JAVA_HOME}/include/linux \
+-I${ZOOKEEPER_HOME}/src/c/include\
+-I${ZOOKEEPER_HOME}/src/c/generated
 
-AM_LDFLAGS=-lc -lm -lrt  -lxs -lboost_serialization
+AM_LDFLAGS=-lc -lm -lrt  -lxs -lboost_serialization -DTHREAD -lzookeeper_mt
 
 if OPT_TCMALLOC
 AM_CPPFLAGS+=-fno-builtin-malloc -fno-builtin-calloc -fno-builtin-realloc -fno-builtin-free
@@ -30,8 +32,8 @@ libloader_a_SOURCES = \
 	single_thread_single_file_connector.h single_thread_single_file_connector.cpp \
 	table_file_connector.cpp 		table_file_connector.h  \
 	validity.h 						validity.cpp	\
-	hdfs_loader.cpp					hdfs_loader.h 
-	
+	hdfs_loader.cpp					hdfs_loader.h \
+	zk_connector.cpp                zk_connector.h
 
 SUBDIRS = test
 DIST_SUBDIRS = test

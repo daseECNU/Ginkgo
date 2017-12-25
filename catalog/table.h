@@ -153,7 +153,17 @@ class TableDescriptor {
 
   TableFileConnector& get_connector() { return *write_connector_; }
 
+  RetCode CreateLogicalFilesLength(vector<unsigned> part_files_length);
+
+  RetCode SetLogicalFilesLength(unsigned projection_offset,
+                                unsigned partition_offset,
+                                unsigned file_length);
   void InitTableData();
+
+  void wLock() { wr_lock_.wrlock_acquire(); }
+  void rLock() { wr_lock_.rdlock_acquire(); }
+  void unwrLock() { wr_lock_.release(); }
+  RetCode RestoreAllTableFiles();
 
  private:
   RetCode InitFileConnector();
@@ -205,6 +215,9 @@ class TableDescriptor {
   //      }
   //    }
   //  }
+  vector<vector<unsigned>> GetLogicalFilesLength() const {
+    return logical_files_length_;
+  }
 
  protected:
   string tableName;
@@ -213,19 +226,20 @@ class TableDescriptor {
   vector<ProjectionDescriptor*> projection_list_;
   uint64_t row_number_;
   bool has_deleted_tuples_ = false;
+  vector<vector<unsigned>> logical_files_length_;
 
   // Loading or inserting blocks updating table(create new projection and so
   // on), vice versa.
   SpineLock update_lock_;
   //  vector<vector<Lock>> partitions_write_lock_;
-
+  WRLock wr_lock_;
   TableFileConnector* write_connector_ = NULL;
 
   friend class boost::serialization::access;
   template <class Archive>
   void serialize(Archive& ar, const unsigned int version) {  // NOLINT
     ar& tableName& attributes& table_id_& projection_list_& row_number_&
-        has_deleted_tuples_;
+        logical_files_length_& has_deleted_tuples_;
     //    InitLocks();
     InitFileConnector();
   }

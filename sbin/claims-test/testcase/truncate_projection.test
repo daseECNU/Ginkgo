@@ -1,0 +1,27 @@
+create table if not exists test(a int,b int);
+
+create projection on test(a,b) number = 3 partitioned on a;
+
+insert into test values(1,2);
+
+insert into test values(0,1);
+
+insert into test values(2,3);
+
+select * from test;
+
+truncate projection 0 from test;
+
+select * from test;
+
+insert into test values(3,2);
+
+insert into test values(4,1);
+
+insert into test values(5,3);
+
+select * from test;
+
+drop projection 0 from test;
+
+exit;

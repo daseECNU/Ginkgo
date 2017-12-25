@@ -62,14 +62,23 @@ namespace loader {
 
 SingleFileConnector::SingleFileConnector(FilePlatform platform,
                                          string file_name,
-                                         FileOpenFlag open_flag)
+                                         FileOpenFlag open_flag,
+										 bool zk_flag=false)
     : platform_(platform),
       file_name_(file_name),
       is_closed(true),
       open_flag_(open_flag),
+	  zk_flag_(zk_flag),
       ref_(0) {
-  imp_ = common::FileHandleImpFactory::Instance().CreateFileHandleImp(
-      platform_, file_name_);
+	       if(zk_flag_){
+			file_name_ = Config::zk_znode_name;
+	               imp_= common::FileHandleImpFactory::Instance().CreateFileHandleImp(
+	                                                   claims::common::FilePlatform::kZk,file_name_);
+	       }else{
+	   imp_ = common::FileHandleImpFactory::Instance().CreateFileHandleImp(
+	       platform_, file_name_);
+	       }
+
   if (common::FileOpenFlag::kCreateFile == open_flag_) {
     flush_function = std::bind(&FileHandleImp::OverWriteNoCompress, imp_,
                                std::placeholders::_1, std::placeholders::_2);

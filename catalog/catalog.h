@@ -115,6 +115,12 @@ class Catalog {
   RetCode TruncateProjection(const std::string table_name,
                              const int projection_id);
 
+  /**
+   * ReadFileLength - called when the system start. Read the logical length of
+   * files and compare the actual length of files to truncate the dirty data.
+   */
+  RetCode TruncateTableFiles();
+
  private:
   Catalog();  // avoiding generate more instance
   bool IsDataFileExist();

@@ -46,6 +46,7 @@
 using std::endl;
 using std::string;
 using claims::utility::LockGuard;
+using std::cout;
 
 namespace claims {
 namespace common {
@@ -94,9 +95,9 @@ RetCode DiskFileHandleImp::Write(const void* buffer, const size_t length) {
   string* result = new string;
   size_t compress_length =
       snappy::Compress(static_cast<const char*>(buffer), length, result);
- // LOG(INFO) << "Compress length: " << compress_length << endl;
+  // LOG(INFO) << "Compress length: " << compress_length << endl;
   char head[100];
- sprintf(head, "%d", compress_length);
+  sprintf(head, "%d", compress_length);
 
   size_t total_write_num = 0;
   ssize_t wirte_num = write(fd_, head, sizeof(head));
@@ -110,6 +111,7 @@ RetCode DiskFileHandleImp::Write(const void* buffer, const size_t length) {
     }
     total_write_num += write_num;
   }
+  logical_file_length_ = lseek(fd_, 0, SEEK_END);
   // by Han compress to find what happened to write in hdfs 2017-4-3
   //  if (length > 100) {
   //    DLOG(INFO) << "write " << length << " length data from " << buffer
@@ -126,7 +128,8 @@ RetCode DiskFileHandleImp::Write(const void* buffer, const size_t length) {
 
 RetCode DiskFileHandleImp::Close() {
   //  LOG(INFO) << "ref: " << can_close_.get_value();
-  //  if (-1 == fd_ || 0 != reference_count_.load()  // someone are still using
+  //  if (-1 == fd_ || 0 != reference_count_.load()  // someone are still
+  //  using
   //  this
   //                                                 // file descriptor
   //      || !i_win_to_close_.try_lock()) {  // someone win the lock to close
@@ -333,6 +336,23 @@ RetCode DiskFileHandleImp::WriteNoCompress(const void* buffer,
   //               << " from " << buffer << " into  disk file:" << file_name_
   //               << endl;
   //  }
+  return rSuccess;
+}
+
+RetCode DiskFileHandleImp::Truncate(const size_t newlength) {
+  const char* file_name = file_name_.c_str();
+  if (CanAccess(file_name_)) {
+    size_t actul_file_length = lseek(fd_, 0, SEEK_END);
+    if (actul_file_length > newlength) {
+      if (truncate(file_name, newlength) == 0) {
+        return rSuccess;
+      } else {
+        return rFailure;
+      }
+    } else if (actul_file_length < newlength) {
+      return rFailure;
+    }
+  }
   return rSuccess;
 }
 

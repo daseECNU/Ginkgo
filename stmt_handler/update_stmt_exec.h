@@ -53,6 +53,9 @@ class UpdateStmtExec : public StmtExec {
    */
   RetCode Execute(ExecutedResult *exec_result);
 
+  RetCode GetWriteAndReadTables(
+      vector<vector<pair<int, string>>> &stmt_to_table_list);
+
  private:
   RetCode GenerateSelectForUpdateStmt(const string table_name,
                                       AstNode *&appended_query_sel_stmt);

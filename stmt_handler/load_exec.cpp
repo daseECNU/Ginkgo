@@ -121,7 +121,7 @@ RetCode LoadExec::Execute(ExecutedResult *exec_result) {
 #ifdef NEW_LOADER
   DataInjector *injector =
       new DataInjector(table, column_separator, tuple_separator);
-LOG(INFO) << "complete create new DataInjector for test."<<std::endl;
+  LOG(INFO) << "complete create new DataInjector for test." << std::endl;
   // cout << endl << "load mode is: " << load_ast_->mode_;
   ret = injector->LoadFromFile(path_names,
                                static_cast<FileOpenFlag>(load_ast_->mode_),
@@ -151,11 +151,20 @@ LOG(INFO) << "complete create new DataInjector for test."<<std::endl;
 
   result->SetResult("load data successfully", NULL);
 #endif
-  Environment::getInstance()->getCatalog()->saveCatalog();
   //  }
 
   return ret;
 }
-
+RetCode LoadExec::GetWriteAndReadTables(
+    vector<vector<pair<int, string>>> &stmt_to_table_list) {
+  RetCode ret = rSuccess;
+  vector<pair<int, string>> table_list;
+  pair<int, string> table_status;
+  table_status.first = 1;
+  table_status.second = load_ast_->table_name_;
+  table_list.push_back(table_status);
+  stmt_to_table_list.push_back(table_list);
+  return ret;
+}
 }  // namespace stmt_handler
 }  // namespace claims
