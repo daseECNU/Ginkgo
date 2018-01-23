@@ -38,6 +38,7 @@
 #include "../stmt_handler/truncate_table_exec.h"
 #include "../stmt_handler/drop_proj_exec.h"
 #include "../stmt_handler/show_exec.h"
+#include "../stmt_handler/export_exec.h"
 #include "../utility/Timer.h"
 #include "../common/error_define.h"
 
@@ -118,6 +119,10 @@ RetCode StmtHandler::GenerateStmtExec(AstNode* stmt_ast) {
     }
     case AST_TRUNCATE_TABLE: {
       stmt_exec_ = new TruncateTableExec(stmt_ast);
+      break;
+    }
+    case AST_EXPORT_TABLE: {
+      stmt_exec_ = new ExportExec(stmt_ast);
       break;
     }
     default: {

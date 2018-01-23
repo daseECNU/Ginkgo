@@ -32,6 +32,7 @@ using namespace std;
 #include "../ast_node/ast_desc_stmt.h"
 #include "../ast_node/ast_update_stmt.h"
 #include "../ast_node/ast_truncate_stmt.h"
+#include "../ast_node/ast_export_stmt.h"
 
 void yyerror(struct ParseResult *pp,const char *s, ...);
 void emit(char *s, ...);
@@ -154,6 +155,7 @@ should replace YYLEX with the following clause in sql.tab.cpp, why so? I don't k
 %token EXISTS
 %token EXIT
 %token EXPLAIN
+%token EXPORT
 %token FETCH
 %token FLOAT
 %token FOR
@@ -428,6 +430,7 @@ should replace YYLEX with the following clause in sql.tab.cpp, why so? I don't k
 %type <ast_node> update_stmt update_set_list
 %type <ast_node> truncate_table_stmt
 %type <ast_node> drop_projection_stmt
+%type <ast_node> export_table_stmt
 
 
 %type <intval> opt_if_exists opt_if_not_exists opt_ignore_replace
@@ -1038,6 +1041,17 @@ load_table_stmt: LOAD TABLE NAME FROM expr_list WITH STRING ',' STRING SAMPLE CO
 		}
 	;
 
+	/** export table **/	
+stmt: export_table_stmt	                    { $$ = $1;}
+	;
+	
+export_table_stmt: EXPORT TABLE NAME INTO expr_list WITH STRING ',' STRING
+      { 
+      $$ = new AstExportTable(AST_EXPORT_TABLE, string($3), $5, string($7), string($9));
+
+           }
+	;
+	
 	/** drop index **/	
 stmt: drop_index_stmt                       { $$ = $1; /*output($$, 1); puts("SQL parser： This is a drop_index statement");*/ }
     ;

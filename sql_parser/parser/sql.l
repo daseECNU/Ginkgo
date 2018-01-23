@@ -104,6 +104,7 @@ ESCAPED	{ return ESCAPED; }
 EXISTS	{ return EXISTS; }
 EXIT	{ return EXIT; }
 EXPLAIN	{ return EXPLAIN; }
+EXPORT { return EXPORT; }
 FETCH	{ return FETCH; }
 FLOAT4?	{ return FLOAT; }
 FOR	{ return FOR; }
@@ -123,6 +124,7 @@ HOUR_SECOND	{ return HOUR_SECOND; }
 IF	{ return IF; }
 IGNORE	{ return IGNORE; }
 IN	{ return IN; }
+INTO	{ return INTO; }
 INFILE	{ return INFILE; }
 INNER	{ return INNER; }
 INOUT	{ return INOUT; }
@@ -130,7 +132,6 @@ INSENSITIVE	{ return INSENSITIVE; }
 INSERT	{ return INSERT; }
 INT4?|INTEGER|INT	{ return INTEGER; }
 INTERVAL	{ return INTERVAL; }
-INTO	{ return INTO; }
 IS	{ return IS; }
 ITERATE	{ return ITERATE; }
 JOIN	{ return JOIN; }

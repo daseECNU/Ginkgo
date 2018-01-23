@@ -45,6 +45,7 @@
 #include "../sql_parser/ast_node/ast_expr_node.h"
 #include "../sql_parser/ast_node/ast_drop_stmt.h"
 #include "../sql_parser/ast_node/ast_create_stmt.h"
+#include "../sql_parser/ast_node/ast_export_stmt.h"
 
 namespace claims {
 namespace stmt_handler {
