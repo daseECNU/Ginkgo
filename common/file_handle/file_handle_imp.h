@@ -130,6 +130,10 @@ class FileHandleImp {
 
   const size_t& get_logical_file_length() { return logical_file_length_; }
 
+  void set_logical_file_length(size_t logical_file_length) {
+    logical_file_length_ = logical_file_length;
+  }
+
   /**
    * Truncate - truncate the dirty data when failed to execute transaction.
    * @param newlength The size the file is to be truncated to.

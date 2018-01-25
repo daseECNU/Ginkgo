@@ -106,7 +106,7 @@ void* Daemon::worker(void* para) {
     // function.
 
     ClientListener::checkFdValid(rc.socket_fd);
-    StmtHandler* stmt_handler;  // It means nothing. If without it,gcc compiler
+    StmtHandler* stmt_handler;  // It means nothing. If without it, gcc compiler
                                 // cannot pass.
     TransHandler* trans_handler = new TransHandler(rc.cmd, rc.socket_fd);
     trans_handler->Execute();
@@ -117,7 +117,6 @@ void* Daemon::worker(void* para) {
 
     ClientListener::checkFdValid(rc.socket_fd);
     printf("-Worker add result into the queue!\n");
-    //    Daemon::getInstance()->addExecutedResult(result);
 
     delete trans_handler;
   }

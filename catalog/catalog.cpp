@@ -290,7 +290,7 @@ RetCode Catalog::restoreCatalog() {
   }
 }
 
-bool Catalog::DropTable(const std::string table_name, const TableID id) {
+bool Catalog::dropTable(const std::string table_name, const TableID id) {
   bool isdropped = false;
   bool isnamedrop = false;
   bool istableIDdrop = false;
@@ -328,7 +328,7 @@ bool Catalog::DropTable(const std::string table_name, const TableID id) {
   return isdropped;
 }
 
-bool Catalog::DropAllProjection(const std::string table_name) {
+bool Catalog::dropAllProjection(const std::string table_name) {
   TableDescriptor* table_desc = getTable(table_name);
   //  table_desc->GetProjectionList()->clear();
   vector<ProjectionDescriptor*>* projection_list =
@@ -348,7 +348,7 @@ bool Catalog::DropAllProjection(const std::string table_name) {
   }
 }
 
-bool Catalog::DropOneProjection(const std::string table_name,
+bool Catalog::dropOneProjection(const std::string table_name,
                                 const int projection_id) {
   bool flag = false;
   TableDescriptor* table_desc = getTable(table_name);
@@ -385,7 +385,7 @@ bool Catalog::DropOneProjection(const std::string table_name,
 
 // init the data information of table in catalog and unbind the partition with
 // slave node.
-RetCode Catalog::TruncateTable(const std::string table_name) {
+RetCode Catalog::truncateTable(const std::string table_name) {
   TableDescriptor* table_desc = NULL;
   table_desc = getTable(table_name);
   if (table_desc != NULL) {
@@ -407,7 +407,7 @@ RetCode Catalog::TruncateTable(const std::string table_name) {
   return rSuccess;
 }
 
-RetCode Catalog::TruncateProjection(const std::string table_name,
+RetCode Catalog::truncateProjection(const std::string table_name,
                                     const int projection_id) {
   TableDescriptor* table_desc = NULL;
   table_desc = getTable(table_name);
@@ -481,16 +481,17 @@ vector<TableID> Catalog::GetAllTablesID() const {
   return table_id_list;
 }
 
-RetCode Catalog::TruncateTableFiles() {
+RetCode Catalog::truncateDirtyData() {
   RetCode ret = rSuccess;
   for (auto it_tableid_to_table = tableid_to_table.begin();
        it_tableid_to_table != tableid_to_table.end(); ++it_tableid_to_table) {
     string tbname = it_tableid_to_table->second->getTableName();
-    ret = getTable(tbname)->RestoreAllTableFiles();
+    ret = getTable(tbname)->TruncateFilesFromTable();
     if (rSuccess != ret) {
-      return rFailure;
+      return ret;
     }
   }
+  cout << "truncate dirty data complete" << endl;
   return ret;
 }
 

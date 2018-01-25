@@ -107,7 +107,6 @@ RetCode SelectExec::Execute(ExecutedResult* exec_result) {
     exec_result->status_ = false;
     exec_result->error_info_ = raw_sql_ + string(" execution error!");
     exec_status->set_exec_status(StmtExecStatus::ExecStatus::kError);
-    cout << "rSuccess != ret" << endl;
     return ret;
   } else {
     if (StmtExecStatus::ExecStatus::kCancelled ==

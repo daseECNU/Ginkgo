@@ -191,7 +191,7 @@ RetCode DropTableExec::DropTableFromCatalog(const string& table_name) {
   RetCode ret = rSuccess;
   Catalog* local_catalog = Environment::getInstance()->getCatalog();
   TableDescriptor* table_desc = local_catalog->getTable(table_name);
-  local_catalog->DropTable(table_name, table_desc->get_table_id());
+  local_catalog->dropTable(table_name, table_desc->get_table_id());
   delete table_desc;
 }
 

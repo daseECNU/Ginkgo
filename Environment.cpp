@@ -63,7 +63,7 @@ Environment::Environment(bool ismaster) : ismaster_(ismaster) {
       LOG(ERROR) << "failed to restore catalog" << std::endl;
       cerr << "ERROR: restore catalog failed" << endl;
     }
-    if (rSuccess != catalog_->TruncateTableFiles()) {
+    if (rSuccess != catalog_->truncateDirtyData()) {
       LOG(ERROR) << "failed to truncate dirty data" << std::endl;
       cerr << "ERROR: truncate dirty data failed" << endl;
     }

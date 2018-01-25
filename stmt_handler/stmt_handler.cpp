@@ -180,6 +180,7 @@ RetCode StmtHandler::StmtContentAnalysis(
     stmt_list_ = reinterpret_cast<AstStmtList*>(stmt_list_->next_);
     ret = GetTablesInfomation(stmt_list_->stmt_, stmt_to_table_list);
     if (rSuccess != ret) {
+      cout << "GetTablesInfomation Wrong" << endl;
       Daemon::getInstance()->addExecutedResult(result);
       return ret;
     }

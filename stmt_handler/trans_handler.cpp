@@ -16,7 +16,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * /Claims/transam/transaction.cpp
+ * /Ginkgo/stmt_handler/trans_handler.cpp
  *
  *  Created on: Nov 18, 2017
  *      Author: zyhe
@@ -26,10 +26,10 @@
  *
  */
 
+#include <boost/algorithm/string.hpp>
 #include "../stmt_handler/trans_handler.h"
 #include "../catalog/catalog.h"
 #include "../catalog/table.h"
-#include <boost/algorithm/string.hpp>
 
 using claims::stmt_handler::StmtHandler;
 using claims::common::rFailure;
@@ -65,7 +65,7 @@ RetCode TransHandler::Execute() {
           rlock_tables_.push_back((*beg).second);
         } else if ((*beg).first == 1) {
           table->wLock();
-          if (first_write == true) {
+          if (first_write) {
             Snapshot();
             first_write = false;
           }
@@ -90,11 +90,13 @@ RetCode TransHandler::Execute() {
     case Commit: {
       CommitTransactionBlock();
       UnlockAllWriteTables();
+      cout << "Transaction Commit" << endl;
       break;
     }
     case Abort: {
       AbortTransactionBlock();
       UnlockAllWriteTables();
+      cout << "Transaction Abort" << endl;
       break;
     }
   }
@@ -151,7 +153,7 @@ RetCode TransHandler::AbortTransactionBlock() {
       TableDescriptor* table =
           Catalog::getInstance()->getTable((*beg).getTableName());
       table = &(*beg);
-      table->RestoreAllTableFiles();
+      table->TruncateFilesFromTable();
       ++beg;
     }
   }
@@ -159,9 +161,7 @@ RetCode TransHandler::AbortTransactionBlock() {
 }
 
 RetCode TransHandler::CommitTransactionBlock() {
-  if (wlock_tables_.size() != 0) {
-    Catalog::getInstance()->saveCatalog();
-  }
+  Catalog::getInstance()->saveCatalog();
   return rSuccess;
 }
 

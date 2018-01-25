@@ -195,7 +195,7 @@ RetCode TruncateTableExec::TruncateTableFromCatalog(const string& table_name) {
   RetCode ret = rSuccess;
   Catalog* local_catalog = Environment::getInstance()->getCatalog();
   TableDescriptor* table_desc = local_catalog->getTable(table_name);
-  ret = local_catalog->TruncateTable(table_name);
+  ret = local_catalog->truncateTable(table_name);
   return ret;
 }
 
@@ -249,7 +249,7 @@ RetCode TruncateTableExec::TruncateProjectionFromCatalog(
   RetCode ret = rSuccess;
   Catalog* local_catalog = Environment::getInstance()->getCatalog();
   TableDescriptor* table_desc = local_catalog->getTable(table_name);
-  ret = local_catalog->TruncateProjection(table_name, proj_id);
+  ret = local_catalog->truncateProjection(table_name, proj_id);
   return ret;
 }
 

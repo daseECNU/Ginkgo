@@ -158,12 +158,13 @@ class TableDescriptor {
   RetCode SetLogicalFilesLength(unsigned projection_offset,
                                 unsigned partition_offset,
                                 unsigned file_length);
+
   void InitTableData();
 
   void wLock() { wr_lock_.wrlock_acquire(); }
   void rLock() { wr_lock_.rdlock_acquire(); }
   void unwrLock() { wr_lock_.release(); }
-  RetCode RestoreAllTableFiles();
+  RetCode TruncateFilesFromTable();
 
  private:
   RetCode InitFileConnector();

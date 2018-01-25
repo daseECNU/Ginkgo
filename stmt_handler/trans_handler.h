@@ -17,7 +17,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * /Claims/transam/transaction.h
+ * /Ginkgo/stmt_handler/trans_handler.h
  *
  *  Created on: Nov 18, 2017
  *      Author: zyhe
@@ -27,15 +27,14 @@
  *
  */
 
-#ifndef TRANS_HANDLER_TRANS_HANDLER_H_
-#define TRANS_HANDLER_TRANS_HANDLER_H_
+#ifndef STMT_HANDLER_TRANS_HANDLER_H_
+#define STMT_HANDLER_TRANS_HANDLER_H_
 
 #include <string>
 #include <vector>
 #include "../stmt_handler/stmt_handler.h"
 #include "../common/error_define.h"
 #include "../common/data_type.h"
-#include "../catalog/catalog.h"
 
 using claims::stmt_handler::StmtHandler;
 namespace claims {
@@ -69,8 +68,8 @@ class TransHandler {
   /* @param stmt_to_table_list_ Collect the information about the list of tables
    to be executed. Pair<int, string> is used to collect the information about
    the list of tables of one statement. The first param of pair is operation
-   status(0 is read, 1 is write,2 is drop,3 is null). The second param record
-   the table name;
+   status(0 is read, 1 is write,2 is drop,3 is truncate). The second param is
+   uesds to record the table name;
    */
   vector<vector<pair<int, string>>> stmt_to_table_list_;
   vector<string> wlock_tables_;
@@ -79,4 +78,4 @@ class TransHandler {
 };
 }  // namespace trans_handler
 }  // namespace claims
-#endif  //  TRANS_HANDLER_TRANS_HANDLER_H_
+#endif  //  STMT_HANDLER_TRANS_HANDLER_H_

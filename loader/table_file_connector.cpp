@@ -42,6 +42,7 @@ using claims::common::FilePlatform;
 using claims::common::FileHandleImpFactory;
 using claims::common::FileOpenFlag;
 using claims::common::rSuccess;
+using claims::common::rTruncateFileFail;
 using claims::common::FileHandleImp;
 using claims::common::FilePlatform;
 using std::vector;
@@ -58,6 +59,7 @@ TableFileConnector::TableFileConnector(FilePlatform platform,
       write_path_name_(table->GetAllPartitionsPath()),
       ref_(0),
       open_flag_(open_flag) {
+  int i = 0, j = 0;
   for (auto projection_iter : write_path_name_) {
     vector<FileHandleImp*> projection_files;
     projection_files.clear();
@@ -67,15 +69,20 @@ TableFileConnector::TableFileConnector(FilePlatform platform,
       FileHandleImp* file =
           FileHandleImpFactory::Instance().CreateFileHandleImp(platform_,
                                                                partition_iter);
+      vector<vector<unsigned>> logical_files_length_ =
+          table->GetLogicalFilesLength();
+      file->set_logical_file_length(logical_files_length_[i][j]);
       projection_files.push_back(file);
       projection_locks.push_back(Lock());
       LOG(INFO)
           << "push file handler which handles " << partition_iter
           << " into projection_files. Now the size of projection_files is "
           << projection_files.size() << std::endl;
+      ++j;
     }
     file_handles_.push_back(projection_files);
     write_locks_.push_back(projection_locks);
+    ++i;
   }
   LOG(INFO) << "open all " << file_handles_.size() << " file successfully"
             << std::endl;
@@ -206,6 +213,7 @@ RetCode TableFileConnector::AtomicFlush(unsigned projection_offset,
         ret, file_handles_[projection_offset][partition_offset]->OverWrite(
                  source, length),
         "failed to overwrite file.");
+
   } else if (FileOpenFlag::kAppendFile == open_flag_) {
     LockGuard<Lock> guard(write_locks_[projection_offset][partition_offset]);
     EXEC_AND_ONLY_LOG_ERROR(
@@ -340,15 +348,20 @@ RetCode TableFileConnector::UpdateWithNewProj() {
   return rSuccess;
 }
 
-RetCode TableFileConnector::FileTruncate(unsigned projection_offset,
-                                         unsigned partition_offset,
-                                         const unsigned length) {
+RetCode TableFileConnector::TruncateFileFromPrtn(unsigned projection_offset,
+                                                 unsigned partition_offset,
+                                                 unsigned& length) {
   RetCode ret = rSuccess;
-  EXEC_AND_RETURN_ERROR(
-      ret, file_handles_[projection_offset][partition_offset]->Truncate(length),
-      "failed to truncate file " +
-          file_handles_[projection_offset][partition_offset]->get_file_name());
-  return ret;
+  ret = file_handles_[projection_offset][partition_offset]->Truncate(length);
+  if (rSuccess == ret) {
+    length = file_handles_[projection_offset][partition_offset]
+                 ->get_logical_file_length();
+    return ret;
+  } else if (rTruncateFileFail == ret) {
+    return ret;
+  } else {
+    return rSuccess;
+  }
 }
 } /* namespace loader */
 } /* namespace claims */

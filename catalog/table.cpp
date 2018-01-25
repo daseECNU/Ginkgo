@@ -272,13 +272,14 @@ RetCode TableDescriptor::SetLogicalFilesLength(unsigned projection_offset,
   logical_files_length_[projection_offset][partition_offset] = file_length;
   return rSuccess;
 }
-RetCode TableDescriptor::RestoreAllTableFiles() {
+RetCode TableDescriptor::TruncateFilesFromTable() {
   RetCode ret = rSuccess;
   for (int i = 0; i < getNumberOfProjection(); i++) {
     for (int j = 0;
          j < projection_list_[i]->getPartitioner()->getNumberOfPartitions();
          ++j) {
-      ret = write_connector_->FileTruncate(i, j, logical_files_length_[i][j]);
+      ret = write_connector_->TruncateFileFromPrtn(i, j,
+                                                   logical_files_length_[i][j]);
       if (rSuccess != ret) {
         return ret;
       }

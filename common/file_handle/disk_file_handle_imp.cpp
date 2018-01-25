@@ -34,6 +34,7 @@
 #include "./disk_file_handle_imp.h"
 
 #include <glog/logging.h>
+#include <sys/stat.h>
 #include <stdio.h>
 #include <fcntl.h>
 #include <string>
@@ -91,7 +92,7 @@ RetCode DiskFileHandleImp::Write(const void* buffer, const size_t length) {
   assert((kInOverWriting == file_status_ || kInAppending == file_status_) &&
          " files is not opened in writing mode");
   //  RefHolder holder(reference_count_);
-
+  struct stat s_buf;
   string* result = new string;
   size_t compress_length =
       snappy::Compress(static_cast<const char*>(buffer), length, result);
@@ -101,6 +102,7 @@ RetCode DiskFileHandleImp::Write(const void* buffer, const size_t length) {
 
   size_t total_write_num = 0;
   ssize_t wirte_num = write(fd_, head, sizeof(head));
+  logical_file_length_ += wirte_num;
   while (total_write_num < compress_length) {
     ssize_t write_num = write(fd_, result->data() + total_write_num,
                               compress_length - total_write_num);
@@ -111,7 +113,7 @@ RetCode DiskFileHandleImp::Write(const void* buffer, const size_t length) {
     }
     total_write_num += write_num;
   }
-  logical_file_length_ = lseek(fd_, 0, SEEK_END);
+  logical_file_length_ += total_write_num;
   // by Han compress to find what happened to write in hdfs 2017-4-3
   //  if (length > 100) {
   //    DLOG(INFO) << "write " << length << " length data from " << buffer
@@ -340,19 +342,27 @@ RetCode DiskFileHandleImp::WriteNoCompress(const void* buffer,
 }
 
 RetCode DiskFileHandleImp::Truncate(const size_t newlength) {
+  if (SwitchStatus(kInReading) != rSuccess) {
+    return rFailure;
+  }
   const char* file_name = file_name_.c_str();
   if (CanAccess(file_name_)) {
     size_t actul_file_length = lseek(fd_, 0, SEEK_END);
     if (actul_file_length > newlength) {
       if (truncate(file_name, newlength) == 0) {
-        return rSuccess;
+        logical_file_length_ = newlength;
       } else {
-        return rFailure;
+        return rTruncateFileFail;
       }
     } else if (actul_file_length < newlength) {
-      return rFailure;
+      if (truncate(file_name, 0) == 0) {
+        logical_file_length_ = 0;
+      } else {
+        return rTruncateFileFail;
+      }
     }
   }
+  Close();
   return rSuccess;
 }
 

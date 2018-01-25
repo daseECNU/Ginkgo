@@ -40,7 +40,7 @@
 namespace claims {
 namespace common {
 
-enum FilePlatform { kDisk, kHdfs ,kZk};
+enum FilePlatform { kDisk, kHdfs, kZk };
 
 /***
  * @brief factory class as singleton for generating specify FileHandleImp

@@ -441,6 +441,7 @@ RetCode InsertExec::Execute(ExecutedResult *exec_result) {
       return ret;
     }
   }
+  return ret;
 }
 
 RetCode InsertExec::GetWriteAndReadTables(

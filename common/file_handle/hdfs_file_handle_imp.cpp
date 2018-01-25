@@ -135,6 +135,7 @@ RetCode HdfsFileHandleImp::Write(const void* buffer, const size_t length) {
 
   size_t total_write_num = 0;
   int32_t write_num = hdfsWrite(fs_, file_, head, sizeof(head));
+  logical_file_length_ += write_num;
   while (total_write_num < compress_length) {
     write_num = hdfsWrite(fs_, file_, result->data() + total_write_num,
                           compress_length - total_write_num);
@@ -145,7 +146,7 @@ RetCode HdfsFileHandleImp::Write(const void* buffer, const size_t length) {
     }
     total_write_num += write_num;
   }
-  logical_file_length_ = hdfsTell(fs_, file_);
+  logical_file_length_ += total_write_num;
   //  if (length > 100) {
   //    LOG(INFO) << "write " << length << " length data from " << buffer
   //              << " into hdfs file:" << file_name_ << endl;
@@ -314,7 +315,6 @@ RetCode HdfsFileHandleImp::DeleteFile() {
     } else {
       LOG(INFO) << "The file " << file_name_ << " is deleted successfully"
                 << endl;
-      ;
     }
   } else {
     file_ = NULL;
@@ -373,36 +373,15 @@ RetCode HdfsFileHandleImp::AppendNoCompress(const void* buffer,
   return WriteNoCompress(buffer, length);
 }
 
-RetCode HdfsFileHandleImp::ReadFileLength(size_t& file_length) {
-  assert(NULL != fs_ && "failed to connect hdfs");
-  int ret = rSuccess;
-  EXEC_AND_ONLY_LOG_ERROR(ret, Close(), "file name: " << file_name_);
-  if (CanAccess(file_name_)) {
-    file_length = hdfsTell(fs_, file_);
-    LOG(INFO) << "The length of HdfsFile " << file_name_ << " is "
-              << file_length << endl;
-    if (file_length < 0) {
-      LOG(ERROR) << "The length of HdfsFile " << file_name_ << " is error!\n"
-                 << endl;
-      return rFailure;
-    }
-  } else {
-    file_ = NULL;
-    file_status_ = kClosed;
-    LOG(WARNING) << "The file " << file_name_ << " is not exits!\n" << endl;
+RetCode HdfsFileHandleImp::Truncate(const size_t newlength) {
+  if (SwitchStatus(kInReading) != rSuccess) {
     return rFailure;
   }
-  return rSuccess;
-}
-
-RetCode HdfsFileHandleImp::Truncate(const size_t newlength) {
-  assert(NULL != fs_ && "failed to connect hdfs");
-  RetCode ret = rSuccess;
-  size_t actul_file_length = ReadFileLength(actul_file_length);
-  EXEC_AND_ONLY_LOG_ERROR(ret, Close(), "file name: " << file_name_);
+  size_t actul_file_length = hdfsTell(fs_, file_);
   if (actul_file_length > newlength) {
     int i = hdfsTruncateFile(fs_, file_name_.c_str(), newlength);
     if (1 == i) {
+      logical_file_length_ = newlength;
       LOG(INFO) << "The file " << file_name_ << " is truncated successfully"
                 << endl;
     } else {
@@ -411,12 +390,24 @@ RetCode HdfsFileHandleImp::Truncate(const size_t newlength) {
                       "last block has been started. " << endl;
       }
       LOG(ERROR) << "Failed to truncate file : [" + file_name_ + "]." << endl;
-      return rFailure;
+      return rTruncateFileFail;
     }
   } else if (actul_file_length < newlength) {
-    return rFailure;
+    int i = hdfsTruncateFile(fs_, file_name_.c_str(), 0);
+    if (1 == i) {
+      logical_file_length_ = 0;
+      LOG(INFO) << "The file " << file_name_ << " is truncated successfully"
+                << endl;
+    } else {
+      if (0 == i) {
+        LOG(ERROR) << "A background process of adjusting the length of the "
+                      "last block has been started. " << endl;
+      }
+      LOG(ERROR) << "Failed to truncate file : [" + file_name_ + "]." << endl;
+      return rTruncateFileFail;
+    }
   }
-  return ret;
+  return rSuccess;
 }
 
 }  // namespace common
