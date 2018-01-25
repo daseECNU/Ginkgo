@@ -399,6 +399,7 @@ int BlockManager::LoadFromDisk(const ChunkID& chunk_id, void* const& desc,
   final.copy((char*)desc, length, 0);
   chunkid_off_in_file_[next_chunk] = start_pos;
   free(tmp);
+  tmp=NULL;
   delete result;
   FileClose(fd);
   return totoal_read;

@@ -47,9 +47,12 @@ class ExportExec : public StmtExec {
    * @brief the concrete operation of export data.
    */
   RetCode Execute(ExecutedResult* exec_result);
-  void ExportExec::AnnounceIAmLoading();
+  void ExportExec::AnnounceIAmExporting();
   RetCode ExportExec::CreateChunklist(vector<PartitionInfo *> pt_list,
-		  std::vector<ChunkStorage*>& chunk_list_,vector<PartitionID> ptid_list) ;
+		  vector<PartitionID> ptid_list,   std::vector<ChunkID*> &chunk_id) ;
+  RetCode ExportExec::ExportIntoFile(int attr_size , std::vector<ChunkID*> chunk_id,
+		  string path);
+  void ExportExec::flush(string *result ,unsigned int *file_size ,int*file_num,int * write_buffer_size, string path);
  private:
   /**
    * this pointer describes the abstract syntax tree about export data from
@@ -57,13 +60,16 @@ class ExportExec : public StmtExec {
    * It is converted from the member stmt_ of base class when we construct a new
    * object.
    */
+
+  //int file_size;
+  //int file_num;
+  TableDescriptor *table;
   AstExportTable* export_ast_;
   common::FileHandleImp* imp_;
   common::FilePlatform platform_;
   string file_name_;
-
-
-
+  string column_separator;
+  string tuple_separator;
   int  fd_;
 };
 
