@@ -196,9 +196,9 @@ class WRLock {
 
   ~WRLock() { pthread_rwlock_destroy(&rwlock); }
 
-  void wrlock_acquire() { pthread_rwlock_wrlock(&rwlock); }
+  int wrlock_acquire() { return pthread_rwlock_wrlock(&rwlock); }
 
-  void rdlock_acquire() { pthread_rwlock_rdlock(&rwlock); }
+  int rdlock_acquire() { return pthread_rwlock_rdlock(&rwlock); }
 
   void release() { pthread_rwlock_unlock(&rwlock); }
 

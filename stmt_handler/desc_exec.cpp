@@ -167,6 +167,10 @@ RetCode DescExec::Execute(ExecutedResult* exec_result) {
           table->getAttributes()[i.column_id_.column_off].attrName + " ";
     }
     desc_stmt_ast_->projection_col_.push_back(proj_col_name);
+    desc_stmt_ast_->partition_num_.push_back(
+        partitioner->getNumberOfPartitions());
+    desc_stmt_ast_->partition_keys_.push_back(
+        partitioner->getPartitionKey().attrName);
     if (partitioner->isEmpty()) {
       desc_stmt_ast_->is_null_.push_back("FALSE");
     } else {
@@ -202,7 +206,7 @@ RetCode DescExec::Execute(ExecutedResult* exec_result) {
     if (desc_stmt_ast_->nullable_[i].size() > max_column_size[2]) {
       max_column_size[2] = desc_stmt_ast_->nullable_[i].size();
     }
-    if (desc_stmt_ast_->is_key_[i].size() > max_column_size[3]) {
+    if (desc_stmt_ast_->is_key_[i].size() > max_column_size[5]) {
       max_column_size[3] = desc_stmt_ast_->is_key_[i].size();
     }
     if (desc_stmt_ast_->default_value_[i].size() > max_column_size[4]) {
@@ -274,11 +278,15 @@ RetCode DescExec::Execute(ExecutedResult* exec_result) {
   max_column_size.clear();
   max_column_size.push_back(12);  // ProjectionID
   max_column_size.push_back(17);  // Projection_Fields
+  max_column_size.push_back(17);  // Partition_key
+  max_column_size.push_back(12);  // Partition_num
   max_column_size.push_back(8);   // Has_Data
 
   col_header.clear();
   col_header.push_back("ProjectionID");
   col_header.push_back("Projection_Fields");
+  col_header.push_back("Partition_key");
+  col_header.push_back("PartitionNum");
   col_header.push_back("Has_Data");
 
   for (int i = 0; i < table->GetProjectionList()->size(); i++) {
@@ -288,7 +296,7 @@ RetCode DescExec::Execute(ExecutedResult* exec_result) {
   }
 
   // print header
-  for (int i = 0; i < 3; i++) {
+  for (int i = 0; i < 5; i++) {
     ostr << "+";
     for (int j = 0; j < (max_column_size[i] + 2); j++) {
       ostr << "-";
@@ -296,13 +304,13 @@ RetCode DescExec::Execute(ExecutedResult* exec_result) {
   }
   ostr << "+" << endl;
 
-  for (int i = 0; i < 3; i++) {
+  for (int i = 0; i < 5; i++) {
     ostr << "|";
     ostr << " " << std::left << std::setw(max_column_size[i]) << col_header[i];
     ostr << " ";
   }
   ostr << "|" << endl;
-  for (int i = 0; i < 3; i++) {
+  for (int i = 0; i < 5; i++) {
     ostr << "+";
     for (int j = 0; j < (max_column_size[i] + 2); j++) {
       ostr << "-";
@@ -320,12 +328,18 @@ RetCode DescExec::Execute(ExecutedResult* exec_result) {
          << desc_stmt_ast_->projection_col_[i] << " ";
     ostr << "|"
          << " " << std::left << std::setw(max_column_size[2])
+         << desc_stmt_ast_->partition_keys_[i] << " ";
+    ostr << "|"
+         << " " << std::left << std::setw(max_column_size[3])
+         << desc_stmt_ast_->partition_num_[i] << " ";
+    ostr << "|"
+         << " " << std::left << std::setw(max_column_size[4])
          << desc_stmt_ast_->is_null_[i] << " ";
     ostr << "|" << endl;
   }
 
   // print last line
-  for (int i = 0; i < 3; i++) {
+  for (int i = 0; i < 5; i++) {
     ostr << "+";
     for (int j = 0; j < (max_column_size[i] + 2); j++) {
       ostr << "-";

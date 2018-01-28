@@ -68,6 +68,8 @@ class AstDescStmt : public AstNode {
   vector<string> extra_;
   vector<int> projection_id_;
   vector<string> projection_col_;
+  vector<int> partition_num_;
+  vector<string> partition_keys_;
   vector<string> is_null_;
   vector<unsigned> size_;
 };

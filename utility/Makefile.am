@@ -1,6 +1,6 @@
-AM_CPPFLAGS= -fPIC -fpermissive
+AM_CPPFLAGS= -fPIC -fpermissive 
 
-AM_LDFLAGS=-lc -lm -lrt -lxs 
+AM_LDFLAGS=-lc -lm -lrt -lxs -lthrift
 
 if OPT_TCMALLOC
 AM_CPPFLAGS+=-fno-builtin-malloc -fno-builtin-calloc -fno-builtin-realloc -fno-builtin-free
@@ -24,5 +24,6 @@ libutility_a_SOURCES = \
 	string_process.h 		task.cpp \
 	task.h 					test_tool.h \
 	thread_pool.cpp 		thread_pool.h \
-	warmup.h
-	
+	warmup.h     thrift_util.h \
+	bit_stream_utils.h   rle_encoding.h\
+	dict_encoding.h

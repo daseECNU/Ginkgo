@@ -31,6 +31,9 @@
 #include <list>
 #include <vector>
 #include <string>
+#include <map>
+#include <set>
+#include <utility>
 
 #include "../common/error_define.h"
 #include "../common/hash.h"
@@ -165,18 +168,14 @@ class DataInjector {
                            string data_source, uint64_t row_id_in_raw_data,
                            ExecutedResult* result);
 
-  string GenerateDataValidityInfo(const Validity& vali, TableDescriptor* table,
-                                  int line, const string& file);
-  void AnnounceIAmLoading();
-
   static void* HandleTuple(void* ptr);
 
   RetCode SetTableState(FileOpenFlag open_flag, ExecutedResult* result);
-  RetCode CheckFiles(vector<string> input_file_names, ExecutedResult* result
-                                              , HdfsLoader * hdfsloader_);
+
   RetCode PrepareEverythingForLoading(vector<string> input_file_names,
                                       FileOpenFlag open_flag,
-                                      ExecutedResult* result,HdfsLoader * hdfsloader_);
+                                      ExecutedResult* result,
+                                      HdfsLoader* hdfsloader_);
 
   RetCode FinishJobAfterLoading(FileOpenFlag open_flag);
   RetCode PrepareLocalPJBuffer(vector<vector<BlockStreamBase*>>& pj_buffer);
@@ -184,10 +183,19 @@ class DataInjector {
   RetCode DestroyLocalPJBuffer(vector<vector<BlockStreamBase*>>& pj_buffer);
 
  public:
+  static RetCode CheckFiles(vector<string> input_file_names,
+                            ExecutedResult* result, HdfsLoader* hdfsloader_);
+  static string GenerateDataValidityInfo(const Validity& vali,
+                                         TableDescriptor* table, int line,
+                                         const string& file);
+  static void AnnounceIAmLoading();
   static istream& GetTupleTerminatedBy(ifstream& ifs, string& res,
                                        const string& terminator);
-  static bool GetTupleTerminatedByFromHdfs(void*& buffer, HdfsLoader* hdfsloader_, string & file_name, string& res,
-                                              const string& terminator, int & pos, int & read_num, const int & length);
+  static bool GetTupleTerminatedByFromHdfs(void*& buffer,
+                                           HdfsLoader* hdfsloader_,
+                                           string& file_name, string& res,
+                                           const string& terminator, int& pos,
+                                           int& read_num, const int& length);
 
  private:
   TableDescriptor* table_;
@@ -226,7 +234,6 @@ class DataInjector {
   RetCode multi_thread_status_ = rSuccess;
   ExecutedResult* result_;
   HdfsLoader* hdfsloader_;
-
 
   /******************debug********************/
  public:

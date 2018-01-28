@@ -162,7 +162,6 @@ DataInjector::DataInjector(TableDescriptor* table, const string col_separator,
       row_separator_(row_separator),
       row_id_in_table_(table_->row_number_),
       connector_(table_->get_connector()),
-
       hdfsloader_(new HdfsLoader()) {
   sub_tuple_generator_.clear();
   table_schema_ = table_->getSchema();
@@ -246,6 +245,7 @@ RetCode DataInjector::PrepareInitInfo(FileOpenFlag open_flag) {
         tmp_block_num.push_back(
             table_->getProjectoin(i)->getPartitioner()->getPartitionBlocks(j));
       } else {
+        connector_.InitMemFileLength(i, j);
         tmp_tuple_count.push_back(0);
         tmp_block_num.push_back(0);
       }
@@ -384,7 +384,7 @@ RetCode DataInjector::SetTableState(FileOpenFlag open_flag,
      */
     row_id_in_table_ = 0;
     for (int i = 0; i < table_->getNumberOfProjection(); i++) {
-      if (table_->getProjectoin(0)->getPartitioner()->allPartitionBound()) {
+      if (table_->getProjectoin(i)->getPartitioner()->allPartitionBound()) {
         bool res = Catalog::getInstance()
                        ->getBindingModele()
                        ->UnbindingEntireProjection(
@@ -452,8 +452,6 @@ RetCode DataInjector::PrepareEverythingForLoading(
   GET_TIME_DI(prepare_start_time);
   EXEC_AND_RETURN_ERROR(ret, PrepareInitInfo(open_flag),
                         "failed to prepare initialization info");
-  EXEC_AND_RETURN_ERROR(ret, hdfsloader_->PrepareForLoadFromHdfs(),
-                        "failed to prepare load_from_hdfs .");
   PLOG_DI("prepare time: " << GetElapsedTimeInUs(prepare_start_time) /
                                   1000000.0);
 
@@ -508,9 +506,9 @@ RetCode DataInjector::LoadFromFileMultiThread(vector<string> input_file_names,
                                               double sample_rate) {
   int ret = rSuccess;
   int file_count = 0;
-  // HdfsLoader* hdfsloader_ = new HdfsLoader();
-  // LOG(INFO)<<"enter the loadfromfilemultithread and create the
-  // hdfsloader_"<<std::endl;
+  //  HdfsLoader* hdfsloader_ = new HdfsLoader();
+  //  LOG(INFO) << "enter the loadfromfilemultithread and create the
+  //      hdfsloader_ "<<std::endl;
   uint64_t row_id_in_file = 0;
   uint64_t inserted_tuples_in_file = 0;
   uint64_t total_tuple_count = 0;
@@ -587,9 +585,8 @@ RetCode DataInjector::LoadFromFileMultiThread(vector<string> input_file_names,
       free(buffer);
       buffer = NULL;
       hdfsloader_->CloseHdfsFile();
-    }
-    // the function for load_from_hdfs by hurry.
-    else {
+      // the function for load_from_hdfs by hurry.
+    } else {
       ifstream input_file(file_name.c_str());
       DLOG_DI("Now handle file :" << file_name);
       // read every tuple
@@ -667,6 +664,8 @@ RetCode DataInjector::LoadFromFileMultiThread(vector<string> input_file_names,
           << "  total_unread_sem_fail_count_ : " << total_unread_sem_fail_count_
           << "  total_append_warning_time_ : "
           << total_append_warning_time_ / 1000000.0);
+
+  connector_.SaveUpdatedFileLengthToCatalog();
 
   EXEC_AND_RETURN_ERROR(ret, FinishJobAfterLoading(open_flag), "");
 
@@ -1177,7 +1176,7 @@ RetCode DataInjector::InsertTupleIntoProjection(
                        << " tuples");
   void* block_tuple_addr =
       local_pj_buffer[i][part]->allocateTuple(tuple_max_length);
-  TableDescriptor* table = table_;
+  //  TableDescriptor* table = table_;
 
   if (NULL == block_tuple_addr) {
     // if buffer is full, write buffer(64K) to HDFS/disk
@@ -1275,22 +1274,7 @@ bool DataInjector::GetTupleTerminatedByFromHdfs(
         int coincide_length = 1;
         res = res.substr(0, res.length() - terminator.length());
         return true;
-      } /*
-         while (true) {
-           c = hdfsloader_->GetCharFromBuffer(buffer, pos, read_num, length,
-         hdfsloader_, file_name, total_read_num);
-           if(c == -1)break;
-           res += c;
-           if (terminator[coincide_length] == c) {
-             if (++coincide_length == terminator.length()) {
-               // don't read terminator into string, same as getline()
-               res = res.substr(0, res.length() - terminator.length());
-               return true;
-             }
-           } else {
-             break;
-           }
-         }*/
+      }
     }
   }
   while (true) {
@@ -1310,8 +1294,8 @@ bool DataInjector::GetTupleTerminatedByFromHdfs(
         if (terminator[coincide_length] == c) {
           if (++coincide_length == terminator.length()) {
             // don't read terminator into string, same as getline()
-            res = res.substr(0, res.length() - terminator.length());
             return true;
+            res = res.substr(0, res.length() - terminator.length());
           }
         } else {
           break;
@@ -1345,15 +1329,16 @@ const char* validity_info[9][2] = {
     {},
     {}};
 */
-string DataInjector::GenerateDataValidityInfo(const Validity& vali,
-                                              TableDescriptor* table, int line,
-                                              const string& file) {
+static string DataInjector::GenerateDataValidityInfo(const Validity& vali,
+                                                     TableDescriptor* table,
+                                                     int line,
+                                                     const string& file) {
   ostringstream oss;
   oss.clear();
   switch (vali.check_res_) {
     case rTooLargeData: {
       oss << "Data larger than range value for column '"
-          << table_->getAttribute(vali.column_index_).attrName
+          << table->getAttribute(vali.column_index_).attrName
           << "' at line: " << line;
       if ("" != file) oss << " in file: " << file;
       oss << "\n";
@@ -1361,7 +1346,7 @@ string DataInjector::GenerateDataValidityInfo(const Validity& vali,
     }
     case rTooSmallData: {
       oss << "Data smaller than range value for column '"
-          << table_->getAttribute(vali.column_index_).attrName
+          << table->getAttribute(vali.column_index_).attrName
           << "' at line: " << line;
       if ("" != file) oss << " in file: " << file;
       oss << "\n";
@@ -1369,7 +1354,7 @@ string DataInjector::GenerateDataValidityInfo(const Validity& vali,
     }
     case rInterruptedData: {
       oss << "Data truncated from non-digit for column '"
-          << table_->getAttribute(vali.column_index_).attrName
+          << table->getAttribute(vali.column_index_).attrName
           << "' at line: " << line;
       if ("" != file) oss << " in file: " << file;
       oss << "\n";
@@ -1377,7 +1362,7 @@ string DataInjector::GenerateDataValidityInfo(const Validity& vali,
     }
     case rTooLongData: {
       oss << "Data truncated for column '"
-          << table_->getAttribute(vali.column_index_).attrName
+          << table->getAttribute(vali.column_index_).attrName
           << "' at line: " << line;
       if ("" != file) oss << " in file: " << file;
       oss << "\n";
@@ -1385,7 +1370,7 @@ string DataInjector::GenerateDataValidityInfo(const Validity& vali,
     }
     case rIncorrectData: {
       oss << "Incorrect format value for column '"
-          << table_->getAttribute(vali.column_index_).attrName
+          << table->getAttribute(vali.column_index_).attrName
           << "' at line: " << line;
       if ("" != file) oss << " in file: " << file;
       oss << "\n";
@@ -1393,7 +1378,7 @@ string DataInjector::GenerateDataValidityInfo(const Validity& vali,
     }
     case rInvalidNullData: {
       oss << "Null Data value is invalid for column '"
-          << table_->getAttribute(vali.column_index_).attrName
+          << table->getAttribute(vali.column_index_).attrName
           << "' at line: " << line;
       if ("" != file) oss << " in file: " << file;
       oss << "\n";
@@ -1414,7 +1399,7 @@ string DataInjector::GenerateDataValidityInfo(const Validity& vali,
     }
     case rInvalidInsertData: {
       oss << "Data value is invalid for column '"
-          << table_->getAttribute(vali.column_index_).attrName
+          << table->getAttribute(vali.column_index_).attrName
           << "' at line: " << line;
       if ("" != file) oss << " in file: " << file;
       oss << "\n";
@@ -1428,5 +1413,5 @@ string DataInjector::GenerateDataValidityInfo(const Validity& vali,
   return oss.str();
 }
 
-} /* namespace loader */
-} /* namespace claims */
+}  // namespace loader
+}  // namespace claims

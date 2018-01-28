@@ -20,43 +20,43 @@ extern "C" bool NValueLess(void* l, void* r) {
    *  *ret_bool = lnv->op_less(rnv);
    *  return ret_bool;
    */
-  Decimal* lvalue = (Decimal*) l;
-  Decimal* rvalue = (Decimal*) r;
+  Decimal* lvalue = (Decimal*)l;
+  Decimal* rvalue = (Decimal*)r;
 
   return lvalue->op_less(*rvalue);
 }
 
-bool NValueEqual(void *l, void *r) {
-  Decimal* lvalue = (Decimal*) l;
-  Decimal* rvalue = (Decimal*) r;
+bool NValueEqual(void* l, void* r) {
+  Decimal* lvalue = (Decimal*)l;
+  Decimal* rvalue = (Decimal*)r;
 
   return lvalue->op_equals(*rvalue);
 }
 
-bool NValueNotEqual(void *l, void *r) {
-  Decimal* lvalue = (Decimal*) l;
-  Decimal* rvalue = (Decimal*) r;
+bool NValueNotEqual(void* l, void* r) {
+  Decimal* lvalue = (Decimal*)l;
+  Decimal* rvalue = (Decimal*)r;
 
   return lvalue->op_not_equals(*rvalue);
 }
 
-bool NValueGreat(void *l, void *r) {
-  Decimal* lvalue = (Decimal*) l;
-  Decimal* rvalue = (Decimal*) r;
+bool NValueGreat(void* l, void* r) {
+  Decimal* lvalue = (Decimal*)l;
+  Decimal* rvalue = (Decimal*)r;
 
   return lvalue->op_great(*rvalue);
 }
 
-bool NValueLessEqual(void *l, void *r) {
-  Decimal* lvalue = (Decimal*) l;
-  Decimal* rvalue = (Decimal*) r;
+bool NValueLessEqual(void* l, void* r) {
+  Decimal* lvalue = (Decimal*)l;
+  Decimal* rvalue = (Decimal*)r;
 
   return lvalue->op_less_equals(*rvalue);
 }
 
-bool NValueGreatEqual(void *l, void *r) {
-  Decimal* lvalue = (Decimal*) l;
-  Decimal* rvalue = (Decimal*) r;
+bool NValueGreatEqual(void* l, void* r) {
+  Decimal* lvalue = (Decimal*)l;
+  Decimal* rvalue = (Decimal*)r;
 
   return lvalue->op_great_equals(*rvalue);
 }
@@ -64,8 +64,8 @@ bool NValueGreatEqual(void *l, void *r) {
 llvm::Function* CreateNValueCompareFunc(enum oper_type compare_type) {
   llvm::IRBuilder<>* builder = CodeGenerator::getInstance()->getBuilder();
   // Type Definitions
-  std::vector<llvm::Type *> para_types;
-//  parameter_types.push_back(llvm::PointerType::getInt8PtrTy(llvm::getGlobalContext()));
+  std::vector<llvm::Type*> para_types;
+  //  parameter_types.push_back(llvm::PointerType::getInt8PtrTy(llvm::getGlobalContext()));
   para_types.push_back(llvm::Type::getInt8PtrTy(llvm::getGlobalContext()));
   para_types.push_back(
       llvm::PointerType::getInt8PtrTy(llvm::getGlobalContext()));
@@ -74,27 +74,27 @@ llvm::Function* CreateNValueCompareFunc(enum oper_type compare_type) {
 
   string function_name = "";
   switch (compare_type) {
-    case oper_less: {
+    case oper_less_old: {
       function_name = "NValueLess";
       break;
     }
-    case oper_great: {
+    case oper_great_old: {
       function_name = "NValueGreat";
       break;
     }
-    case oper_equal: {
+    case oper_equal_old: {
       function_name = "NValueEqual";
       break;
     }
-    case oper_less_equal: {
+    case oper_less_equal_old: {
       function_name = "NValueLessEqual";
       break;
     }
-    case oper_great_equal: {
+    case oper_great_equal_old: {
       function_name = "NValueGreatEqual";
       break;
     }
-    case oper_not_equal: {
+    case oper_not_equal_old: {
       function_name = "NValueNotEqual";
       break;
     }
@@ -103,8 +103,8 @@ llvm::Function* CreateNValueCompareFunc(enum oper_type compare_type) {
       return NULL;
   }
 
-  llvm::Function* ff = CodeGenerator::getInstance()->getModule()->getFunction(
-      function_name);
+  llvm::Function* ff =
+      CodeGenerator::getInstance()->getModule()->getFunction(function_name);
   if (!ff) {
     ff = llvm::Function::Create(ft, llvm::Function::ExternalLinkage,
                                 function_name,
@@ -115,18 +115,14 @@ llvm::Function* CreateNValueCompareFunc(enum oper_type compare_type) {
   return ff;
 }
 
-bool DateGreat(void* l, void* r) {
-  return *(date*) l > *(date*) r;
-}
+bool DateGreat(void* l, void* r) { return *(date*)l > *(date*)r; }
 
-bool DateLess(void* l, void* r) {
-  return *(date*) l < *(date*) r;
-}
+bool DateLess(void* l, void* r) { return *(date*)l < *(date*)r; }
 
 llvm::Function* CreateDateCompareFunc(enum oper_type compare_type) {
   llvm::IRBuilder<>* builder = CodeGenerator::getInstance()->getBuilder();
-  //Type Definitions
-  std::vector<llvm::Type *> para_types;
+  // Type Definitions
+  std::vector<llvm::Type*> para_types;
   para_types.push_back(llvm::Type::getInt8PtrTy(llvm::getGlobalContext()));
   para_types.push_back(
       llvm::PointerType::getInt8PtrTy(llvm::getGlobalContext()));
@@ -135,11 +131,11 @@ llvm::Function* CreateDateCompareFunc(enum oper_type compare_type) {
 
   string function_name = "";
   switch (compare_type) {
-    case oper_less: {
+    case oper_less_old: {
       function_name = "DateLess";
       break;
     }
-    case oper_great: {
+    case oper_great_old: {
       function_name = "DateGreat";
       break;
     }
@@ -148,8 +144,8 @@ llvm::Function* CreateDateCompareFunc(enum oper_type compare_type) {
       return NULL;
   }
 
-  llvm::Function* ff = CodeGenerator::getInstance()->getModule()->getFunction(
-      function_name);
+  llvm::Function* ff =
+      CodeGenerator::getInstance()->getModule()->getFunction(function_name);
   if (!ff) {
     ff = llvm::Function::Create(ft, llvm::Function::ExternalLinkage,
                                 function_name,

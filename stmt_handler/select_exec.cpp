@@ -26,10 +26,6 @@
  *
  */
 
-#include "../stmt_handler/select_exec.h"
-#include "../sql_parser/ast_node/ast_create_stmt.h"
-#include "../stmt_handler/create_projection_exec.h"
-#include "../loader/data_injector.h"
 #include <glog/logging.h>
 #include <pthread.h>
 #include <sys/types.h>
@@ -41,7 +37,11 @@
 #include <utility>
 #include <set>
 #include <unordered_map>
-
+#include "../stmt_handler/select_exec.h"
+#include "../sql_parser/ast_node/ast_create_stmt.h"
+#include "../stmt_handler/create_projection_exec.h"
+#include "../loader/data_injector.h"
+#include "../loader/data_injector_for_parq.h"
 #include "../common/error_define.h"
 #include "../common/ids.h"
 #include "../exec_tracker/stmt_exec_tracker.h"
@@ -68,6 +68,7 @@ using std::cout;
 using std::make_pair;
 using claims::common::rStmtCancelled;
 using claims::loader::DataInjector;
+using claims::loader::DataInjectorForParq;
 namespace claims {
 namespace stmt_handler {
 AstDataType* GenerateDataType(Schema* schema, int i);
@@ -571,10 +572,18 @@ RetCode execSelectInto(StmtExecStatus* exec_status,
   unsigned int row_change = 0;
   TableDescriptor* insert_table =
       Environment::getInstance()->getCatalog()->getTable(table_name);
-  DataInjector* injector = new DataInjector(insert_table);
   vector<string> sel_result;
   exec_status->get_query_result()->getResult(row_change, sel_result);
-  ret = injector->InsertFromStringMultithread(sel_result, exec_result);
+  if (Config::enable_parquet) {
+    DataInjectorForParq* injector = new DataInjectorForParq(insert_table);
+    ret = injector->InsertFromStringMultithread(sel_result, exec_result);
+    DELETE_PTR(injector);
+  } else {
+    DataInjector* injector = new DataInjector(insert_table);
+    ret = injector->InsertFromStringMultithread(sel_result, exec_result);
+    DELETE_PTR(injector);
+  }
+
   if (rSuccess == ret) {
     ostr.clear();
     ostr << "insert data successfully. " << row_change << " rows changed.";
@@ -584,7 +593,6 @@ RetCode execSelectInto(StmtExecStatus* exec_status,
                << insert_table->getTableName() << endl;
     exec_result->SetError("failed to insert tuples into table ");
   }
-  DELETE_PTR(injector);
   return ret;
 }
 }  // namespace stmt_handler

@@ -20,6 +20,8 @@ LDADD = ../Executor/libexecutor.a \
 		../utility/libutility.a \
 		../codegen/codegen.a \
 		../stmt_handler/libstmthandler.a	\
+		../catalog/libcatalog.a  \
+		../loader/libloader.a   \
 		${HADOOP_HOME}/lib/native/libhdfs.a\
 		${JAVA_HOME}/jre/lib/amd64/server/libjvm.so\
 		${BOOST_HOME}/stage/lib/libboost_serialization.a \

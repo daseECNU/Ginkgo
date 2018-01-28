@@ -60,10 +60,11 @@ class UpdateStmtExec : public StmtExec {
   RetCode GenerateSelectForUpdateStmt(const string table_name,
                                       AstNode *&appended_query_sel_stmt);
   RetCode GenerateUpdateData(string table_base_name, AstNode *update_set_list,
-                             ExecutedResult *exec_result, ostringstream &ostr);
+                             ExecutedResult *exec_result,
+                             vector<string> &sel_result);
   void InsertUpdatedDataIntoTable(string table_name,
                                   ExecutedResult *exec_result,
-                                  ostringstream &ostr);
+                                  vector<string> &sel_result);
 
  private:
   AstUpdateStmt *update_stmt_ast_;

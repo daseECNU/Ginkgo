@@ -61,15 +61,15 @@ RetCode TransHandler::Execute() {
       TableDescriptor* table = Catalog::getInstance()->getTable((*beg).second);
       if (table != NULL) {
         if ((*beg).first == 0) {
-          table->rLock();
-          rlock_tables_.push_back((*beg).second);
+          if (table->rLock()) rlock_tables_.push_back((*beg).second);
         } else if ((*beg).first == 1) {
-          table->wLock();
-          if (first_write) {
-            Snapshot();
-            first_write = false;
+          if (table->wLock()) {
+            if (first_write) {
+              Snapshot();
+              first_write = false;
+            }
+            wlock_tables_.push_back((*beg).second);
           }
-          wlock_tables_.push_back((*beg).second);
         } else if ((*beg).first == 2) {
           table->wLock();
         }
@@ -97,6 +97,7 @@ RetCode TransHandler::Execute() {
       AbortTransactionBlock();
       UnlockAllWriteTables();
       cout << "Transaction Abort" << endl;
+
       break;
     }
   }

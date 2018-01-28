@@ -29,7 +29,7 @@
 
 #include <string>
 #include <vector>
-
+#include <map>
 #include "../common/file_handle/file_handle_imp_factory.h"
 #include "../common/Schema/SchemaFix.h"
 #include "../loader/table_file_connector.h"
@@ -42,7 +42,7 @@ namespace catalog {
 TableDescriptor::TableDescriptor() {}
 
 TableDescriptor::TableDescriptor(const string& name, const TableID table_id)
-    : tableName(name), table_id_(table_id), row_number_(0) {
+    : tableName(name), table_id_(table_id), row_number_(0), file_num_(0) {
   write_connector_ = new TableFileConnector(
       Config::local_disk_mode ? FilePlatform::kDisk : FilePlatform::kHdfs, this,
       common::kAppendFile);
@@ -88,6 +88,12 @@ RetCode TableDescriptor::InitFileConnector() {
 void TableDescriptor::InitTableData() {
   row_number_ = 0;
   has_deleted_tuples_ = false;
+  if (Config::enable_parquet) {
+    file_num_ = 0;
+    meta_start_pos_.clear();
+    file_len_.clear();
+    meta_len_.clear();
+  }
   for (int i = 0; i < getNumberOfProjection(); i++) {
     for (int j = 0;
          j < projection_list_[i]->getPartitioner()->getNumberOfPartitions();
@@ -262,7 +268,7 @@ Schema* TableDescriptor::getSchema() const {
   return new SchemaFix(columns);
 }
 RetCode TableDescriptor::CreateLogicalFilesLength(
-    vector<unsigned> part_files_length) {
+    vector<uint64_t> part_files_length) {
   logical_files_length_.push_back(part_files_length);
   return rSuccess;
 }
@@ -274,17 +280,72 @@ RetCode TableDescriptor::SetLogicalFilesLength(unsigned projection_offset,
 }
 RetCode TableDescriptor::TruncateFilesFromTable() {
   RetCode ret = rSuccess;
-  for (int i = 0; i < getNumberOfProjection(); i++) {
-    for (int j = 0;
-         j < projection_list_[i]->getPartitioner()->getNumberOfPartitions();
-         ++j) {
-      ret = write_connector_->TruncateFileFromPrtn(i, j,
-                                                   logical_files_length_[i][j]);
-      if (rSuccess != ret) {
-        return ret;
+  if (Config::enable_parquet) {
+    map<int, int> part_key_to_num;
+    map<int, int> part_to_proj;
+    for (int i = 0; i < getNumberOfProjection(); i++) {
+      Attribute partition_attribute =
+          getProjectoin(i)->getPartitioner()->getPartitionKey();
+      int hash_key_index =
+          getProjectoin(i)->getAttributeIndex(partition_attribute);
+      if (part_key_to_num.find(hash_key_index) == part_key_to_num.end()) {
+        part_key_to_num[hash_key_index] =
+            getProjectoin(i)->getPartitioner()->getNumberOfPartitions();
+        part_to_proj.insert(make_pair(hash_key_index, i));
+      } else {
+        // two projection has same partition key but diff projection number(not
+        // support) like
+        unsigned part_num =
+            getProjectoin(i)->getPartitioner()->getNumberOfPartitions();
+        if (part_key_to_num[hash_key_index] < part_num) {
+          part_key_to_num[hash_key_index] = part_num;
+          part_to_proj[hash_key_index] = i;
+        }
+      }
+    }
+    // for every
+    for (auto ptp : part_to_proj) {
+      map<int, vector<uint64_t>>& parq_file = file_len_[ptp.first];
+      if (parq_file.size() == 0) {
+        uint64_t file_length = 0;
+        for (unsigned int i = 0; i < getProjectoin(ptp.second)
+                                         ->getPartitioner()
+                                         ->getNumberOfPartitions();
+             i++) {
+          ret =
+              write_connector_->TruncateFileFromPrtn(ptp.first, i, file_length);
+        }
+        if (rSuccess != ret) {
+          return ret;
+        }
+      } else {
+        for (auto file : parq_file) {
+          uint64_t file_length = 0;
+          for (auto length : file.second) {
+            file_length += length;
+          }
+          ret = write_connector_->TruncateFileFromPrtn(ptp.first, file.first,
+                                                       file_length);
+          if (rSuccess != ret) {
+            return ret;
+          }
+        }
+      }
+    }
+  } else {
+    for (int i = 0; i < getNumberOfProjection(); i++) {
+      for (int j = 0;
+           j < projection_list_[i]->getPartitioner()->getNumberOfPartitions();
+           ++j) {
+        ret = write_connector_->TruncateFileFromPrtn(
+            i, j, logical_files_length_[i][j]);
+        if (rSuccess != ret) {
+          return ret;
+        }
       }
     }
   }
+
   return ret;
 }
 

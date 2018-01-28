@@ -44,7 +44,8 @@ libcommon_a_SOURCES = \
 	ids.cpp 			ids.h \
 	rename.h			error_define.h \
 	error_no.h			error_no.cpp \
-	memory.h
+	parquet_types.cpp   parquet_types.h \
+ 	memory.h 
 
 SUBDIRS = Block file_handle log Schema types Expression expression serialization
 DIST_SUBDIRS = Block file_handle log Schema types Expression expression serialization

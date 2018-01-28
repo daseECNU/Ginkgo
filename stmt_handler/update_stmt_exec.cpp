@@ -36,6 +36,7 @@
 #include "../common/Block/BlockStream.h"
 #include "../common/Block/ResultSet.h"
 #include "../loader/data_injector.h"
+#include "../loader/data_injector_for_parq.h"
 #include "../catalog/table.h"
 #include "../catalog/projection.h"
 #include "../Daemon/Daemon.h"
@@ -43,6 +44,7 @@
 #include "../stmt_handler/select_exec.h"
 #include "../common/error_define.h"
 using claims::loader::DataInjector;
+using claims::loader::DataInjectorForParq;
 using std::endl;
 using std::string;
 using std::vector;
@@ -103,9 +105,9 @@ RetCode UpdateStmtExec::Execute(ExecutedResult* exec_result) {
     ostr << exec_result->result_->getNumberOftuples() << " tuples updated.";
 
     /* STEP2 ： generate update selected data */
-    ostringstream ostr_res;
+    vector<string> sel_result;
     ret = GenerateUpdateData(table_base_name, update_set_list, exec_result,
-                             ostr_res);
+                             sel_result);
     delete exec_result->result_;
     exec_result->result_ = NULL;
     delete appended_query_exec;
@@ -124,7 +126,7 @@ RetCode UpdateStmtExec::Execute(ExecutedResult* exec_result) {
       return ret;
     }
     /* STEP4 ：insert generate update selected data */
-    InsertUpdatedDataIntoTable(table_base_name, exec_result, ostr_res);
+    InsertUpdatedDataIntoTable(table_base_name, exec_result, sel_result);
     exec_result->info_ = ostr.str();
     delete exec_result->result_;
     exec_result->result_ = NULL;
@@ -163,7 +165,7 @@ RetCode UpdateStmtExec::GenerateSelectForUpdateStmt(
 RetCode UpdateStmtExec::GenerateUpdateData(string table_base_name,
                                            AstNode* update_set_list,
                                            ExecutedResult* exec_result,
-                                           ostringstream& ostr) {
+                                           vector<string>& sel_result) {
   RetCode ret = rSuccess;
   DynamicBlockBuffer::Iterator it = exec_result->result_->createIterator();
   BlockStreamBase* block = NULL;
@@ -199,7 +201,8 @@ RetCode UpdateStmtExec::GenerateUpdateData(string table_base_name,
     update_attr_list.insert({update_column_index, expr_const});
     update_set_list_temp = update_set_list_temp->next_;
   }
-
+  unsigned int row_count = 0;
+  ostringstream ostr;
   while (block = it.nextBlock()) {
     tuple_it = block->createIterator();
     void* tuple;
@@ -217,16 +220,22 @@ RetCode UpdateStmtExec::GenerateUpdateData(string table_base_name,
         ostr << "|";
       }
       ostr << "\n";
+      ++row_count;
+      if (row_count == 1000000) {
+        sel_result.push_back(ostr.str());
+        row_count = 0;
+        ostr.str("");
+      }
     }
     delete tuple_it;
   }
-
+  if (row_count > 0) sel_result.push_back(ostr.str());
   return ret;
 }
 
 void UpdateStmtExec::InsertUpdatedDataIntoTable(string table_name,
                                                 ExecutedResult* exec_result,
-                                                ostringstream& ostr) {
+                                                vector<string>& sel_result) {
   TableDescriptor* table =
       Environment::getInstance()->getCatalog()->getTable(table_name);
   if (NULL == table) {
@@ -234,9 +243,15 @@ void UpdateStmtExec::InsertUpdatedDataIntoTable(string table_name,
                       " is not existed during update data." << std::endl;
     return;
   }
-
-  DataInjector* injector = new DataInjector(table);
-  injector->InsertFromString(ostr.str(), exec_result);
+  if (Config::enable_parquet) {
+    DataInjectorForParq* injector = new DataInjectorForParq(table);
+    injector->InsertFromStringMultithread(sel_result, exec_result);
+    DELETE_PTR(injector);
+  } else {
+    DataInjector* injector = new DataInjector(table);
+    injector->InsertFromStringMultithread(sel_result, exec_result);
+    DELETE_PTR(injector);
+  }
 }
 
 RetCode UpdateStmtExec::GetWriteAndReadTables(

@@ -38,12 +38,14 @@
 #include "../catalog/catalog.h"
 #include "../Environment.h"
 #include "../loader/data_injector.h"
+#include "../loader/data_injector_for_parq.h"
 #include "../common/error_define.h"
 
 using claims::catalog::Catalog;
 using claims::common::rSuccess;
 using claims::common::FileOpenFlag;
 using claims::loader::DataInjector;
+using claims::loader::DataInjectorForParq;
 using claims::common::rNotSupport;
 using claims::catalog::TableDescriptor;
 using claims::common::rTableNotExisted;
@@ -318,22 +320,32 @@ RetCode InsertExec::Execute(ExecutedResult *exec_result) {
     }  // while
 
     if (!is_correct_) return claims::common::rFailure;
+    vector<string> sel_result;
+    sel_result.push_back(ostr.str() + "\n");
+    if (Config::enable_parquet) {
+      DataInjectorForParq *injector = new DataInjectorForParq(table);
+      ret = injector->InsertFromStringMultithread(sel_result, exec_result);
+      DELETE_PTR(injector);
+    } else {
+      DataInjector *injector = new DataInjector(table);
+      // str() will copy string buffer without the last '\n'
+      ret = injector->InsertFromStringMultithread(sel_result, exec_result);
+      DELETE_PTR(injector);
+    }
 
-    DataInjector *injector = new DataInjector(table);
-    // str() will copy string buffer without the last '\n'
-    ret = injector->InsertFromString(ostr.str() + "\n", exec_result);
     if (rSuccess == ret) {
       ostr.clear();
       ostr.str("");
       ostr << "insert data successfully. " << changed_row_num
            << " rows changed.";
       exec_result->SetResult(ostr.str(), NULL);
+      return ret;
     } else {
       LOG(ERROR) << "failed to insert tuples into table:"
                  << table->getTableName() << endl;
       exec_result->SetError("failed to insert tuples into table ");
+      return ret;
     }
-    DELETE_PTR(injector);
   } else if (insert_ast_->select_stmt_ != NULL) {
     std::ostringstream ostr;
     vector<int> res_pos;
@@ -371,9 +383,15 @@ RetCode InsertExec::Execute(ExecutedResult *exec_result) {
       // insert into table select
       if (is_all_col_) {
         exec_sel_result.result_->getResult(row_change, sel_result);
-        DataInjector *injector = new DataInjector(table);
-        //        for (int i = 0 ; i< sel_result.size(); i++)
-        ret = injector->InsertFromStringMultithread(sel_result, exec_result);
+        if (Config::enable_parquet) {
+          DataInjectorForParq *injector = new DataInjectorForParq(table);
+          ret = injector->InsertFromStringMultithread(sel_result, exec_result);
+          DELETE_PTR(injector);
+        } else {
+          DataInjector *injector = new DataInjector(table);
+          ret = injector->InsertFromStringMultithread(sel_result, exec_result);
+          DELETE_PTR(injector);
+        }
         if (rSuccess == ret) {
           ostr.clear();
           ostr << "insert data successfully. " << row_change
@@ -384,7 +402,6 @@ RetCode InsertExec::Execute(ExecutedResult *exec_result) {
                      << table->getTableName() << endl;
           exec_result->SetError("failed to insert tuples into table ");
         }
-        DELETE_PTR(injector);
       } else {
         // insert into table(A,B,C) select
         vector<std::string> insert_column;
@@ -418,10 +435,18 @@ RetCode InsertExec::Execute(ExecutedResult *exec_result) {
           }
           col = dynamic_cast<AstColumn *>(col->next_);
         }
+        Schema *schema = table->getSchema();
         exec_sel_result.result_->getResult(row_change, insert_index, attributes,
-                                           table->getSchema(), sel_result);
-        DataInjector *injector = new DataInjector(table);
-        ret = injector->InsertFromStringMultithread(sel_result, exec_result);
+                                           schema, sel_result);
+        if (Config::enable_parquet) {
+          DataInjectorForParq *injector = new DataInjectorForParq(table);
+          ret = injector->InsertFromStringMultithread(sel_result, exec_result);
+          DELETE_PTR(injector);
+        } else {
+          DataInjector *injector = new DataInjector(table);
+          ret = injector->InsertFromStringMultithread(sel_result, exec_result);
+          DELETE_PTR(injector);
+        }
         if (rSuccess == ret) {
           ostr.clear();
           ostr << "insert data successfully. " << row_change
@@ -432,7 +457,7 @@ RetCode InsertExec::Execute(ExecutedResult *exec_result) {
                      << table->getTableName() << endl;
           exec_result->SetError("failed to insert tuples into table ");
         }
-        DELETE_PTR(injector);
+        delete schema;
       }
       exec_sel_result.result_->destory();
       delete exec_sel_result.result_;

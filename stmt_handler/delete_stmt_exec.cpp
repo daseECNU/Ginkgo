@@ -41,12 +41,14 @@
 #include "../sql_parser/ast_node/ast_select_stmt.h"
 #include "../stmt_handler/select_exec.h"
 #include "../common/error_define.h"
+#include "../loader/data_injector_for_parq.h"
 using claims::loader::DataInjector;
 using std::endl;
 using std::string;
 using std::vector;
 using std::cout;
 using claims::catalog::TableDescriptor;
+using claims::loader::DataInjectorForParq;
 using claims::common::rSuccess;
 using claims::common::rNoProjection;
 using claims::common::rCreateProjectionOnDelTableFailed;
@@ -284,23 +286,26 @@ void DeleteStmtExec::InsertDeletedDataIntoTableDEL(
   }
   if (row_count > 0) sel_result.push_back(ostr.str());
 
-  //  injector->InsertFromString(ostr.str(), exec_result);
-  //  HdfsLoader* Hl = new HdfsLoader(tabledel);
-  //  string tmp = ostr.str();
-  //  Hl->append(ostr.str());
-  //  cout << tmp << endl;
-  DataInjector* injector = new DataInjector(table_del);
   RetCode ret = rSuccess;
+  if (Config::enable_parquet) {
+    DataInjectorForParq* injector = new DataInjectorForParq(table_del);
+    if (sel_result.size() > 0) {
+      ret = injector->InsertFromStringMultithread(sel_result, exec_result);
+    }
+    DELETE_PTR(injector);
+  } else {
+    DataInjector* injector = new DataInjector(table_del);
+    if (sel_result.size() > 0) {
+      ret = injector->InsertFromStringMultithread(sel_result, exec_result);
+    }
+    DELETE_PTR(injector);
 
-  if (sel_result.size() > 0) {
-    ret = injector->InsertFromStringMultithread(sel_result, exec_result);
+    if (rSuccess != ret) {
+      LOG(ERROR) << "The table DEL " + table_del_name +
+                        " insert operation failed." << std::endl;
+    }
+    DELETE_PTR(injector);
   }
-
-  if (rSuccess != ret) {
-    LOG(ERROR) << "The table DEL " + table_del_name +
-                      " insert operation failed." << std::endl;
-  }
-  DELETE_PTR(injector);
 }
 
 RetCode DeleteStmtExec::GetWriteAndReadTables(

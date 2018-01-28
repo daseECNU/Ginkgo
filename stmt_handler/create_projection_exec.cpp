@@ -157,7 +157,7 @@ RetCode CreateProjectionExec::CreateTableProjection(
       Partitioner* partitioner = catalog->getTable(table_id)
                                      ->getProjectoin(projection_index)
                                      ->getPartitioner();
-      vector<unsigned> parts_files_length;
+      vector<uint64_t> parts_files_length;
       for (unsigned i = 0; i < partitioner->getNumberOfPartitions(); i++) {
         catalog->getTable(table_id)
             ->getProjectoin(projection_index)

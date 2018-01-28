@@ -257,9 +257,6 @@ RetCode HdfsFileHandleImp::Append(const void* buffer, const size_t length) {
   //  RefHolder holder(reference_count_);
   assert(NULL != fs_ && "failed to connect hdfs");
   int ret = rSuccess;
-  size_t file_length = 0;
-  EXEC_AND_RETURN_ERROR(ret, Truncate(logical_file_length_),
-                        "failed to truncate file");
   EXEC_AND_RETURN_ERROR(ret, SwitchStatus(kInAppending),
                         "failed to switch status");
 
@@ -341,15 +338,15 @@ RetCode HdfsFileHandleImp::WriteNoCompress(const void* buffer,
     }
     total_write_num += write_num;
   }
-  if (length > 100) {
-    LOG(INFO) << "write " << length << " length data from " << buffer
-              << " into hdfs file:" << file_name_ << endl;
-  } else {
-    LOG(INFO) << "write " << length
-              << " length data :" << static_cast<const char*>(buffer)
-              << " from " << buffer << " into  hdfs file:" << file_name_
-              << endl;
-  }
+  //  if (length > 100) {
+  //    LOG(INFO) << "write " << length << " length data from " << buffer
+  //              << " into hdfs file:" << file_name_ << endl;
+  //  } else {
+  //    LOG(INFO) << "write " << length
+  //              << " length data :" << static_cast<const char*>(buffer)
+  //              << " from " << buffer << " into  hdfs file:" << file_name_
+  //              << endl;
+  //  }
   return rSuccess;
 }
 
@@ -377,36 +374,31 @@ RetCode HdfsFileHandleImp::Truncate(const size_t newlength) {
   if (SwitchStatus(kInReading) != rSuccess) {
     return rFailure;
   }
-  size_t actul_file_length = hdfsTell(fs_, file_);
+  hdfsFileInfo* hdfsfile = hdfsGetPathInfo(fs_, file_name_.c_str());
+  size_t actul_file_length = hdfsfile->mSize;
+
   if (actul_file_length > newlength) {
     int i = hdfsTruncateFile(fs_, file_name_.c_str(), newlength);
-    if (1 == i) {
+    if (-1 == i) {
+      LOG(ERROR) << "Failed to truncate file : [" + file_name_ + "]." << endl;
+      return rTruncateFileFail;
+    } else {
       logical_file_length_ = newlength;
       LOG(INFO) << "The file " << file_name_ << " is truncated successfully"
                 << endl;
-    } else {
-      if (0 == i) {
-        LOG(ERROR) << "A background process of adjusting the length of the "
-                      "last block has been started. " << endl;
-      }
-      LOG(ERROR) << "Failed to truncate file : [" + file_name_ + "]." << endl;
-      return rTruncateFileFail;
     }
   } else if (actul_file_length < newlength) {
     int i = hdfsTruncateFile(fs_, file_name_.c_str(), 0);
-    if (1 == i) {
-      logical_file_length_ = 0;
-      LOG(INFO) << "The file " << file_name_ << " is truncated successfully"
-                << endl;
-    } else {
-      if (0 == i) {
-        LOG(ERROR) << "A background process of adjusting the length of the "
-                      "last block has been started. " << endl;
-      }
+    if (-1 == i) {
       LOG(ERROR) << "Failed to truncate file : [" + file_name_ + "]." << endl;
       return rTruncateFileFail;
+    } else {
+      logical_file_length_ = newlength;
+      LOG(INFO) << "The file " << file_name_ << " is truncated successfully"
+                << endl;
     }
-  }
+
+    }
   return rSuccess;
 }
 

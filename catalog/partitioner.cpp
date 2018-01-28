@@ -107,7 +107,16 @@ void Partitioner::RegisterPartitionWithNumberOfBlocks(
       partition_info_list[partition_offset]->partition_id_.getName();
   partition_info_list[partition_offset]->number_of_blocks = number_of_blocks;
 }
+void Partitioner::RegisterPartitionWithNumberOfBlocksPar(
+    unsigned partition_offset, unsigned long number_of_blocks) {
+  assert(partition_offset < partition_function_->getNumberOfPartitions());
 
+  partition_info_list[partition_offset]->hdfs_file_name =
+      partition_info_list[partition_offset]->partition_id_.getName();
+  partition_info_list[partition_offset]->number_of_blocks += number_of_blocks;
+  //  cout << "now the block num is :  "
+  //       << partition_info_list[partition_offset]->number_of_blocks << endl;
+}
 void Partitioner::UpdatePartitionWithNumberOfChunksToBlockManager(
     unsigned partition_offset, unsigned long number_of_blocks) {
   assert(partition_offset < partition_function_->getNumberOfPartitions());

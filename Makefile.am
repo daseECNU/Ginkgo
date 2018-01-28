@@ -14,7 +14,9 @@ AM_CPPFLAGS=-fPIC  -DTHERON_XS\
 #-L/usr/local/lib \-lprofiler
 #-I/usr/local/include
 AM_LDFLAGS=  -lc -lm -lrt -lcaf_core -lcaf_io -lpthread -lboost_serialization -lboost_date_time -lboost_system  \
-	-lconfig++ -lxs -lnuma -lreadline -lhistory -lz -ltinfo -Wl,--no-as-needed -ldl -rdynamic -lglog  -lsnappy -DTHREAD -lzookeeper_mt
+	-lconfig++ -lxs -lnuma -lreadline -lhistory -lz -ltinfo -Wl,--no-as-needed -ldl -rdynamic -lglog  -lsnappy \
+	 -lthrift -DTHREAD -lzookeeper_mt
+
 	
 if OPT_TCMALLOC
 AM_CPPFLAGS+=-fno-builtin-malloc -fno-builtin-calloc -fno-builtin-realloc -fno-builtin-free
