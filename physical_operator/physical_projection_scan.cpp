@@ -115,8 +115,38 @@ bool PhysicalProjectionScan::Open(SegmentExecStatus* const exec_status,
           partition_handle_->CreateAtomicReaderIterator();
       SetReturnStatus(true);
     }
+    int node_id = Environment::getInstance()->get_slave_node()->get_node_id();
     partition_total_blocks_ = partition_handle_->get_number_of_chunks() * 1024;
+#ifdef ExperimentForDistribution
+    ///******************************************//
+    // for experiments: change distributions and data size of tables
+    // table id (use load_thread_num to stand for table_id, avoiding adding new
+    // parameters) = 6, i.e. LINEITEM, 4 for ORDERS
+    // delt_cost_preemption to set offset
+    processed_blocks_ = partition_total_blocks_;
+    Config::getInstance()->ReLoad();
+    int times = (Config::delt_cost_preemption - node_id) % 4;
+    if (state_.projection_id_.table_id == 10) {
+      for (int i = 0; i < node_id; ++i) {
+        processed_blocks_ = processed_blocks_ / Config::load_thread_num;
+      }
+    } else if (state_.projection_id_.table_id == 18) {
+      for (int i = 0; i < times; ++i) {
+        processed_blocks_ = processed_blocks_ / Config::load_thread_num;
+      }
+    }
+
+    LOG(INFO) << "table_id= " << state_.projection_id_.table_id
+              << " on node_id, partition_id = "
+              << Environment::getInstance()->get_slave_node()->get_node_id()
+              << " , " << kPartitionOffset
+              << " has blocks = " << partition_total_blocks_ << " but takes "
+              << processed_blocks_ << " after decrease " << times;
+    partition_total_blocks_ = processed_blocks_;
+/////****************************************//
+#endif
     processed_blocks_ = 0;
+
 #ifdef AVOID_CONTENTION_IN_SCAN
     unsigned long long start = curtick();
 
@@ -207,7 +237,19 @@ bool PhysicalProjectionScan::Next(SegmentExecStatus* const exec_status,
   //  perf_info_->processed_one_block();
   // case(2)
   RETURN_IF_CANCELLED(exec_status);
+#ifdef ExperimentForDistribution
+
+  if ((Config::delt_cost_preemption < 10) &&
+      (processed_blocks_ > partition_total_blocks_)) {
+    return false;
+  }
+#endif
+
   bool ret = partition_reader_iterator_->NextBlock(block);
+
+#ifdef ExperimentForDistribution
+  processed_blocks_ += (ret);
+#endif
 
   if (Config::scheduler == "ListFillingPreemptionScheduler") {
     processed_blocks_ += (ret);

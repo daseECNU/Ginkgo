@@ -47,10 +47,11 @@ ListFillingPreemptionScheduler::~ListFillingPreemptionScheduler() {
 // modified from FineGrainBackfillScheduler, just remove scheduling extra jobs
 void ListFillingPreemptionScheduler::ScheduleJob(
     caf::event_based_actor* self, ListFillingPreemptionScheduler* scheduler) {
-  LOG(INFO) << "ListFillingPreemption starts up now!";
+  int delt_cost_ = Config::delt_cost_preemption;
+  LOG(INFO) << "ListFillingPreemption starts up now! delt_cost = "
+            << delt_cost_;
   scheduler->ComputeTaskNum();
   scheduler->InitThread();
-  int delt_cost = 100;
   self->become(
       [=](SchPJobAtom) {
 
@@ -64,11 +65,7 @@ void ListFillingPreemptionScheduler::ScheduleJob(
           bool confilict = false;
           for (auto pit = scheduler->pivot_jobs_.begin();
                pit != scheduler->pivot_jobs_.end();) {
-#ifndef REAL-PREEMPTION
-            if ((*pit)->get_rank() >= (*it)->get_rank() - delt_cost) {
-#else
-            if ((*pit)->get_rank() < 0) {
-#endif
+            if ((*pit)->get_rank() >= (*it)->get_rank() - 0) {
               // if resources conflict, break
               if (scheduler->IsConflict((*it)->node_task_num_,
                                         (*pit)->node_task_num_)) {
@@ -84,6 +81,11 @@ void ListFillingPreemptionScheduler::ScheduleJob(
               ++pit;
               continue;
             } else {
+              LOG(INFO) << "pivot id, rank; extra id, rank; delt_cost "
+                        << (*pit)->get_job_id() << " , " << (*pit)->get_rank()
+                        << " ; " << (*it)->get_job_id() << " , "
+                        << (*it)->get_rank() << " ; " << delt_cost_;
+
               // if resources conflict, set pivot to extra and set it to pivot
               if (scheduler->IsConflict((*it)->node_task_num_,
                                         (*pit)->node_task_num_)) {
@@ -211,6 +213,9 @@ void ListFillingPreemptionScheduler::ScheduleJob(
           }
         }
         scheduler->ready_jobs_.clear();
+        // after newly extra pipeline are running
+        self->delayed_send(self, std::chrono::milliseconds(delt_cost_),
+                           UpdateRPAtom::value);
       },
 
       [=](DoneJobAtom, PipelineJob* pjob) {
@@ -285,8 +290,8 @@ void ListFillingPreemptionScheduler::ScheduleJob(
                       << (*it)->get_rank();
           }
           self->send(self, SchPJobAtom::value);
-          self->delayed_send(self, std::chrono::milliseconds(500),
-                             UpdateRPAtom::value);
+          //   self->delayed_send(self, std::chrono::milliseconds(1000),
+          //                     UpdateRPAtom::value);
         }
 
       },
@@ -298,7 +303,6 @@ void ListFillingPreemptionScheduler::ScheduleJob(
             LOG(WARNING) << "ListFillingPreemption receives unkown message";
           });
   self->send(self, SchPJobAtom::value);
-  self->delayed_send(self, std::chrono::milliseconds(500), UpdateRPAtom::value);
 }
 
 PipelineJob* ListFillingPreemptionScheduler::GetPivotJob() { return NULL; }

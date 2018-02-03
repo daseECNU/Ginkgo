@@ -740,7 +740,7 @@ PhysicalOperatorBase* LogicalEqualJoin::GetPhysicalPlan(
   int64_t bucket_num = dataflow_left.GetAggregatedDataCardinality() /
                        dataflow_left.plan_partitioner_.GetNumberOfPartitions();
   bucket_num = bucket_num < 16 ? 16 : bucket_num * 2;
-
+  bucket_num = Config::hash_join_bucket_num;
   // create PhysicalHashJoinProbe
   PhysicalHashJoinProbe* join_probe;
   PhysicalHashJoinProbe::State state_probe;

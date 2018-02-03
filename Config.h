@@ -86,6 +86,7 @@ class Config {
   static int hash_join_bucket_num;
   static int total_thread_num;
   static int binding_mode;
+  static int delt_cost_preemption;
   static std::string scheduler;
   static std::string tree_type;
   static int extra_job_num;

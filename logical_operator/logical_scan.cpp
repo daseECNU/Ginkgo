@@ -351,16 +351,33 @@ void LogicalScan::Print(int level) const {
 }
 
 void LogicalScan::InitTableCardi() {
-  // tpc-h sf1
+// tpc-h sf1
+#ifdef TPC_H_SF1
   TableAggeCardi["PART"] = 200000;
   TableAggeCardi["SUPPLIER"] = 10000;
   TableAggeCardi["PARTSUPP"] = 800000;
   TableAggeCardi["CUSTOMER"] = 150000;
   TableAggeCardi["CUSTOMER1"] = 150000;
   TableAggeCardi["ORDERS"] = 1500000;
+  TableAggeCardi["ORDERS_CUST"] = 1500000;
   TableAggeCardi["LINEITEM"] = 6001215;
+  TableAggeCardi["LINEITEM_SUPP"] = 6001215;
   TableAggeCardi["NATION"] = 25;
   TableAggeCardi["REGION"] = 5;
+#else
+  TableAggeCardi["PART"] = 20000000;
+  TableAggeCardi["SUPPLIER"] = 1000000;
+  TableAggeCardi["PARTSUPP"] = 80000000;
+  TableAggeCardi["CUSTOMER"] = 15000000;
+  TableAggeCardi["CUSTOMER1"] = 15000000;
+  TableAggeCardi["ORDERS"] = 150000000;
+  TableAggeCardi["ORDERS_CUST"] = 150000000;
+  TableAggeCardi["LINEITEM"] = 600121500;
+  TableAggeCardi["LINEITEM_SUPP"] = 600121500;
+  TableAggeCardi["NATION"] = 25;
+  TableAggeCardi["REGION"] = 5;
+#endif
+
 #ifdef SF10
   // tpc-ds sf10
   TableAggeCardi["store"] = 102;

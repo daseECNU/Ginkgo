@@ -96,6 +96,7 @@ int Config::hash_join_bucket_num;
 int Config::hash_join_bucket_size;
 int Config::total_thread_num;
 int Config::binding_mode;
+int Config::delt_cost_preemption;
 int Config::extra_job_num;
 int Config::expander_buffer_size;
 int Config::rank_computation;
@@ -169,6 +170,7 @@ void Config::initialize() {
   hash_join_bucket_num = getInt("hash_join_bucket_num", 1024 * 1024);
 
   hash_join_bucket_size = getInt("hash_join_bucket_size", 1024);
+  delt_cost_preemption = getInt("delt_cost_preemption", 1024);
 
   total_thread_num = getInt("total_thread_num", 24);
   rank_computation = getInt("rank_computation", 0);
@@ -229,7 +231,6 @@ void Config::print_configure() const {
             << std::endl;
   std::cout << "hdfs master ip:" << hdfs_master_ip << std::endl;
   std::cout << "hdfs_master_port:" << hdfs_master_port << std::endl;
-
   std::cout << "log:" << logfile << std::endl;
   std::cout << "master:" << master << std::endl;
   std::cout << "local disk mode:" << local_disk_mode << std::endl;
@@ -243,7 +244,8 @@ void Config::print_configure() const {
   std::cout << "scheduler: " << scheduler << std::endl;
   std::cout << "extra_job_num: " << extra_job_num << std::endl;
   std::cout << "rank_computation: " << rank_computation << std::endl;
-  std::cout << "expander_buffer_size" << expander_buffer_size << std::endl;
+  std::cout << "expander_buffer_size: " << expander_buffer_size << std::endl;
+  std::cout << "delt_cost_preemption: " << delt_cost_preemption << std::endl;
 }
 
 void Config::setConfigFile(std::string file_name) { config_file = file_name; }
