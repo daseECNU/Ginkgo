@@ -1,4 +1,6 @@
-**CLAIMS** (CLuster-Aware In-Memory Sql query engin) is a parallel in-memory database prototype, which runs on clusters of commodity servers and aims to provide real-time data analytics on relational dataset. 
+**CLAIMS** (CLuster-Aware In-Memory Sql query engin) is a parallel in-memory database prototype, which runs on clusters of commodity servers and aims to provide real-time data analytics on relational dataset. It is the former system of **GINKGO**.
+
+This branch is used for scheduling multiple pipelines.
 
 #### Highlights
 
@@ -10,8 +12,6 @@ CLAIMS relies on highly parallel query processing engine to dramatically acceler
 ##### 2. Smart intra-node parallelism. 
 
 Pipelining the query execution among nodes in the cluster effectively reduces the response latency and dramatically saves storage space for intermediate query results. However, its benefits degrade tremendously when the workloads are imbalanced among execution partitions due to the improperly generated query execution plan. To tackle this problem, a novel elastic pipelining query processing model is proposed in CLAIMS, which adapts the intra-node parallelism to the runtime workload. Beneficial from elastic pipelining query processing, the parallelism of different execution fragments in a pipelined is self-adaptive with each other and results in an optimal intra-node parallelism assignment. Please refer to our SIGMOD paper for more details about elastic pipelining.
-![asdf](http://dase.ecnu.edu.cn/liwang/images/elastic_pipeline.jpg)
-
 
 
 ##### 3. Efficient in-memory data processing.
@@ -24,32 +24,11 @@ Parallel query processing imposes high burdens on network communication, which b
 #### Performance
 Beneficial from the smart and massively parallelism and the in-memory data processing optimizations, CLAIMS is up to 5X faster than Shark and Impala, two state-of-the-art systems in the open source community, in the queries against TPCH dataset and Shanghai Stock Exchange dataset.
 
-![asdf](http://dase.ecnu.edu.cn/liwang/images/compare.jpg)
 
-#### Team members
-[Aoying Zhou](http://case.ecnu.edu.cn), Professor in East China Normal University, is the person in charge of this project.
-
-[Minqi Zhou](https://github.com/polpo1980), Associate Professor in East China Normal University, is the person in charge of this project.
-
-[Li Wang](https://github.com/wangli1426), Ph.D. student in East China Normal University, manages the master students in this team and is responsible for designing and implementing the key components of CLAIMS, including query optimizer, catalog, physical operators, distributed communication infrastructure, storage layout, etc.
-
-[Lei Zhang](https://github.com/egraldlo) is responsible for designing and implementing the key components of CLAIMS, including query optimizer, physical operators, persistent data exchange, storage management, etc.
-
-[Shaochan Dong](https://github.com/scdong) is responsible for designing and implementing in-memory index and index management, data types, as well as data loading and importing.
-
-[Xinzhou Zhang]() is mainly responsible for web UI design and implementing data importing model.
-
-[Zhuhe Fang](https://github.com/fzhedu) is mainly responsible for designing and implementing SQL DML parser and physical operators.
-
-[Yu Kai](https://github.com/yukai2014) is mainly responsible for designing and implementing SQL DDL parser, catalog persistence.
-
-[Yongfeng Li](https://github.com/NagamineLee) was a formal member of CLAIMS, who participated in designing and implementing catalog model.
-
-[Lin Gu]() is responsible for designing the demo cases of CLAIMS.
 
 #### Publications
 
-1. Li Wang, Minqi Zhou, Zhenjie Zhang, Yin Yang, Aoying Zhou, Dina Bitton. Elastic Pipelining in In-Memory Database Cluster. To appear in Sigmod 2016.
+1. Li Wang, Minqi Zhou, Zhenjie Zhang, Yin Yang, Aoying Zhou, Dina Bitton. Elastic Pipelining in In-Memory Database Cluster. Sigmod 2016.
 2. Li Wang, Minqi Zhou, Zhenjie Zhang, Ming-chien Shan, Aoying Zhou. NUMA-aware Scalable and Efficient Aggregation on Large Domains. IEEE TKDE 2015:4. pp.1071-1084 .
 3. Li Wang, Lei Zhang, Chengcheng Yu, Aoying Zhou. Optimizing Pipelined Execution for Distributed In-memory OLAY System. In: DaMen 2014. Springer. 2014. pp. 35-56.
 4. Lan Huang, Ke Xun, Xiaozhou Chen, Minqi Zhou, In-memory Cluster Computing: Interactive Data Analysis, Journal of East China Normal University, 2014
