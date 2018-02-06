@@ -351,18 +351,19 @@ RetCode DiskFileHandleImp::Truncate(const size_t newlength) {
     if (actul_file_length > newlength) {
       if (truncate(file_name, newlength) == 0) {
         logical_file_length_ = newlength;
+        return rSuccess;
       } else {
         return rTruncateFileFail;
       }
     } else if (actul_file_length < newlength) {
       if (truncate(file_name, 0) == 0) {
         logical_file_length_ = 0;
+        return rTruncateReset;
       } else {
         return rTruncateFileFail;
       }
     }
   }
-  Close();
   return rSuccess;
 }
 

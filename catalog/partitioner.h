@@ -277,8 +277,8 @@ class Partitioner {
   NodeID getPartitionLocation(unsigned partition_offset) const;
   void print();
 
-  void initPartitionData(unsigned partition_key, unsigned number_of_chunks,
-                         unsigned long number_of_blocks);
+  void initPartitionData(unsigned partition_key, unsigned number_of_chunks = 0,
+                         unsigned long number_of_blocks = 0);
 
   bool hasSamePartitionLocation(const Partitioner &target_partition) const;
 

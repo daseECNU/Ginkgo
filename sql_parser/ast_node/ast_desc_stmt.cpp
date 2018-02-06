@@ -58,7 +58,6 @@ void AstDescStmt::Print(int level) const {
 }
 RetCode AstDescStmt::SemanticAnalisys(SemanticContext* sem_cntx) {
   int ret = rSuccess;
-  cout << "SA table name :" << table_name_ << endl;
   if ((table_name_.empty())) {
     ret = claims::common::rTableNotExisted;
     LOG(ERROR) << "No table name!" << std::endl;

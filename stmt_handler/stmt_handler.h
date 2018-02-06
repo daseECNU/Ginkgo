@@ -50,7 +50,8 @@ class StmtHandler {
       ExecutedResult& result,
       vector<vector<pair<int, string>>>& stmt_to_table_list);
   RetCode GetTablesInfomation(
-      AstNode* stmt_ast, vector<vector<pair<int, string>>>& stmt_to_table_list);
+      AstNode* stmt_ast, ExecutedResult& result,
+      vector<vector<pair<int, string>>>& stmt_to_table_list);
 
  private:
   RetCode GenerateStmtExec(AstNode* stmt_ast);

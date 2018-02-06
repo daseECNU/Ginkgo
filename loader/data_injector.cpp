@@ -966,6 +966,8 @@ RetCode DataInjector::InsertFromStringMultithread(const vector<string>& tuples,
   DELETE_ARRAY(task_list_access_lock_);
   DELETE_ARRAY(tuple_count_sem_in_lists_);
 
+  connector_.SaveUpdatedFileLengthToCatalog();
+
 #ifdef DATA_DO_LOAD
   EXEC_AND_LOG(ret, connector_.Close(), "closed connector.",
                "Failed to close connector.");

@@ -63,6 +63,7 @@ class DropProjExec : public StmtExec {
   bool FreeProjectionFromMemory(const string& table_name, const int& proj_id);
 
   RetCode GetWriteAndReadTables(
+      ExecutedResult& result,
       vector<vector<pair<int, string>>>& stmt_to_table_list);
 
  private:

@@ -185,11 +185,28 @@ class TableDescriptor {
     else
       return false;
   }
+  bool trywLock() {
+    if (wr_lock_.trywrlock_acquire() == 0)
+      return true;
+    else
+      return false;
+  }
+  bool tryrLock() {
+    if (wr_lock_.tryrdlock_acquire() == 0)
+      return true;
+    else
+      return false;
+  }
+
   void unwrLock() { wr_lock_.release(); }
   RetCode TruncateFilesFromTable();
 
+  vector<vector<uint64_t>> GetLogicalFilesLength() const {
+    return logical_files_length_;
+  }
+
  private:
-  RetCode InitFileConnector();
+  void InitFileConnector();
 
   RetCode createHashPartitionedProjection(
       const vector<Attribute>& attribute_list, Attribute partition_attr,
@@ -238,9 +255,6 @@ class TableDescriptor {
   //      }
   //    }
   //  }
-  vector<vector<uint64_t>> GetLogicalFilesLength() const {
-    return logical_files_length_;
-  }
 
  protected:
   string tableName;

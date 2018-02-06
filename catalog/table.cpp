@@ -35,6 +35,8 @@
 #include "../loader/table_file_connector.h"
 using claims::common::FilePlatform;
 using claims::utility::LockGuard;
+using claims::common::rTruncateReset;
+using claims::common::rTruncateFileFail;
 namespace claims {
 namespace catalog {
 
@@ -79,7 +81,7 @@ bool TableDescriptor::addAttribute(string attname, data_type dt,
   return true;
 }
 
-RetCode TableDescriptor::InitFileConnector() {
+void TableDescriptor::InitFileConnector() {
   write_connector_ = new TableFileConnector(
       Config::local_disk_mode ? FilePlatform::kDisk : FilePlatform::kHdfs, this,
       common::kAppendFile);
@@ -98,6 +100,7 @@ void TableDescriptor::InitTableData() {
     for (int j = 0;
          j < projection_list_[i]->getPartitioner()->getNumberOfPartitions();
          ++j) {
+      projection_list_[i]->getPartitioner()->initPartitionData(j);
       logical_files_length_[i][j] = 0;
     }
   }
@@ -181,7 +184,6 @@ bool TableDescriptor::isExist(const string& name) const {
   return false;
 }
 
-// modified by zyhe
 ProjectionDescriptor* TableDescriptor::getProjectoin(
     ProjectionOffset pid) const {
   if (pid >= 0) {
@@ -201,6 +203,7 @@ ProjectionDescriptor* TableDescriptor::getProjectoin(
   //    return NULL;
   //  }
 }
+
 unsigned TableDescriptor::getNumberOfProjection() const {
   return projection_list_.size();
 }
@@ -315,7 +318,7 @@ RetCode TableDescriptor::TruncateFilesFromTable() {
           ret =
               write_connector_->TruncateFileFromPrtn(ptp.first, i, file_length);
         }
-        if (rSuccess != ret) {
+        if (rTruncateFileFail == ret) {
           return ret;
         }
       } else {
@@ -326,8 +329,11 @@ RetCode TableDescriptor::TruncateFilesFromTable() {
           }
           ret = write_connector_->TruncateFileFromPrtn(ptp.first, file.first,
                                                        file_length);
-          if (rSuccess != ret) {
+          if (rTruncateFileFail == ret) {
             return ret;
+          }
+          if (rTruncateReset == ret) {
+            InitTableData();
           }
         }
       }
@@ -339,14 +345,18 @@ RetCode TableDescriptor::TruncateFilesFromTable() {
            ++j) {
         ret = write_connector_->TruncateFileFromPrtn(
             i, j, logical_files_length_[i][j]);
-        if (rSuccess != ret) {
+        if (rTruncateFileFail == ret) {
           return ret;
+        } else {
+          if (rTruncateReset == ret) {
+            InitTableData();
+          }
+          write_connector_->SaveUpdatedFileLengthToCatalog();
         }
       }
     }
   }
-
-  return ret;
+  return rSuccess;
 }
 
 } /* namespace catalog */

@@ -75,15 +75,6 @@ RetCode DeleteStmtExec::Execute(ExecutedResult* exec_result) {
   TableDescriptor* new_table =
       Environment::getInstance()->getCatalog()->getTable(table_base_name);
 
-  SemanticContext sem_cnxt;
-  ret = delete_stmt_ast_->SemanticAnalisys(&sem_cnxt);
-  if (rSuccess != ret) {
-    exec_result->SetError("Semantic analysis error.\n" + sem_cnxt.error_msg_);
-    LOG(ERROR) << "semantic analysis error result= : " << ret;
-    cout << "semantic analysis error result= : " << ret << endl;
-    return ret;
-  }
-
   /**
    * step1 : create new sql query including row_id, for example:
    * DELETE FROM tbA WHERE colA = 10;
@@ -309,25 +300,35 @@ void DeleteStmtExec::InsertDeletedDataIntoTableDEL(
 }
 
 RetCode DeleteStmtExec::GetWriteAndReadTables(
+    ExecutedResult& result,
     vector<vector<pair<int, string>>>& stmt_to_table_list) {
   RetCode ret = rSuccess;
   vector<pair<int, string>> table_list;
   pair<int, string> table_status;
-  AstFromList* from_list =
-      reinterpret_cast<AstFromList*>(delete_stmt_ast_->from_list_);
-  AstTable* table = reinterpret_cast<AstTable*>(from_list->args_);
-  table_status.first = 1;
-  table_status.second = table->table_name_;
-  table_list.push_back(table_status);
-  while (from_list->next_ != NULL) {
-    from_list = reinterpret_cast<AstFromList*>(from_list->next_);
+  SemanticContext sem_cnxt;
+  ret = delete_stmt_ast_->SemanticAnalisys(&sem_cnxt);
+  if (rSuccess != ret) {
+    result.SetError("Semantic analysis error.\n" + sem_cnxt.error_msg_);
+    LOG(ERROR) << "semantic analysis error result= : " << ret;
+    cout << "semantic analysis error result= : " << ret << endl;
+    return ret;
+  } else {
+    AstFromList* from_list =
+        reinterpret_cast<AstFromList*>(delete_stmt_ast_->from_list_);
     AstTable* table = reinterpret_cast<AstTable*>(from_list->args_);
     table_status.first = 1;
     table_status.second = table->table_name_;
     table_list.push_back(table_status);
+    while (from_list->next_ != NULL) {
+      from_list = reinterpret_cast<AstFromList*>(from_list->next_);
+      AstTable* table = reinterpret_cast<AstTable*>(from_list->args_);
+      table_status.first = 1;
+      table_status.second = table->table_name_;
+      table_list.push_back(table_status);
+    }
+    stmt_to_table_list.push_back(table_list);
+    return ret;
   }
-  stmt_to_table_list.push_back(table_list);
-  return ret;
 }
 
 } /* namespace stmt_handler */

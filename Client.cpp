@@ -39,11 +39,11 @@ void readStrigFromTerminal(string& input) {
 }
 
 void submit_command(Client& client, std::string& command, const int& num) {
-  std::string message;
   bool flag = false;
   if (client.submit(command)) {
     for (int i = 0; i < num; ++i) {
       if (flag) break;
+      std::string message;
       ResultSet rs;
       switch (client.getResute(message, rs)) {
         case Client::result:
@@ -52,7 +52,7 @@ void submit_command(Client& client, std::string& command, const int& num) {
           //					total_time+=rs.query_time_;
           break;
         case Client::message:
-          printf("%s", message.c_str());
+          printf("%s\n", message.c_str());
           break;
         case Client::error:
           printf(

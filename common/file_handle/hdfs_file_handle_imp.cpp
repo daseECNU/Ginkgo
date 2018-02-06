@@ -396,9 +396,9 @@ RetCode HdfsFileHandleImp::Truncate(const size_t newlength) {
       logical_file_length_ = newlength;
       LOG(INFO) << "The file " << file_name_ << " is truncated successfully"
                 << endl;
+      return rTruncateReset;
     }
-
-    }
+  }
   return rSuccess;
 }
 

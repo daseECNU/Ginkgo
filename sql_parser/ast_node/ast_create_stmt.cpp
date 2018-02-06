@@ -225,7 +225,6 @@ RetCode AstCreateProjection::SemanticAnalisys(SemanticContext* sem_cnxt) {
       return ret;
       break;
     }
-    cout << table_name_ + "." + colname << endl;
     if (table->isExist(table_name_ + "." + colname)) {
       sem_cnxt->index_.push_back(table->getAttribute(colname).index);
     } else {

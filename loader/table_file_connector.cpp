@@ -553,21 +553,22 @@ RetCode TableFileConnector::TruncateFileFromPrtn(unsigned projection_offset,
   } else {
     if (Config::enable_parquet) {
       // for this mode projection_offset == partition key index
-      EXEC_AND_RETURN_ERROR(
-          ret,
-          file_handles_parq_[projection_offset][partition_offset]->Truncate(
-              length),
-          "failed to truncate file " +
-              file_handles_parq_[projection_offset][partition_offset]
-                  ->get_file_name());
+      ret = file_handles_parq_[projection_offset][partition_offset]->Truncate(
+          length);
+      if (rTruncateFileFail == ret) {
+        cout << "failed to truncate file " +
+                    file_handles_parq_[projection_offset][partition_offset]
+                        ->get_file_name() << endl;
+      }
       return ret;
     } else {
-      EXEC_AND_RETURN_ERROR(
-          ret,
-          file_handles_[projection_offset][partition_offset]->Truncate(length),
-          "failed to truncate file " +
-              file_handles_[projection_offset][partition_offset]
-                  ->get_file_name());
+      ret =
+          file_handles_[projection_offset][partition_offset]->Truncate(length);
+      if (rTruncateFileFail == ret) {
+        cout << "failed to truncate file " +
+                    file_handles_[projection_offset][partition_offset]
+                        ->get_file_name();
+      }
       return ret;
     }
   }

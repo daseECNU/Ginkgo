@@ -61,15 +61,6 @@ LoadExec::~LoadExec() {
 RetCode LoadExec::Execute(ExecutedResult *exec_result) {
   RetCode ret = rSuccess;
 
-  SemanticContext sem_cnxt;
-  ret = load_ast_->SemanticAnalisys(&sem_cnxt);
-  if (rSuccess != ret) {
-    exec_result->SetError("Semantic analysis error.\n" + sem_cnxt.error_msg_);
-    LOG(ERROR) << "semantic analysis error result= : " << ret;
-    cout << "semantic analysis error result= : " << ret << endl;
-    return ret;
-  }
-
   TableDescriptor *table = Environment::getInstance()->getCatalog()->getTable(
       load_ast_->table_name_);
 
@@ -154,15 +145,25 @@ RetCode LoadExec::Execute(ExecutedResult *exec_result) {
   return ret;
 }
 RetCode LoadExec::GetWriteAndReadTables(
+    ExecutedResult &result,
     vector<vector<pair<int, string>>> &stmt_to_table_list) {
   RetCode ret = rSuccess;
   vector<pair<int, string>> table_list;
   pair<int, string> table_status;
-  table_status.first = 1;
-  table_status.second = load_ast_->table_name_;
-  table_list.push_back(table_status);
-  stmt_to_table_list.push_back(table_list);
-  return ret;
+  SemanticContext sem_cnxt;
+  ret = load_ast_->SemanticAnalisys(&sem_cnxt);
+  if (rSuccess != ret) {
+    result.SetError("Semantic analysis error.\n" + sem_cnxt.error_msg_);
+    LOG(ERROR) << "semantic analysis error result= : " << ret;
+    cout << "semantic analysis error result= : " << ret << endl;
+    return ret;
+  } else {
+    table_status.first = 1;
+    table_status.second = load_ast_->table_name_;
+    table_list.push_back(table_status);
+    stmt_to_table_list.push_back(table_list);
+    return ret;
+  }
 }
 }  // namespace stmt_handler
 }  // namespace claims
