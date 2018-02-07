@@ -3,9 +3,12 @@ AM_CPPFLAGS= -fPIC -fpermissive \
 -I${HADOOP_HOME}/include\
 -I${JAVA_HOME}/include\
 -I${JAVA_HOME}/include/linux\
--I${BOOST_HOME}
+-I${BOOST_HOME}\
+-I${ZOOKEEPER_HOME}/src/c/include\
+-I${ZOOKEEPER_HOME}/src/c/generated
+
 #<boost/unordered_map.hpp>添加编译选项
-AM_LDFLAGS=-lc -lm -lrt -lboost_serialization -lboost_date_time -lboost_system -lxs
+AM_LDFLAGS=-lc -lm -lrt -lboost_serialization -lboost_date_time -lboost_system -lxs -DTHREAD -lzookeeper_mt
 
 if OPT_TCMALLOC
 AM_CPPFLAGS+=-fno-builtin-malloc -fno-builtin-calloc -fno-builtin-realloc -fno-builtin-free

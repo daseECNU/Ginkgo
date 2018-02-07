@@ -4,7 +4,7 @@
 %pure-parser
 %parse-param { struct ParseResult* result}
 %glr-parser
-%expect 34
+%expect 36
 %expect-rr 84
 %defines
 %{
@@ -460,10 +460,10 @@ stmt_list: stmt ';'
 		} 
   						
   	}	
-	| stmt_list stmt ';'	
+	| stmt ';' stmt_list
 	{ 	
 		printf(">> \n"); 
-		$$=new AstStmtList(AST_STMT_LIST,$2,$1);
+		$$=new AstStmtList(AST_STMT_LIST,$1,$3);
 		if (result->error_number == 0)
 		{
 			result->ast  = $$;
@@ -498,11 +498,12 @@ stmt: select_stmt { $$ = $1;}
 	;
 
 select_stmt: 
-	SELECT select_opts select_expr_list
+	/*SELECT select_opts select_expr_list
 	{
 		$$=new AstSelectStmt(AST_SELECT_STMT, $2,$3,NULL,NULL,NULL,NULL,NULL,NULL,NULL);
 	}
-	| SELECT select_opts select_expr_list opt_into_list FROM table_references opt_where 
+	|*/
+	SELECT select_opts select_expr_list opt_into_list FROM table_references opt_where 
     			opt_groupby opt_having opt_orderby opt_limit  
 	{
 		$$=new AstSelectStmt(AST_SELECT_STMT, $2,$3,$6,$7,$8,$9,$10,$11,$4);

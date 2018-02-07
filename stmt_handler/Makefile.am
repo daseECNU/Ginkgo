@@ -3,9 +3,12 @@ AM_CPPFLAGS= -fPIC -fpermissive \
 -I${JAVA_HOME}/include\
 -I${JAVA_HOME}/include/linux \
 -I${BOOST_HOME} \
--I${BOOST_HOME}/boost/serialization
+-I${BOOST_HOME}/boost/serialization\
+-I${ZOOKEEPER_HOME}/src/c/include \
+-I${ZOOKEEPER_HOME}/src/c/generated
 
-AM_LDFLAGS=-lc -lm -lrt -lboost_system -lboost_serialization -ll -ly -lstdc++ -lxs
+
+AM_LDFLAGS=-lc -lm -lrt -lboost_system -lboost_serialization -ll -ly -lstdc++ -lxs -DTHREAD -lzookeeper_mt
 
 if OPT_TCMALLOC
 AM_CPPFLAGS+=-fno-builtin-malloc -fno-builtin-calloc -fno-builtin-realloc -fno-builtin-free
@@ -42,5 +45,7 @@ libstmthandler_a_SOURCES = \
 	desc_exec.cpp desc_exec.h \
 	truncate_table_exec.cpp	truncate_table_exec.h \
 	drop_proj_exec.cpp drop_proj_exec.h \
-	export_exec.cpp  export_exec.h
+	export_exec.cpp  export_exec.h\
+	trans_handler.cpp trans_handler.h \
+	drop_proj_exec.cpp drop_proj_exec.h
 	

@@ -67,10 +67,10 @@ Catalog::Catalog() {
   binding_ = new ProjectionBinding();
   write_connector_ = new SingleFileConnector(
       Config::local_disk_mode ? FilePlatform::kDisk : FilePlatform::kHdfs,
-      Config::catalog_file, FileOpenFlag::kCreateFile);
+      Config::catalog_file, FileOpenFlag::kCreateFile, true);
   read_connector_ = new SingleFileConnector(
       Config::local_disk_mode ? FilePlatform::kDisk : FilePlatform::kHdfs,
-      Config::catalog_file, FileOpenFlag::kReadFile);
+      Config::catalog_file, FileOpenFlag::kReadFile, true);
 }
 
 Catalog::~Catalog() {
@@ -187,7 +187,7 @@ RetCode Catalog::saveCatalog() {
 
   EXEC_AND_ONLY_LOG_ERROR(
       ret, write_connector_->Open(),
-      "failed to open catalog file: " << Config::catalog_file
+      "failed to open catalog file: " << Config::zk_znode_name
                                       << " with Overwrite mode");
   assert(ret == rSuccess && "failed to open catalog ");
   //  EXEC_AND_ONLY_LOG_ERROR(ret, write_connector_->Delete(),
@@ -197,12 +197,12 @@ RetCode Catalog::saveCatalog() {
       ret, write_connector_->AtomicFlush(
                static_cast<const void*>(oss.str().c_str()), oss.str().length()),
       "write catalog " << oss.str().length() << " chars",
-      "failed to flush into catalog file: " << Config::catalog_file);
+      "failed to flush into catalog file: " << Config::zk_znode_name);
 
   assert(ret == rSuccess && "failed to write catalog ");
   EXEC_AND_ONLY_LOG_ERROR(
       ret, write_connector_->Close(),
-      "failed to close catalog file: " << Config::catalog_file);
+      "failed to close catalog file: " << Config::zk_znode_name);
   return ret;
 }
 
@@ -253,7 +253,7 @@ bool Catalog::IsDataFileExist() {
 
 RetCode Catalog::restoreCatalog() {
   int ret = rSuccess;
-  string catalog_file = Config::catalog_file;
+  string catalog_file = Config::zk_znode_name;
   //  LockGuard<Lock> guard(write_lock_);
 
   // check whether there is catalog file if there are data file
@@ -269,9 +269,9 @@ RetCode Catalog::restoreCatalog() {
                     "The catalog file will be overwrite" << endl;
     return rSuccess;
   } else {
-    EXEC_AND_ONLY_LOG_ERROR(ret, read_connector_->Open(),
-                            "failed to open catalog file: "
-                                << Config::catalog_file << " with Read mode");
+    EXEC_AND_ONLY_LOG_ERROR(
+        ret, read_connector_->Open(),
+        "failed to open catalog file: " << catalog_file << " with Read mode");
     assert(ret == rSuccess && "failed to open catalog ");
     uint64_t file_length = 0;
     void* buffer = NULL;
@@ -290,7 +290,7 @@ RetCode Catalog::restoreCatalog() {
   }
 }
 
-bool Catalog::DropTable(const std::string table_name, const TableID id) {
+bool Catalog::dropTable(const std::string table_name, const TableID id) {
   bool isdropped = false;
   bool isnamedrop = false;
   bool istableIDdrop = false;
@@ -328,7 +328,7 @@ bool Catalog::DropTable(const std::string table_name, const TableID id) {
   return isdropped;
 }
 
-bool Catalog::DropAllProjection(const std::string table_name) {
+bool Catalog::dropAllProjection(const std::string table_name) {
   TableDescriptor* table_desc = getTable(table_name);
   //  table_desc->GetProjectionList()->clear();
   vector<ProjectionDescriptor*>* projection_list =
@@ -348,7 +348,7 @@ bool Catalog::DropAllProjection(const std::string table_name) {
   }
 }
 
-bool Catalog::DropOneProjection(const std::string table_name,
+bool Catalog::dropOneProjection(const std::string table_name,
                                 const int projection_id) {
   bool flag = false;
   TableDescriptor* table_desc = getTable(table_name);
@@ -385,7 +385,7 @@ bool Catalog::DropOneProjection(const std::string table_name,
 
 // init the data information of table in catalog and unbind the partition with
 // slave node.
-RetCode Catalog::TruncateTable(const std::string table_name) {
+RetCode Catalog::truncateTable(const std::string table_name) {
   TableDescriptor* table_desc = NULL;
   table_desc = getTable(table_name);
   if (table_desc != NULL) {
@@ -407,7 +407,7 @@ RetCode Catalog::TruncateTable(const std::string table_name) {
   return rSuccess;
 }
 
-RetCode Catalog::TruncateProjection(const std::string table_name,
+RetCode Catalog::truncateProjection(const std::string table_name,
                                     const int projection_id) {
   TableDescriptor* table_desc = NULL;
   table_desc = getTable(table_name);
@@ -480,5 +480,20 @@ vector<TableID> Catalog::GetAllTablesID() const {
   }
   return table_id_list;
 }
+
+RetCode Catalog::truncateDirtyData() {
+  RetCode ret = rSuccess;
+  for (auto it_tableid_to_table = tableid_to_table.begin();
+       it_tableid_to_table != tableid_to_table.end(); ++it_tableid_to_table) {
+    string tbname = it_tableid_to_table->second->getTableName();
+    ret = getTable(tbname)->TruncateFilesFromTable();
+    if (rSuccess != ret) {
+      return ret;
+    }
+  }
+  cout << "truncate dirty data complete" << endl;
+  return ret;
+}
+
 } /* namespace catalog */
 } /* namespace claims */

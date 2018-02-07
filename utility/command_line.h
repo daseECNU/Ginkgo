@@ -5,6 +5,7 @@
 #include <readline/history.h>
 #include <fstream>
 #include <string>
+#include <vector>
 #include <string.h>
 using namespace std;
 
@@ -24,8 +25,14 @@ struct input_struct {
   /* add a string to the command */
   bool append(const char* str);
 
-  /* add str to string until a char specified by target is read.*/
-  bool append_til(const char* str, char target, bool& target_match);
+  /**
+   * @brief delete contents after the target and count the number of SQL
+   * statements needed to be execute
+   * @return the number of SQL statements
+   * @author zyhe
+   */
+  int truncate_til(const char* str, char target, bool& target_match);
+
   /* the space holding the command */
   char string[string_length];
   /* the index indicating the end of the command */
@@ -40,7 +47,5 @@ void store_history(char* command);
 
 void init_command_line();
 
-/** get one command from terminal.
- * Note: init_command_line() must be called before.
- */
-int get_one_command(string& str);
+/* get one or more commands from terminal --added by zyhe */
+int get_commands(string& str, int& num);

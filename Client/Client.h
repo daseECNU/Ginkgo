@@ -16,28 +16,32 @@
 class ClientResponse;
 
 class Client {
-public:
-	enum query_result{result,error,message};
-public:
-	Client();
+ public:
+  enum query_result { result, error, message };
 
-	void connection(std::string host, int port);
-	ClientResponse* submitQuery(std::string args);
+ public:
+  Client();
 
-	query_result submit(std::string command, std::string& message, ResultSet& rt);
+  void connection(std::string host, int port);
+  ClientResponse* submitQuery(std::string args);
 
+  query_result submit(std::string command, std::string& message, ResultSet& rt);
 
-	ClientResponse* receive();
+  bool submit(std::string command);
 
-	void shutdown();
+  query_result getResute(std::string& message, ResultSet& rs);
 
-	bool connected()const;
+  ClientResponse* receive();
 
-	virtual ~Client();
+  void shutdown();
 
-private:
-	bool connected_;
-	int m_clientFd;
+  bool connected() const;
+
+  virtual ~Client();
+
+ private:
+  bool connected_;
+  int m_clientFd;
 };
 
 #endif /* CLIENT_H_ */

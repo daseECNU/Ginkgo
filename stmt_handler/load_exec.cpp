@@ -32,8 +32,10 @@
 #include "../stmt_handler/load_exec.h"
 #include "../Environment.h"
 #include "../loader/data_injector.h"
+#include "../loader/data_injector_for_parq.h"
 using std::vector;
 using claims::loader::DataInjector;
+using claims::loader::DataInjectorForParq;
 namespace claims {
 namespace stmt_handler {
 #define NEWRESULT
@@ -63,9 +65,6 @@ RetCode LoadExec::Execute(ExecutedResult *exec_result) {
   ret = load_ast_->SemanticAnalisys(&sem_cnxt);
   if (rSuccess != ret) {
     exec_result->SetError("Semantic analysis error.\n" + sem_cnxt.error_msg_);
-    //    exec_result->error_info_ =
-    //        "Semantic analysis error.\n" + sem_cnxt.error_msg_;
-    //    exec_result->status_ = false;
     LOG(ERROR) << "semantic analysis error result= : " << ret;
     cout << "semantic analysis error result= : " << ret << endl;
     return ret;
@@ -74,16 +73,6 @@ RetCode LoadExec::Execute(ExecutedResult *exec_result) {
   TableDescriptor *table = Environment::getInstance()->getCatalog()->getTable(
       load_ast_->table_name_);
 
-  //  if (!isTableExist()) {
-  //    exec_result->SetError("the table " + load_ast_->table_name_ +
-  //                          " does not exist during loading!");
-  //    ret = common::rStmtHandlerTableExistDuringCreate;
-  //    return ret;
-  //  } else if (table->getNumberOfProjection() == 0) {
-  //    exec_result->SetError("the table has not been created a projection!");
-  //    ret = common::rNoProjection;
-  //    return ret;
-  //  } else {
   string column_separator = load_ast_->column_separator_;
   string tuple_separator = load_ast_->tuple_separator_;
   AstExprList *path_node = dynamic_cast<AstExprList *>(load_ast_->path_);
@@ -108,54 +97,72 @@ RetCode LoadExec::Execute(ExecutedResult *exec_result) {
 // string tup_sep = tuple_separator[0];
 // char buf[100];
 
-/*    sprintf(buf, "The separator are :%c,%c, The sample is %lf, mode is %d\n",
-            column_separator[0], tuple_separator[0], load_ast_->sample_,
-            load_ast_->mode_);*/
 #if 1
   LOG(INFO) << "The separator are :" + column_separator + "," +
                    tuple_separator + ", The sample is " << load_ast_->sample_
             << ", mode is " << load_ast_->mode_ << std::endl;
 #endif
   GETCURRENTTIME(start_time);
-// LOG(INFO) << buf << std::endl;
-#ifdef NEW_LOADER
-  DataInjector *injector =
-      new DataInjector(table, column_separator, tuple_separator);
-LOG(INFO) << "complete create new DataInjector for test."<<std::endl;
-  // cout << endl << "load mode is: " << load_ast_->mode_;
-  ret = injector->LoadFromFile(path_names,
-                               static_cast<FileOpenFlag>(load_ast_->mode_),
-                               exec_result, load_ast_->sample_);
-  double load_time_ms = GetElapsedTime(start_time);
-  LOG(INFO) << " load time: " << load_time_ms / 1000.0 << " sec" << endl;
-  if (ret != rSuccess) {
-    LOG(ERROR) << "failed to load files: ";
-    for (auto it : path_names) {
-      LOG(ERROR) << it << " ";
+
+  if (Config::enable_parquet == 1) {
+    DataInjectorForParq *injector =
+        new DataInjectorForParq(table, column_separator, tuple_separator);
+    ret = injector->LoadFromFileMultiThread(
+        path_names, static_cast<FileOpenFlag>(load_ast_->mode_), exec_result);
+    double load_time_ms = GetElapsedTime(start_time);
+    if (ret != rSuccess) {
+      LOG(ERROR) << "failed to load files: ";
+      for (auto it : path_names) {
+        LOG(ERROR) << it << " ";
+      }
+      LOG(ERROR) << " into table " << table->getTableName() << endl;
+
+      if (exec_result->error_info_ == "")
+        exec_result->SetError("failed to load data");
+    } else {
+      ostringstream oss;
+      oss << "load data successfully (" << load_time_ms / 1000.0 << " sec) ";
+      exec_result->SetResult(oss.str(), NULL);
     }
-    LOG(ERROR) << " into table " << table->getTableName() << endl;
-
-    if (exec_result->error_info_ == "")
-      exec_result->SetError("failed to load data");
+    DELETE_PTR(injector);
   } else {
-    ostringstream oss;
-    oss << "load data successfully (" << load_time_ms / 1000.0 << " sec) ";
-    exec_result->SetResult(oss.str(), NULL);
+    DataInjector *injector =
+        new DataInjector(table, column_separator, tuple_separator);
+    LOG(INFO) << "complete create new DataInjector for test." << std::endl;
+    ret = injector->LoadFromFile(path_names,
+                                 static_cast<FileOpenFlag>(load_ast_->mode_),
+                                 exec_result, load_ast_->sample_);
+    double load_time_ms = GetElapsedTime(start_time);
+    LOG(INFO) << " load time: " << load_time_ms / 1000.0 << " sec" << endl;
+    if (ret != rSuccess) {
+      LOG(ERROR) << "failed to load files: ";
+      for (auto it : path_names) {
+        LOG(ERROR) << it << " ";
+      }
+      LOG(ERROR) << " into table " << table->getTableName() << endl;
+
+      if (exec_result->error_info_ == "")
+        exec_result->SetError("failed to load data");
+    } else {
+      ostringstream oss;
+      oss << "load data successfully (" << load_time_ms / 1000.0 << " sec) ";
+      exec_result->SetResult(oss.str(), NULL);
+    }
+    DELETE_PTR(injector);
   }
-  DELETE_PTR(injector);
-#else
-  Hdfsloader *loader =
-      new Hdfsloader(column_separator[0], tuple_separator[0], path_names, table,
-                     (FileOpenFlag)new_node->mode);
-  loader->load(new_node->sample);
-
-  result->SetResult("load data successfully", NULL);
-#endif
-  Environment::getInstance()->getCatalog()->saveCatalog();
-  //  }
-
+  //  Environment::getInstance()->getCatalog()->saveCatalog();
   return ret;
 }
-
+RetCode LoadExec::GetWriteAndReadTables(
+    vector<vector<pair<int, string>>> &stmt_to_table_list) {
+  RetCode ret = rSuccess;
+  vector<pair<int, string>> table_list;
+  pair<int, string> table_status;
+  table_status.first = 1;
+  table_status.second = load_ast_->table_name_;
+  table_list.push_back(table_status);
+  stmt_to_table_list.push_back(table_list);
+  return ret;
+}
 }  // namespace stmt_handler
 }  // namespace claims

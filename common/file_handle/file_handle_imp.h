@@ -128,12 +128,29 @@ class FileHandleImp {
 
   virtual RetCode SwitchStatus(FileStatus status_to_be) = 0;
 
+  const size_t& get_logical_file_length() { return logical_file_length_; }
+
+  // set_logical_file_length - called when the first load catalog of table. Put
+  // the the record of length into memory
+  void set_logical_file_length(size_t logical_file_length) {
+    logical_file_length_ = logical_file_length;
+  }
+
+  /**
+   * Truncate - truncate the dirty data when failed to execute transaction.
+   * @param newlength The size the file is to be truncated to.
+   * @return Return rSuccess if succeed.
+   * @author zyhe.
+   */
+  virtual RetCode Truncate(const size_t newlength) = 0;
+
  protected:
   virtual RetCode SetPosition(size_t pos) = 0;
 
  protected:
   std::string file_name_;
   volatile FileStatus file_status_ = kClosed;
+  size_t logical_file_length_ = 0;
   //  Lock write_lock_;
   //  atomic<int> reference_count_;
   //  SpineLock i_win_to_close_;

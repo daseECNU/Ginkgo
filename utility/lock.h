@@ -12,7 +12,10 @@
 #include <pthread.h>
 #include <stdio.h>
 #include <assert.h>
+#include "../common/ids.h"
 
+typedef unsigned LockNum;
+typedef unsigned TransID;
 class Lock {
   pthread_mutex_t m;
 
@@ -185,6 +188,35 @@ class Barrier {
   pthread_mutex_t m_l_SyncLock;
   pthread_cond_t m_cv_SyncCV;
   volatile int m_nSyncCount;
+};
+
+class WRLock {
+ public:
+  WRLock() { pthread_rwlock_init(&rwlock, NULL); }
+
+  ~WRLock() { pthread_rwlock_destroy(&rwlock); }
+
+  int wrlock_acquire() { return pthread_rwlock_wrlock(&rwlock); }
+
+  int rdlock_acquire() { return pthread_rwlock_rdlock(&rwlock); }
+
+  void release() { pthread_rwlock_unlock(&rwlock); }
+
+  void destroy() { pthread_rwlock_destroy(&rwlock); }
+
+ private:
+  pthread_rwlock_t rwlock;
+};
+
+class LockInfoData {
+ public:
+  enum LockMode { NoLock, WriteLock, ReadLock };
+
+ protected:
+  TableID table_id_;
+  LockMode lockmode_ = NoLock;
+  LockNum locknum_;
+  TransID trans_id;
 };
 
 #endif /* LOCK_H_ */

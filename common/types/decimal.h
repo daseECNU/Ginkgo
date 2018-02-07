@@ -40,8 +40,7 @@ namespace common {
 #define DECIMAL_TTLSIZE 8
 #define DECIMAL_MAXSCALE 30
 #define DECIMAL_MAXPRCISION 72
-#define DECIMAL_PSUBS \
-  (DECIMAL_MAXPRCISION - DECIMAL_MAXSCALE)
+#define DECIMAL_PSUBS (DECIMAL_MAXPRCISION - DECIMAL_MAXSCALE)
 
 #define NWORDS 1
 
@@ -71,11 +70,11 @@ typedef ttmath::Int<DECIMAL_TTLSIZE> TTLInt;
  */
 class Decimal {
  public:
-
+  Decimal();
   Decimal(int precision, int scale, string valstr);
-  Decimal(int precision, int scale, const char * valstr);
+  Decimal(int precision, int scale, const char* valstr);
   virtual ~Decimal();
-  bool StrtoDecimal(int p, int s, const char *cp);
+  bool StrtoDecimal(int p, int s, const char* cp);
   string toString(unsigned number_of_fractinal_digits) const;
   static Decimal CreateNullDecimal();
   bool isNull() const;
@@ -97,7 +96,7 @@ class Decimal {
   int compare(const Decimal rhs) const;
 
   Decimal& operator=(const Decimal& rhs);
-
+  bool operator==(const Decimal rhs) const;
   void PrintValue(int ifra);
 
   const TTInt& GetTTInt() const {
@@ -106,7 +105,6 @@ class Decimal {
   }
 
  private:
-  Decimal();
   void SetTTInt(TTInt value) { this->word[0] = value; }
 
  private:
@@ -146,7 +144,9 @@ inline Decimal Decimal::op_min(const Decimal rhs) const {
     return rhs;
   }
 }
-
+inline bool Decimal::operator==(const Decimal rhs) const {
+  return compare(rhs) == 0 ? true : false;
+}
 inline bool Decimal::op_equals(const Decimal rhs) const {
   return compare(rhs) == 0 ? true : false;
 }

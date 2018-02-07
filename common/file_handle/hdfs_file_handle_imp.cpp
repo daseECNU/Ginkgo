@@ -127,14 +127,15 @@ RetCode HdfsFileHandleImp::Write(const void* buffer, const size_t length) {
   string* result = new string;
   size_t compress_length =
       Compress(static_cast<const char*>(buffer), length, result);
-//  LOG(INFO) << "Compress length: " << compress_length << endl;
+  //  LOG(INFO) << "Compress length: " << compress_length << endl;
   char head[100];
   sprintf(head, "%d", compress_length);
 
-  //total_write_num <compress_length + sizeof(head); //by Han compression
+  // total_write_num <compress_length + sizeof(head); //by Han compression
 
   size_t total_write_num = 0;
   int32_t write_num = hdfsWrite(fs_, file_, head, sizeof(head));
+  logical_file_length_ += write_num;
   while (total_write_num < compress_length) {
     write_num = hdfsWrite(fs_, file_, result->data() + total_write_num,
                           compress_length - total_write_num);
@@ -145,6 +146,7 @@ RetCode HdfsFileHandleImp::Write(const void* buffer, const size_t length) {
     }
     total_write_num += write_num;
   }
+  logical_file_length_ += total_write_num;
   //  if (length > 100) {
   //    LOG(INFO) << "write " << length << " length data from " << buffer
   //              << " into hdfs file:" << file_name_ << endl;
@@ -305,16 +307,16 @@ RetCode HdfsFileHandleImp::DeleteFile() {
   EXEC_AND_ONLY_LOG_ERROR(ret, Close(), "file name: " << file_name_);
   if (CanAccess(file_name_)) {
     if (0 != hdfsDelete(fs_, file_name_.c_str(), 0)) {
-      LOG(ERROR) << "Failed to delete file : [" + file_name_ + "]."
-                 << std::endl;
+      LOG(ERROR) << "Failed to delete file : [" + file_name_ + "]." << endl;
       return rFailure;
     } else {
-      LOG(INFO) << "The file " << file_name_ << " is deleted successfully";
+      LOG(INFO) << "The file " << file_name_ << " is deleted successfully"
+                << endl;
     }
   } else {
     file_ = NULL;
     file_status_ = kClosed;
-    LOG(WARNING) << "The file " << file_name_ << "is not exits!\n" << std::endl;
+    LOG(WARNING) << "The file " << file_name_ << " is not exits!\n" << endl;
   }
   return rSuccess;
 }
@@ -336,15 +338,15 @@ RetCode HdfsFileHandleImp::WriteNoCompress(const void* buffer,
     }
     total_write_num += write_num;
   }
-  if (length > 100) {
-    LOG(INFO) << "write " << length << " length data from " << buffer
-              << " into hdfs file:" << file_name_ << endl;
-  } else {
-    LOG(INFO) << "write " << length
-              << " length data :" << static_cast<const char*>(buffer)
-              << " from " << buffer << " into  hdfs file:" << file_name_
-              << endl;
-  }
+  //  if (length > 100) {
+  //    LOG(INFO) << "write " << length << " length data from " << buffer
+  //              << " into hdfs file:" << file_name_ << endl;
+  //  } else {
+  //    LOG(INFO) << "write " << length
+  //              << " length data :" << static_cast<const char*>(buffer)
+  //              << " from " << buffer << " into  hdfs file:" << file_name_
+  //              << endl;
+  //  }
   return rSuccess;
 }
 
@@ -366,6 +368,38 @@ RetCode HdfsFileHandleImp::AppendNoCompress(const void* buffer,
                         "failed to switch status");
 
   return WriteNoCompress(buffer, length);
+}
+
+RetCode HdfsFileHandleImp::Truncate(const size_t newlength) {
+  if (SwitchStatus(kInReading) != rSuccess) {
+    return rFailure;
+  }
+  hdfsFileInfo* hdfsfile = hdfsGetPathInfo(fs_, file_name_.c_str());
+  size_t actul_file_length = hdfsfile->mSize;
+
+  if (actul_file_length > newlength) {
+    int i = hdfsTruncateFile(fs_, file_name_.c_str(), newlength);
+    if (-1 == i) {
+      LOG(ERROR) << "Failed to truncate file : [" + file_name_ + "]." << endl;
+      return rTruncateFileFail;
+    } else {
+      logical_file_length_ = newlength;
+      LOG(INFO) << "The file " << file_name_ << " is truncated successfully"
+                << endl;
+    }
+  } else if (actul_file_length < newlength) {
+    int i = hdfsTruncateFile(fs_, file_name_.c_str(), 0);
+    if (-1 == i) {
+      LOG(ERROR) << "Failed to truncate file : [" + file_name_ + "]." << endl;
+      return rTruncateFileFail;
+    } else {
+      logical_file_length_ = newlength;
+      LOG(INFO) << "The file " << file_name_ << " is truncated successfully"
+                << endl;
+    }
+
+    }
+  return rSuccess;
 }
 
 }  // namespace common

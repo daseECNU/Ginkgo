@@ -75,6 +75,8 @@ class DiskFileHandleImp : public FileHandleImp {
 
   virtual RetCode SwitchStatus(FileStatus status_to_be);
 
+  virtual RetCode Truncate(const size_t newlength);
+
  protected:
   virtual RetCode SetPosition(size_t pos);
 

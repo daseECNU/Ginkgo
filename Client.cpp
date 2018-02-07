@@ -38,28 +38,55 @@ void readStrigFromTerminal(string& input) {
   }
 }
 
-void submit_command(Client& client, std::string& command) {
-  ResultSet rs;
+void submit_command(Client& client, std::string& command, const int& num) {
   std::string message;
-  switch (client.submit(command, message, rs)) {
-    case Client::result:
-      rs.print();
-      //				if(i!=0)
-      //					total_time+=rs.query_time_;
-      break;
-    case Client::message:
-      printf("%s", message.c_str());
-      break;
-    case Client::error:
-      printf(
-          "\e[0;31m"
-          "%s\033[0m\n",
-          message.c_str());
-      break;
-    default:
-      assert(false);
-      break;
+  bool flag = false;
+  if (client.submit(command)) {
+    for (int i = 0; i < num; ++i) {
+      if (flag) break;
+      ResultSet rs;
+      switch (client.getResute(message, rs)) {
+        case Client::result:
+          rs.print();
+          //				if(i!=0)
+          //					total_time+=rs.query_time_;
+          break;
+        case Client::message:
+          printf("%s", message.c_str());
+          break;
+        case Client::error:
+          printf(
+              "\e[0;31m"
+              "%s\033[0m\n",
+              message.c_str());
+          flag = true;
+          // truncate();
+          break;
+        default:
+          assert(false);
+          break;
+      }
+    }
   }
+  //  switch (client.submit(command, message, rs)) {
+  //    case Client::result:
+  //      rs.print();
+  //      //				if(i!=0)
+  //      //					total_time+=rs.query_time_;
+  //      break;
+  //    case Client::message:
+  //      printf("%s", message.c_str());
+  //      break;
+  //    case Client::error:
+  //      printf(
+  //          "\e[0;31m"
+  //          "%s\033[0m\n",
+  //          message.c_str());
+  //      break;
+  //    default:
+  //      assert(false);
+  //      break;
+  //  }
 }
 
 void submit_command_repeated(Client& client, std::string& command,
@@ -141,7 +168,9 @@ int main(int argc, char** argv) {
   while (1) {
     std::string command, message;
 
-    get_one_command(command);
+    int num = 0;
+
+    get_commands(command, num);
 
     command = trimSpecialCharactor(command);
 
@@ -157,7 +186,7 @@ int main(int argc, char** argv) {
       continue;
     }
 
-    submit_command(client, command);
+    submit_command(client, command, num);
 
     /*
      * the following command execute the query for a given time and p

@@ -62,6 +62,9 @@ class DropProjExec : public StmtExec {
   /* This function only frees one projection of the table */
   bool FreeProjectionFromMemory(const string& table_name, const int& proj_id);
 
+  RetCode GetWriteAndReadTables(
+      vector<vector<pair<int, string>>>& stmt_to_table_list);
+
  private:
   AstDropProjection* drop_proj_ast_;
 };

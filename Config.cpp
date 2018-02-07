@@ -84,13 +84,16 @@ int Config::client_listener_port;
 
 bool Config::enable_codegen;
 bool Config::enable_prune_column;
-
+bool Config::enable_parquet;
 std::string Config::catalog_file;
 
 int Config::thread_pool_init_thread_num;
 
 int Config::load_thread_num;
 int Config::memory_utilization;
+std::string Config::zk_znode_name;
+
+std::string Config::zookeeper_host_list;
 
 int Config::hash_join_bucket_num;
 int Config::hash_join_bucket_size;
@@ -161,6 +164,11 @@ void Config::initialize() {
 
   enable_prune_column = getBoolean("enable_prune_column", true);
 
+  enable_parquet = getBoolean("enable_parquet", true);
+  zk_znode_name = getString("zk_znode_name", data_dir + "CATALOG");
+
+  zookeeper_host_list = getString("zookeeper_host_list", "127.0.0.1:2181");
+
   hash_join_bucket_num = getInt("hash_join_bucket_num", 1024 * 1024);
 
   hash_join_bucket_size = getInt("hash_join_bucket_size", 1024);
@@ -225,6 +233,7 @@ void Config::print_configure() const {
   std::cout << "catalog_file:" << catalog_file << std::endl;
   std::cout << "codegen:" << enable_codegen << std::endl;
   std::cout << "enable_prune_column: " << enable_prune_column << std::endl;
+  std::cout << "enable_parquet: " << enable_parquet << std::endl;
   std::cout << "load_thread_num:" << load_thread_num << std::endl;
   std::cout << "hash_join_bucket_num: " << hash_join_bucket_num << std::endl;
   std::cout << "hash_join_bucket_size: " << hash_join_bucket_size << std::endl;

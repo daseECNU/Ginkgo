@@ -137,7 +137,7 @@ class ExprNode {
   bool MoreExprEvaluate(vector<ExprNode*> condi, ExprEvalCnxt& eecnxt);
 
   virtual void* ExprEvaluate(ExprEvalCnxt& eecnxt) { return NULL; }
-
+  virtual bool isNullValue(ExprEvalCnxt& eecnxt){};
   virtual void InitExprAtLogicalPlan(LogicInitCnxt& licnxt) {}
 
   virtual void GetUniqueAttr(set<string>& attrs) {}

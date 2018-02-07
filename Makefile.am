@@ -6,11 +6,17 @@ AM_CPPFLAGS=-fPIC  -DTHERON_XS\
 -I${BOOST_HOME}/boost/serialization \
 -I${GTEST_HOME}/include \
 -I${CAF_HOME}/libcaf_io	\
--I${CAF_HOME}/libcaf_core
+-I${CAF_HOME}/libcaf_core\
+-I${ZOOKEEPER_HOME}/src/c/include \
+-I${ZOOKEEPER_HOME}/src/c/generated
+
+#-L/usr/local/lib \
 #-L/usr/local/lib \-lprofiler
 #-I/usr/local/include
 AM_LDFLAGS=  -lc -lm -lrt -lcaf_core -lcaf_io -lpthread -lboost_serialization -lboost_date_time -lboost_system  \
-	-lconfig++ -lxs -lnuma -lreadline -lhistory -lz -ltinfo -Wl,--no-as-needed -ldl -rdynamic -lglog  -lsnappy
+	-lconfig++ -lxs -lnuma -lreadline -lhistory -lz -ltinfo -Wl,--no-as-needed -ldl -rdynamic -lglog  -lsnappy \
+	 -lthrift -DTHREAD -lzookeeper_mt
+
 	
 if OPT_TCMALLOC
 AM_CPPFLAGS+=-fno-builtin-malloc -fno-builtin-calloc -fno-builtin-realloc -fno-builtin-free

@@ -125,7 +125,6 @@ RetCode CreateProjectionExec::Execute(ExecutedResult* exec_result) {
     }
 
 #endif
-    local_catalog->saveCatalog();
     return ret;
   } else {
     exec_result->SetError(CStrError(ret));
@@ -158,12 +157,16 @@ RetCode CreateProjectionExec::CreateTableProjection(
       Partitioner* partitioner = catalog->getTable(table_id)
                                      ->getProjectoin(projection_index)
                                      ->getPartitioner();
+      vector<uint64_t> parts_files_length;
       for (unsigned i = 0; i < partitioner->getNumberOfPartitions(); i++) {
         catalog->getTable(table_id)
             ->getProjectoin(projection_index)
             ->getPartitioner()
             ->RegisterPartition(i, 0);
+        parts_files_length.push_back(0);
       }
+      catalog->getTable(table_id)->CreateLogicalFilesLength(parts_files_length);
+
     } else {
       ret = rStmtHandlerCreateProjectionWithEmptyColumn;
       WLOG(ret, "no columns are given when creating projection on table:" +
@@ -193,5 +196,16 @@ RetCode CreateProjectionExec::AddPartitionAttributeToDel(
   table_del->addAttribute(partition);
 }
 
+RetCode CreateProjectionExec::GetWriteAndReadTables(
+    vector<vector<pair<int, string>>>& stmt_to_table_list) {
+  RetCode ret = rSuccess;
+  vector<pair<int, string>> table_list;
+  pair<int, string> table_status;
+  table_status.first = 1;
+  table_status.second = create_projection_ast_->table_name_;
+  table_list.push_back(table_status);
+  stmt_to_table_list.push_back(table_list);
+  return ret;
+}
 } /* namespace stmt_handler */
 } /* namespace claims */

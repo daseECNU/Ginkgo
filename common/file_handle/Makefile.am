@@ -1,9 +1,12 @@
 AM_CPPFLAGS= -fPIC -fpermissive -DTHERON_XS\
 -I${HADOOP_HOME}/include\
 -I${JAVA_HOME}/include\
--I${JAVA_HOME}/include/linux
+-I${JAVA_HOME}/include/linux\
+-I${ZOOKEEPER_HOME}/src/c/include\
+-I${ZOOKEEPER_HOME}/src/c/generated
 
-AM_LDFLAGS=-lc -lm -lrt -lconfig++ -lpthread -lxs -lsnappy
+
+AM_LDFLAGS=-lc -lm -lrt -lconfig++ -lpthread -lxs -lsnappy -DTHREAD -lzookeeper_mt
 
 if OPT_TCMALLOC
 AM_CPPFLAGS+=-fno-builtin-malloc -fno-builtin-calloc -fno-builtin-realloc -fno-builtin-free
@@ -20,8 +23,8 @@ libfilehandle_a_SOURCES = 	\
 	file_handle_imp.cpp \
 	file_handle_imp.h 				file_handle_imp_factory.h \
 	hdfs_file_handle_imp.cpp 		hdfs_file_handle_imp.h \
-	hdfs_connector.h				hdfs_connector.cpp
-
+	hdfs_connector.h				hdfs_connector.cpp\
+	zk_file_handle_imp.cpp          zk_file_handle_imp.h 
 
 SUBDIRS = test
 DIST_SUBDIRS = test

@@ -125,7 +125,7 @@ PlanContext LogicalDeleteFilter::GetPlanContext() {
   // select the filter policy first. Right now, only one partition key is
   // supported
   // TODO(minqi) to support the multi partition key to filter the deleted
-  // tupples
+  // tuples
   const Attribute left_partition_key =
       left_dataflow.plan_partitioner_.get_partition_key();
   const Attribute right_partition_key =

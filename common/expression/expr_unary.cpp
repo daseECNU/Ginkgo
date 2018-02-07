@@ -27,7 +27,7 @@ ExprUnary::ExprUnary(ExprNodeType expr_node_type, data_type actual_type,
       oper_type_(oper_type),
       arg0_(arg0),
       data_type_oper_func_(NULL),
-      is_distinct_(is_distinct)  {}
+      is_distinct_(is_distinct) {}
 ExprUnary::ExprUnary(ExprNodeType expr_node_type, data_type actual_type,
                      data_type get_type, string alias, OperType oper_type,
                      ExprNode* arg0, bool is_distinct)
@@ -43,7 +43,7 @@ ExprUnary::ExprUnary(ExprNodeType expr_node_type, data_type actual_type,
       oper_type_(oper_type),
       arg0_(arg0),
       data_type_oper_func_(NULL),
-	   expr_type_(expr_type),
+      expr_type_(expr_type),
       is_distinct_(is_distinct) {}
 ExprUnary::ExprUnary(ExprUnary* expr)
     : ExprNode(expr),
@@ -75,33 +75,32 @@ void* ExprUnary::ExprEvaluate(ExprEvalCnxt& eecnxt) {
   oper_info.args_num_ = 1;
   oper_info.result_ = value_;
   data_type_oper_func_(&oper_info);
-  if (actual_type_== t_decimal && return_type_== t_string){
-	  *(int *)value_=value_size_;
+  if (actual_type_ == t_decimal && return_type_ == t_string) {
+    *(int*)value_ = value_size_;
   }
-  return type_cast_func_(oper_info.result_,value_);
+  return type_cast_func_(oper_info.result_, value_);
 }
 
 void ExprUnary::InitExprAtLogicalPlan(LogicInitCnxt& licnxt) {
-	if (expr_type_== "TO_CHAR" ){
-		return_type_= t_string;
-		licnxt.return_type_ = get_type_;
-		arg0_->InitExprAtLogicalPlan(licnxt);
-		value_size_ = arg0_->value_size_;
-		is_null_ = arg0_->is_null_;
-	}else{
-		return_type_ = licnxt.return_type_;
-		licnxt.return_type_ = get_type_;
-		arg0_->InitExprAtLogicalPlan(licnxt);
-		value_size_ = arg0_->value_size_;
-		is_null_ = arg0_->is_null_;
-	}
-
+  if (expr_type_ == "TO_CHAR") {
+    return_type_ = t_string;
+    licnxt.return_type_ = get_type_;
+    arg0_->InitExprAtLogicalPlan(licnxt);
+    value_size_ = arg0_->value_size_;
+    is_null_ = arg0_->is_null_;
+  } else {
+    return_type_ = licnxt.return_type_;
+    licnxt.return_type_ = get_type_;
+    arg0_->InitExprAtLogicalPlan(licnxt);
+    value_size_ = arg0_->value_size_;
+    is_null_ = arg0_->is_null_;
+  }
 }
 
 void ExprUnary::InitExprAtPhysicalPlan() {
   arg0_->InitExprAtPhysicalPlan();
   data_type_oper_func_ =
-    DataTypeOper::data_type_oper_func_[get_type_][oper_type_];
+      DataTypeOper::data_type_oper_func_[get_type_][oper_type_];
   type_cast_func_ = ExprTypeCast::type_cast_func_[actual_type_][return_type_];
   value_ = memalign(cacheline_size, value_size_);
 }

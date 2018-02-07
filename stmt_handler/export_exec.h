@@ -53,6 +53,8 @@ class ExportExec : public StmtExec {
   RetCode ExportExec::ExportIntoFile(int attr_size , std::vector<ChunkID*> chunk_id,
 		  string path);
   void ExportExec::flush(string *result ,unsigned int *file_size ,int*file_num,int * write_buffer_size, string path);
+  virtual RetCode GetWriteAndReadTables(
+      vector<vector<pair<int, string>>>& stmt_to_table_list) ;
  private:
   /**
    * this pointer describes the abstract syntax tree about export data from
@@ -63,13 +65,13 @@ class ExportExec : public StmtExec {
 
   //int file_size;
   //int file_num;
-  TableDescriptor *table;
+  TableDescriptor *table_;
   AstExportTable* export_ast_;
   common::FileHandleImp* imp_;
   common::FilePlatform platform_;
   string file_name_;
-  string column_separator;
-  string tuple_separator;
+  string column_separator_;
+  string tuple_separator_;
   int  fd_;
 };
 

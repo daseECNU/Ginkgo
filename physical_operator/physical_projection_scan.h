@@ -34,13 +34,14 @@
 #ifndef PHYSICAL_OPERATOR_PHYSICAL_PROJECTION_SCAN_H_
 #define PHYSICAL_OPERATOR_PHYSICAL_PROJECTION_SCAN_H_
 #include <stack>
-
+#include <map>
 #define GLOG_NO_ABBREVIATED_SEVERITIES
 #include <boost/archive/text_iarchive.hpp>
 #include <boost/archive/text_oarchive.hpp>
 #include <glog/logging.h>
 #include <string>
 #include <list>
+#include <vector>
 #include "../common/error_no.h"
 #include "../physical_operator/physical_operator_base.h"
 #include "../common/Schema/Schema.h"
@@ -49,7 +50,9 @@
 #include "../storage/PartitionStorage.h"
 #include "../physical_operator/physical_operator.h"
 #include "../common/ExpandedThreadTracker.h"
-
+#include "../loader/table_parquet_reader.h"
+using claims::loader::ParquetColumnReader;
+using claims::loader::ColumnReader;
 namespace claims {
 namespace physical_operator {
 
@@ -111,10 +114,17 @@ class PhysicalProjectionScan : public PhysicalOperator {
     ProjectionID projection_id_;
     unsigned block_size_;
     float sample_rate_;
+    int part_key_off_;
+    vector<int> scan_order_;
+    int file_num_;
+    map<int, vector<uint32_t>> meta_len_;
+    map<int, vector<uint64_t>> meta_start_;
+    map<int, vector<uint64_t>> file_len_;
     friend class boost::serialization::access;
     template <class Archive>
     void serialize(Archive& ar, const unsigned int version) {
-      ar& schema_& projection_id_& block_size_& sample_rate_;
+      ar& schema_& projection_id_& block_size_& sample_rate_& part_key_off_&
+          scan_order_& file_num_& meta_len_& meta_start_& file_len_;
     }
   };
   PhysicalProjectionScan(State state);
@@ -138,6 +148,7 @@ class PhysicalProjectionScan : public PhysicalOperator {
   bool Close(SegmentExecStatus* const exec_status);
   void Print();
   RetCode GetAllSegments(stack<Segment*>* all_segments);
+  void initParqReader(unsigned kPartitionOffset);
 
  private:
   bool PassSample() const;
@@ -149,9 +160,9 @@ class PhysicalProjectionScan : public PhysicalOperator {
   Lock chunk_reader_container_lock_;
   // like a buffer
   input_dataset input_dataset_;
-
+  vector<ParquetColumnReader*> readers_;
   PerformanceInfo* perf_info_;
-
+  string file_name_;
   // The following code is for boost serialization.
  private:
   friend class boost::serialization::access;

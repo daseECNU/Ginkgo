@@ -196,7 +196,6 @@ bool PhysicalDeleteFilter::Open(SegmentExecStatus* const exec_status,
   LOG(INFO) << "delete filter operator begin to call left child's next()"
             << endl;
   RETURN_IF_CANCELLED(exec_status);
-
   while (state_.child_left_->Next(exec_status, dftc->l_block_for_asking_)) {
     RETURN_IF_CANCELLED(exec_status);
     delete dftc->l_block_stream_iterator_;
@@ -262,13 +261,10 @@ bool PhysicalDeleteFilter::Next(SegmentExecStatus* const exec_status,
   void* key_in_input;
   void* key_in_hashtable;
   void* column_in_joinedTuple;
-  void* joinedTuple =
-      memalign(cacheline_size, state_.output_schema_->getTupleMaxSize());
-  bool key_exist;
+  bool key_exist = false;
 
   DeleteFilterThreadContext* dftc =
       reinterpret_cast<DeleteFilterThreadContext*>(GetContext());
-
   while (true) {
     RETURN_IF_CANCELLED(exec_status);
 
@@ -280,7 +276,7 @@ bool PhysicalDeleteFilter::Next(SegmentExecStatus* const exec_status,
                   state_.input_schema_right_->getColumnAddess(
                       state_.filter_key_base_[0], tuple_from_right_child),
                   state_.hashtable_bucket_num_);
-      // hashtable_->placeIterator(dftc->hashtable_iterator_, bn);
+      hashtable_->placeIterator(dftc->hashtable_iterator_, bn);
       // if there is no tuple in the bn bucket of the hash table, then the
       // tuple
       // in the base table will be output
@@ -296,7 +292,6 @@ bool PhysicalDeleteFilter::Next(SegmentExecStatus* const exec_status,
                 tuple_from_right_child, reinterpret_cast<char*>(result_tuple));
           }
         } else {
-          free(joinedTuple);
           return true;
         }
       } else {
@@ -305,24 +300,26 @@ bool PhysicalDeleteFilter::Next(SegmentExecStatus* const exec_status,
           cff_(tuple_in_hashtable, tuple_from_right_child, &key_exist,
                state_.filter_key_deleted_, state_.filter_key_base_,
                state_.hashtable_schema_, state_.input_schema_right_, eftt_);
-          if (!key_exist) {
-            if ((result_tuple = block->allocateTuple(
-                     state_.output_schema_->getTupleMaxSize())) > 0) {
-              produced_tuples_++;
-              if (memcat_) {
-                memcat_(result_tuple, tuple_in_hashtable,
-                        tuple_from_right_child);
-              } else {
-                state_.input_schema_right_->copyTuple(
-                    tuple_from_right_child,
-                    reinterpret_cast<char*>(result_tuple));
-              }
-            } else {
-              free(joinedTuple);
-              return true;
+            if (key_exist) {
+              break;
             }
+            dftc->hashtable_iterator_.increase_cur_();
           }
-          dftc->hashtable_iterator_.increase_cur_();
+        if (!key_exist) {
+            if ((result_tuple = block->allocateTuple(
+                   state_.output_schema_->getTupleMaxSize())) > 0) {
+            produced_tuples_++;
+            if (memcat_) {
+              memcat_(result_tuple, tuple_in_hashtable,
+                      tuple_from_right_child);
+            } else {
+              state_.input_schema_right_->copyTuple(
+                  tuple_from_right_child,
+                  reinterpret_cast<char*>(result_tuple));
+            }
+          } else {
+            return true;
+          }
         }
       }
       dftc->r_block_stream_iterator_->increase_cur_();
@@ -344,10 +341,8 @@ bool PhysicalDeleteFilter::Next(SegmentExecStatus* const exec_status,
     if (state_.child_right_->Next(exec_status, dftc->r_block_for_asking_) ==
         false) {
       if (block->Empty() == true) {
-        free(joinedTuple);
         return false;
       } else {
-        free(joinedTuple);
         return true;
       }
     }

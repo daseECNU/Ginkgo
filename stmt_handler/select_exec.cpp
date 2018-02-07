@@ -26,10 +26,6 @@
  *
  */
 
-#include "../stmt_handler/select_exec.h"
-#include "../sql_parser/ast_node/ast_create_stmt.h"
-#include "../stmt_handler/create_projection_exec.h"
-#include "../loader/data_injector.h"
 #include <glog/logging.h>
 #include <pthread.h>
 #include <sys/types.h>
@@ -41,7 +37,11 @@
 #include <utility>
 #include <set>
 #include <unordered_map>
-
+#include "../stmt_handler/select_exec.h"
+#include "../sql_parser/ast_node/ast_create_stmt.h"
+#include "../stmt_handler/create_projection_exec.h"
+#include "../loader/data_injector.h"
+#include "../loader/data_injector_for_parq.h"
 #include "../common/error_define.h"
 #include "../common/ids.h"
 #include "../exec_tracker/stmt_exec_tracker.h"
@@ -52,7 +52,6 @@
 #include "../physical_operator/physical_aggregation.h"
 #include "../physical_operator/physical_nest_loop_join.h"
 #include "../physical_operator/physical_operator_base.h"
-#include "../stmt_handler/stmt_handler.h"
 #include "caf/io/all.hpp"
 using caf::io::remote_actor;
 using claims::logical_operator::LogicalQueryPlanRoot;
@@ -69,6 +68,7 @@ using std::cout;
 using std::make_pair;
 using claims::common::rStmtCancelled;
 using claims::loader::DataInjector;
+using claims::loader::DataInjectorForParq;
 namespace claims {
 namespace stmt_handler {
 AstDataType* GenerateDataType(Schema* schema, int i);
@@ -180,18 +180,18 @@ RetCode SelectExec::Execute() {
     cout << stmt_exec_status_->get_exec_info();
     return ret;
   }
-//#ifndef PRINTCONTEXT
+  //#ifndef PRINTCONTEXT
   ret = select_ast_->SetScanAttrList(&sem_cnxt);
   if (rSuccess != ret) {
-     stmt_exec_status_->set_exec_info("semantic analysis error \n" +
-                                      sem_cnxt.error_msg_);
-     stmt_exec_status_->set_exec_status(StmtExecStatus::ExecStatus::kError);
-     LOG(ERROR) << " Set Scan Attribute list error result= : " << ret;
-     return ret;
+    stmt_exec_status_->set_exec_info("semantic analysis error \n" +
+                                     sem_cnxt.error_msg_);
+    stmt_exec_status_->set_exec_status(StmtExecStatus::ExecStatus::kError);
+    LOG(ERROR) << " Set Scan Attribute list error result= : " << ret;
+    return ret;
   }
-//  select_ast_->Print();
+  //  select_ast_->Print();
   cout << "--------------begin logical plan -------------------" << endl;
-//#endif
+  //#endif
 
   LogicalOperator* logic_plan = NULL;
   ret = select_ast_->GetLogicalPlan(logic_plan);
@@ -210,15 +210,15 @@ RetCode SelectExec::Execute() {
   // if there is select * or select A.* , do not use prune_column
   bool prune_column_flag = true;
   if (((AstSelectList*)(select_ast_->select_list_))->is_all_ == 1)
-      prune_column_flag = false;
+    prune_column_flag = false;
   if (sem_cnxt.is_all) prune_column_flag = false;
   for (auto it = sem_cnxt.table_to_column.begin();
-      it != sem_cnxt.table_to_column.end(); it++) {
-    if (it->second.size() == 1 &&  it->second.find("*") != it->second.end()) {
-        prune_column_flag = false;
+       it != sem_cnxt.table_to_column.end(); it++) {
+    if (it->second.size() == 1 && it->second.find("*") != it->second.end()) {
+      prune_column_flag = false;
     }
   }
-  if (Config::enable_prune_column  &prune_column_flag) {
+  if (Config::enable_prune_column & prune_column_flag) {
     set<string> attrs;
     logic_plan->PruneProj(attrs);
   }
@@ -377,6 +377,40 @@ RetCode SelectExec::IsUpperExchangeRegistered(
   }
   return ret;
 }
+RetCode SelectExec::GetWriteAndReadTables(
+    vector<vector<pair<int, string>>>& stmt_to_table_list) {
+  RetCode ret = rSuccess;
+  vector<pair<int, string>> table_list;
+  pair<int, string> table_status;
+  AstFromList* from_list =
+      reinterpret_cast<AstFromList*>(select_ast_->from_list_);
+  AstTable* table = reinterpret_cast<AstTable*>(from_list->args_);
+  table_status.first = 0;
+  cout << "table->table_name_:" << table->table_name_ << endl;
+  table_status.second = table->table_name_;
+  cout << "table_status.second:" << table_status.second << endl;
+  table_list.push_back(table_status);
+  while (from_list->next_ != NULL) {
+    from_list = reinterpret_cast<AstFromList*>(from_list->next_);
+    AstTable* table = reinterpret_cast<AstTable*>(from_list->args_);
+    table_status.first = 0;
+    cout << "table->table_name_:" << table->table_name_ << endl;
+    table_status.second = table->table_name_;
+    cout << "table_status.second:" << table_status.second << endl;
+    table_list.push_back(table_status);
+  }
+  if (select_ast_->select_into_clause_ != NULL) {
+    AstSelectIntoClause* select_into_clause =
+        reinterpret_cast<AstSelectIntoClause*>(
+            select_ast_->select_into_clause_);
+    AstTable* table = reinterpret_cast<AstTable*>(select_into_clause->table_);
+    table_status.first = 1;
+    table_status.second = table->table_name_;
+    table_list.push_back(table_status);
+  }
+  stmt_to_table_list.push_back(table_list);
+  return ret;
+}
 
 int isUnsigned(data_type type) {
   switch (type) {
@@ -395,27 +429,22 @@ AstDataType* GenerateDataType(Schema* schema, int i) {
     OperateDecimal* oper = schema->getcolumn(i).operate;
     int precision = oper->getPrecision();
     int scale = oper->getScale();
-    opt_length =
-        new AstOptLength(AST_OPT_LENGTH, precision, scale);
+    opt_length = new AstOptLength(AST_OPT_LENGTH, precision, scale);
   } else if (type == data_type::t_string) {
     OperateString* oper = schema->getcolumn(i).operate;
     unsigned size = oper->getSize();
-    opt_length =
-            new AstOptLength(AST_OPT_LENGTH, size, 0);
+    opt_length = new AstOptLength(AST_OPT_LENGTH, size, 0);
   }
-  return new AstDataType(AST_DATA_TYPE,
-                         GenerateDatatypeBytype(type), opt_length,
-                         isUnsigned(type), NULL, 0 , NULL);
+  return new AstDataType(AST_DATA_TYPE, GenerateDatatypeBytype(type),
+                         opt_length, isUnsigned(type), NULL, 0, NULL);
 }
 
 AstColumnAtts* GenerateColumnAtts(Schema* schema, int i) {
   if (schema->getcolumn(i).operate->nullable) {
     // can be null
-    return new AstColumnAtts(AST_COLUMN_ATTS,
-                             2, 0, 0, "", NULL);
+    return new AstColumnAtts(AST_COLUMN_ATTS, 2, 0, 0, "", NULL);
   } else {
-    return new AstColumnAtts(AST_COLUMN_ATTS,
-                                1, 0, 0, "", NULL);
+    return new AstColumnAtts(AST_COLUMN_ATTS, 1, 0, 0, "", NULL);
   }
 }
 int GenerateDatatypeBytype(int a) {
@@ -447,87 +476,79 @@ int GenerateDatatypeBytype(int a) {
   }
 }
 RetCode createTableAndProj(StmtExecStatus* exec_status,
-                    AstSelectIntoClause* select_into,
-                    ExecutedResult* exec_result) {
+                           AstSelectIntoClause* select_into,
+                           ExecutedResult* exec_result) {
   RetCode ret = rSuccess;
   ExecutedResult tmp_exec_result;
   std::ostringstream ostr;
   tmp_exec_result.result_ = exec_status->get_query_result();
   tmp_exec_result.status_ = true;
-  string table_name = reinterpret_cast<AstTable*>(
-      select_into->table_)->table_name_;
+  string table_name =
+      reinterpret_cast<AstTable*>(select_into->table_)->table_name_;
   // initialize create info
   AstCreateDef* data;
-  AstCreateColList *create_col_ptr, *create_col_head;
+  AstCreateColList* create_col_ptr, *create_col_head;
   AstColumn* col_ptr, *col_head;
   int size = tmp_exec_result.result_->column_header_list_.size();
   bool ishead = true;
   for (int i = 0; i < size; i++) {
-    string column_name =  tmp_exec_result.result_->column_header_list_[i];
+    string column_name = tmp_exec_result.result_->column_header_list_[i];
     // if select * we need remove table name and row_id
     if (column_name.find("row_id") == string::npos) {
-      if (i == size -1) {
+      if (i == size - 1) {
         column_name = column_name.substr(0, column_name.find(" "));
       }
       if (column_name.find(".") != string::npos) {
-        column_name = column_name.substr(column_name.find(".")+1
-                                         , column_name.length()-1);
+        column_name = column_name.substr(column_name.find(".") + 1,
+                                         column_name.length() - 1);
       }
       AstDataType* data_type =
           GenerateDataType(tmp_exec_result.result_->schema_, i);
       AstColumnAtts* column_attr =
           GenerateColumnAtts(tmp_exec_result.result_->schema_, i);
-      data = new AstCreateDef(AST_CREATE_DEF_NAME,
-                            1, column_name, data_type, column_attr, NULL);
+      data = new AstCreateDef(AST_CREATE_DEF_NAME, 1, column_name, data_type,
+                              column_attr, NULL);
       if (ishead) {
-        create_col_ptr =
-                   new AstCreateColList(AST_CREATE_COL_LIST, data, NULL);
+        create_col_ptr = new AstCreateColList(AST_CREATE_COL_LIST, data, NULL);
         create_col_head = create_col_ptr;
-        col_ptr = new AstColumn(AST_COLUMN, table_name,
-                                column_name, NULL);
+        col_ptr = new AstColumn(AST_COLUMN, table_name, column_name, NULL);
         col_head = col_ptr;
         ishead = false;
       } else {
         create_col_ptr->next_ =
             new AstCreateColList(AST_CREATE_COL_LIST, data, NULL);
         create_col_ptr = create_col_ptr->next_;
-        col_ptr->next_ = new AstColumn(AST_COLUMN, table_name,
-                                       column_name, NULL);
+        col_ptr->next_ =
+            new AstColumn(AST_COLUMN, table_name, column_name, NULL);
         col_ptr = col_ptr->next_;
       }
     }
   }
 
-  AstCreateTable* createtable_ast =
-      new AstCreateTable(AST_CREATE_TABLE_LIST, 0, 0,
-                    table_name, "", create_col_head, NULL);
+  AstCreateTable* createtable_ast = new AstCreateTable(
+      AST_CREATE_TABLE_LIST, 0, 0, table_name, "", create_col_head, NULL);
   CreateTableExec createtable(createtable_ast);
   ret = createtable.Execute(&tmp_exec_result);
-  if ( ret != common::rStmtHandlerCreateTableSuccess ) {
+  if (ret != common::rStmtHandlerCreateTableSuccess) {
     ostr.clear();
-    LOG(ERROR) << "create table or create projection failure on  "
-        << table_name<< endl;
-    ostr <<"create table or create projection failure on  "
-         <<table_name <<endl;
+    LOG(ERROR) << "create table or create projection failure on  " << table_name
+               << endl;
+    ostr << "create table or create projection failure on  " << table_name
+         << endl;
     exec_result->SetError(ostr.str());
   }
   // create projection
-  AstCreateProjection *ast_proj;
-  if ( select_into->partition_number_ == 1 ) {
-    ast_proj =
-        new AstCreateProjection(AST_CREATE_PROJECTION,
-                                table_name, col_head,
-                                select_into->partition_number_,
-                                select_into->partition_key_);
+  AstCreateProjection* ast_proj;
+  if (select_into->partition_number_ == 1) {
+    ast_proj = new AstCreateProjection(AST_CREATE_PROJECTION, table_name,
+                                       col_head, select_into->partition_number_,
+                                       select_into->partition_key_);
   } else {
-    ast_proj = new AstCreateProjection(AST_CREATE_PROJECTION_NUM,
-                            table_name, col_head,
-                            select_into->partition_number_,
-                            select_into->partition_key_);
-
+    ast_proj = new AstCreateProjection(AST_CREATE_PROJECTION_NUM, table_name,
+                                       col_head, select_into->partition_number_,
+                                       select_into->partition_key_);
   }
-  CreateProjectionExec * createpro =
-      new CreateProjectionExec(ast_proj);
+  CreateProjectionExec* createpro = new CreateProjectionExec(ast_proj);
   ret = createpro->Execute(&tmp_exec_result);
   // clear all memory
   delete createtable_ast;
@@ -540,8 +561,8 @@ RetCode execSelectInto(StmtExecStatus* exec_status,
                        ExecutedResult* exec_result) {
   // initialize a result for execute
   RetCode ret = rSuccess;
-  string table_name = reinterpret_cast<AstTable*>(
-      select_into->table_)->table_name_;
+  string table_name =
+      reinterpret_cast<AstTable*>(select_into->table_)->table_name_;
   std::ostringstream ostr;
   ret = createTableAndProj(exec_status, select_into, exec_result);
   if (ret != rSuccess) {
@@ -549,25 +570,29 @@ RetCode execSelectInto(StmtExecStatus* exec_status,
   }
   // insert into table
   unsigned int row_change = 0;
-  TableDescriptor *insert_table =
+  TableDescriptor* insert_table =
       Environment::getInstance()->getCatalog()->getTable(table_name);
-  DataInjector *injector = new DataInjector(insert_table);
   vector<string> sel_result;
-  exec_status->get_query_result()
-                      ->getResult(row_change, sel_result);
-  ret = injector->InsertFromStringMultithread(sel_result, exec_result);
+  exec_status->get_query_result()->getResult(row_change, sel_result);
+  if (Config::enable_parquet) {
+    DataInjectorForParq* injector = new DataInjectorForParq(insert_table);
+    ret = injector->InsertFromStringMultithread(sel_result, exec_result);
+    DELETE_PTR(injector);
+  } else {
+    DataInjector* injector = new DataInjector(insert_table);
+    ret = injector->InsertFromStringMultithread(sel_result, exec_result);
+    DELETE_PTR(injector);
+  }
+
   if (rSuccess == ret) {
     ostr.clear();
-    ostr << "insert data successfully. " << row_change
-        << " rows changed.";
+    ostr << "insert data successfully. " << row_change << " rows changed.";
     exec_result->SetResult(ostr.str(), NULL);
   } else {
-      LOG(ERROR) << "failed to insert tuples into table:"
-          << insert_table->getTableName() << endl;
-      exec_result->SetError("failed to insert tuples into table ");
+    LOG(ERROR) << "failed to insert tuples into table:"
+               << insert_table->getTableName() << endl;
+    exec_result->SetError("failed to insert tuples into table ");
   }
-  DELETE_PTR(injector);
-  Environment::getInstance()->getCatalog()->saveCatalog();
   return ret;
 }
 }  // namespace stmt_handler

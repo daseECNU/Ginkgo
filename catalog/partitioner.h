@@ -259,6 +259,8 @@ class Partitioner {
   void RegisterPartition(unsigned partitoin_key, unsigned number_of_chunks);
   void RegisterPartitionWithNumberOfBlocks(unsigned partitoin_key,
                                            unsigned long number_of_blocks);
+  void RegisterPartitionWithNumberOfBlocksPar(unsigned partition_offset,
+                                              unsigned long number_of_blocks);
   void UpdatePartitionWithNumberOfChunksToBlockManager(
       unsigned partitoin_offset, unsigned long number_of_blocks);
 

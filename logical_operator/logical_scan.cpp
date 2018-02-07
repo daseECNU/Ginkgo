@@ -51,7 +51,8 @@ ProjectionOffset get_Max_projection(TableDescriptor* table);
 static unsigned long table_cardi_[20] = {200000, 0, 10000,   0, 800000,  0,
                                          150000, 0, 1500000, 0, 6001215, 0,
                                          25,     0, 5,       0};
-
+vector<int> getPosition(const vector<Attribute>& model,
+                        const vector<Attribute>& current);
 LogicalScan::LogicalScan(std::vector<Attribute> attribute_list)
     : LogicalOperator(kLogicalScan),
       scan_attribute_list_(attribute_list),
@@ -85,8 +86,7 @@ LogicalScan::LogicalScan(string table_alias, set<string> columns,
       table_alias_(table_alias),
       is_all_(is_all),
       sample_rate_(sample_rate),
-      plan_context_(NULL) {
-}
+      plan_context_(NULL) {}
 LogicalScan::LogicalScan(
     const TableID& table_id,
     const std::vector<unsigned>& selected_attribute_index_list)
@@ -144,36 +144,34 @@ PlanContext LogicalScan::GetPlanContext() {
       target_projection_off = get_Max_projection(table);
       target_projection_ = table->getProjectoin(target_projection_off);
     } else {
-        for (ProjectionOffset projection_off = 0;
-            projection_off < table->getNumberOfProjection();
-            projection_off++) {
-              ProjectionDescriptor* projection =
-                  table->getProjectoin(projection_off);
-              bool fail = false;
-              for (set<string>::const_iterator it = columns_.begin();
-                  it != columns_.end(); it++) {
-                if (!projection->isExist1(table_name_+"."+*it)) {
-                  /*the attribute *it is not in the projection*/
-                  fail = true;
-                  break;
-                }
-              }
-              if (fail == true) {
-                continue;
-              }
-              unsigned int projection_cost = projection->getProjectionCost();
-              if ( projection_off == 0 ) {
-                min_projection_cost = projection_cost;
-                target_projection_off = 0;
-              }
-              if (min_projection_cost > projection_cost) {
-                target_projection_off = projection_off;
-                min_projection_cost = projection_cost;
-              }
+      for (ProjectionOffset projection_off = 0;
+           projection_off < table->getNumberOfProjection(); projection_off++) {
+        ProjectionDescriptor* projection = table->getProjectoin(projection_off);
+        bool fail = false;
+        for (set<string>::const_iterator it = columns_.begin();
+             it != columns_.end(); it++) {
+          if (!projection->isExist1(table_name_ + "." + *it)) {
+            /*the attribute *it is not in the projection*/
+            fail = true;
+            break;
+          }
         }
-        if (target_projection_off != -1) {
-          target_projection_ = table->getProjectoin(target_projection_off);
+        if (fail == true) {
+          continue;
         }
+        unsigned int projection_cost = projection->getProjectionCost();
+        if (projection_off == 0) {
+          min_projection_cost = projection_cost;
+          target_projection_off = 0;
+        }
+        if (min_projection_cost > projection_cost) {
+          target_projection_off = projection_off;
+          min_projection_cost = projection_cost;
+        }
+      }
+      if (target_projection_off != -1) {
+        target_projection_ = table->getProjectoin(target_projection_off);
+      }
     }
   } else {
     // if is all, select * from tableA, give largest projection;
@@ -186,7 +184,7 @@ PlanContext LogicalScan::GetPlanContext() {
   }
   plan_context_->attribute_list_ = target_projection_->getAttributeList();
   scan_attribute_list_ = target_projection_->getAttributeList();
-  for (auto &it : plan_context_->attribute_list_) {
+  for (auto& it : plan_context_->attribute_list_) {
     it.attrName = table_alias_ + it.attrName.substr(it.attrName.find('.'));
   }
   Partitioner* par = target_projection_->getPartitioner();
@@ -214,8 +212,7 @@ ProjectionOffset get_Max_projection(TableDescriptor* table) {
   ProjectionOffset target_projection_off = -1;
   for (ProjectionOffset projection_off = 0;
        projection_off < table->getNumberOfProjection(); projection_off++) {
-    ProjectionDescriptor* projection =
-        table->getProjectoin(projection_off);
+    ProjectionDescriptor* projection = table->getProjectoin(projection_off);
     unsigned int projection_cost = projection->getProjectionCost();
     // get the projection with maximum cost
     if (max_projection_cost < projection_cost) {
@@ -238,10 +235,23 @@ ProjectionOffset get_Max_projection(TableDescriptor* table) {
 
 PhysicalOperatorBase* LogicalScan::GetPhysicalPlan(const unsigned& block_size) {
   PhysicalProjectionScan::State state;
+  TableDescriptor* tbl = Catalog::getInstance()->getTable(table_name_);
+  int proj_off = state.projection_id_.projection_off;
   state.block_size_ = block_size;
   state.projection_id_ = target_projection_->getProjectionID();
   state.schema_ = GetSchema(plan_context_->attribute_list_);
   state.sample_rate_ = sample_rate_;
+  state.part_key_off_ = tbl->getProjectoin(proj_off)->getAttributeIndex(
+      tbl->getProjectoin(proj_off)->getPartitioner()->getPartitionKey());
+  state.file_num_ = tbl->getFileNum();
+  state.meta_start_ = tbl->getMetaStartPos()[state.part_key_off_];
+  state.meta_len_ = tbl->getMetalength()[state.part_key_off_];
+  state.file_len_ = tbl->getFilelength()[state.part_key_off_];
+  int model_proj_idx = tbl->getPartProjMap()[state.part_key_off_];
+  vector<Attribute> model =
+      tbl->getProjectoin(model_proj_idx)->getAttributeList();
+  vector<Attribute> current = target_projection_->getAttributeList();
+  state.scan_order_ = getPosition(model, current);
   return new PhysicalProjectionScan(state);
 }
 
@@ -359,6 +369,18 @@ void LogicalScan::Print(int level) const {
               ->getTable(target_projection_->getProjectionID().table_id)
               ->getTableName() << "   alias: " << table_alias_ << endl;
 }
-
+vector<int> getPosition(const vector<Attribute>& model,
+                        const vector<Attribute>& current) {
+  vector<int> result;
+  for (int i = 0; i < current.size(); ++i) {
+    for (int j = 0; j < model.size(); ++j) {
+      if (current[i] == model[j]) {
+        result.push_back(j);
+        break;
+      }
+    }
+  }
+  return result;
+}
 }  // namespace logical_operator
 }  // namespace claims

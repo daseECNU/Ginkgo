@@ -99,22 +99,26 @@ void LogicalAggregation::ChangeAggAttrsForAVG() {
     }
   }
   if (avg_id_in_agg_.size() > 0) {
-    // if there isn't count() in agg, then add it and push the id into
-    // avg_id_in_agg
-    count_column_id_ = -1;
-    for (int i = 0; i < aggregation_attrs_.size(); ++i) {
-      if (OperType::oper_agg_count == aggregation_attrs_[i]->oper_type_) {
-        count_column_id_ = i;
-        break;
+    for (int j = 0; j < avg_id_in_agg_.size(); ++j) {
+      bool find = false;
+      for (int i = 0; i < aggregation_attrs_.size(); ++i) {
+        if (OperType::oper_agg_count == aggregation_attrs_[i]->oper_type_ &&
+            aggregation_attrs_[i]->arg0_->alias_ ==
+                aggregation_attrs_[avg_id_in_agg_[j]]->arg0_->alias_) {
+          avg_id_to_count_[avg_id_in_agg_[j]] = i;
+          find = true;
+          break;
+        }
       }
-    }
-    // if there isn't count(), append count(1)
-    if (count_column_id_ == -1) {
-      count_column_id_ = aggregation_attrs_.size();
-      aggregation_attrs_.push_back(new ExprUnary(
-          ExprNodeType::t_qexpr_unary, t_u_long, "ACOUNT(1)",
-          OperType::oper_agg_count,
-          new ExprConst(ExprNodeType::t_qexpr, t_u_long, "COUNT(1)", "1")));
+      if (!find) {
+        aggregation_attrs_.push_back(new ExprUnary(
+            ExprNodeType::t_qexpr_unary, t_u_long,
+            "count(" + aggregation_attrs_[avg_id_in_agg_[j]]->arg0_->alias_ +
+                ")",
+            OperType::oper_agg_count,
+            aggregation_attrs_[avg_id_in_agg_[j]]->arg0_->ExprCopy()));
+        avg_id_to_count_[avg_id_in_agg_[j]] = aggregation_attrs_.size() - 1;
+      }
     }
   }
 }
@@ -175,8 +179,10 @@ PlanContext LogicalAggregation::GetPlanContext() {
        * repartition aggregation is currently simplified.
        */
 
-      // TODO(FZH): ideally, the partition properties (especially the the number
-      // of partitions and partition style) after repartition aggregation should
+      // TODO(FZH): ideally, the partition properties (especially the the
+      // number
+      // of partitions and partition style) after repartition aggregation
+      // should
       // be decided by the partition property enforcement.
       ret.attribute_list_ = GetAttrsAfterAgg();
       ret.commu_cost_ =
@@ -188,7 +194,8 @@ PlanContext LogicalAggregation::GetPlanContext() {
         ret.plan_partitioner_.set_partition_key(Attribute());
       } else {
         int id = 0;
-        // if there is column in groupby attributes, so move it to the front, in
+        // if there is column in groupby attributes, so move it to the front,
+        // in
         // order to get partition by one column not one expression
         for (int i = 0; i < group_by_attrs_.size(); ++i) {
           if (group_by_attrs_[i]->expr_node_type_ == t_qcolcumns) {
@@ -306,7 +313,7 @@ PhysicalOperatorBase* LogicalAggregation::GetPhysicalPlan(
   local_agg_state.output_schema_ = GetSchema(plan_context_->attribute_list_);
   local_agg_state.child_ = child_->GetPhysicalPlan(block_size);
   local_agg_state.avg_index_ = avg_id_in_agg_;
-  local_agg_state.count_column_id_ = count_column_id_;
+  local_agg_state.avg_id_to_count_ = avg_id_to_count_;
   local_agg_state.hash_schema_ =
       local_agg_state.output_schema_->duplicateSchema();
   switch (aggregation_style_) {
@@ -360,7 +367,7 @@ PhysicalOperatorBase* LogicalAggregation::GetPhysicalPlan(
       global_agg_state.child_ = exchange;
       global_agg_state.num_of_buckets_ = local_agg_state.num_of_buckets_;
       global_agg_state.avg_index_ = avg_id_in_agg_;
-      global_agg_state.count_column_id_ = count_column_id_;
+      global_agg_state.avg_id_to_count_ = avg_id_to_count_;
       //      PhysicalOperatorBase* global_aggregation =
       //          new PhysicalAggregation(global_agg_state);
       ret = new PhysicalAggregation(global_agg_state);

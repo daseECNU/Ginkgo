@@ -57,9 +57,7 @@ void AstNode::Print(int level) const {
        << "This is an AST_NODE!" << endl;
 }
 
-RetCode AstNode::SetScanAttrList(SemanticContext* sem_cnxt) {
-  return rSuccess;
-}
+RetCode AstNode::SetScanAttrList(SemanticContext* sem_cnxt) { return rSuccess; }
 RetCode AstNode::SemanticAnalisys(SemanticContext* sem_cnxt) {
   LOG(WARNING) << "This is AstNode's semantic analysis" << endl;
   return rSuccess;
@@ -189,11 +187,11 @@ void AstStmtList::Print(int level) const {
     stmt_->Print(level);
   }
   if (next_ != NULL) {
-    next_->Print(level++);
+    next_->Print(level);
   }
 }
 
-RetCode AstStmtList::SetScanAttrList(SemanticContext *sem_cnxt) {
+RetCode AstStmtList::SetScanAttrList(SemanticContext* sem_cnxt) {
   if (stmt_ != NULL) {
     stmt_->SetScanAttrList(sem_cnxt);
   }
@@ -212,10 +210,14 @@ RetCode AstStmtList::SemanticAnalisys(SemanticContext* sem_cnxt) {
     }
   }
   if (NULL != next_) {
-    LOG(ERROR) << "just support one statement now!" << endl;
-    assert(false);
-    return rSuccess;
-    return next_->SemanticAnalisys(sem_cnxt);
+    //    LOG(ERROR) << "just support one statement now!" << endl;
+    //    assert(false);
+    //    return rSuccess;
+    //    return next_->SemanticAnalisys(sem_cnxt);
+    ret = next_->SemanticAnalisys(sem_cnxt);
+    if (rSuccess != ret) {
+      return ret;
+    }
   }
   return rSuccess;
 }
@@ -229,7 +231,13 @@ RetCode AstStmtList::PushDownCondition(PushDownConditionContext& pdccnxt) {
   return rSuccess;
 }
 RetCode AstStmtList::GetLogicalPlan(LogicalOperator*& logic_plan) {
-  return stmt_->GetLogicalPlan(logic_plan);
+  if (NULL != stmt_) {
+    stmt_->GetLogicalPlan(logic_plan);
+  }
+  if (NULL != next_) {
+    next_->GetLogicalPlan(logic_plan);
+  }
+  return rSuccess;
 }
 SemanticContext::SemanticContext() {
   tables_.clear();

@@ -41,12 +41,14 @@
 #include "../sql_parser/ast_node/ast_select_stmt.h"
 #include "../stmt_handler/select_exec.h"
 #include "../common/error_define.h"
+#include "../loader/data_injector_for_parq.h"
 using claims::loader::DataInjector;
 using std::endl;
 using std::string;
 using std::vector;
 using std::cout;
 using claims::catalog::TableDescriptor;
+using claims::loader::DataInjectorForParq;
 using claims::common::rSuccess;
 using claims::common::rNoProjection;
 using claims::common::rCreateProjectionOnDelTableFailed;
@@ -62,12 +64,14 @@ DeleteStmtExec::~DeleteStmtExec() {}
 
 RetCode DeleteStmtExec::Execute(ExecutedResult* exec_result) {
   RetCode ret = rSuccess;
-  string table_base_name = dynamic_cast<AstTable*>(
-      dynamic_cast<AstFromList*>(delete_stmt_ast_->from_list_)->args_)
-                               ->table_name_;
-  string table_alias_name = dynamic_cast<AstTable*>(
-       dynamic_cast<AstFromList*>(delete_stmt_ast_->from_list_)->args_)
-                                ->table_alias_;
+  string table_base_name =
+      dynamic_cast<AstTable*>(
+          dynamic_cast<AstFromList*>(delete_stmt_ast_->from_list_)->args_)
+          ->table_name_;
+  string table_alias_name =
+      dynamic_cast<AstTable*>(
+          dynamic_cast<AstFromList*>(delete_stmt_ast_->from_list_)->args_)
+          ->table_alias_;
   TableDescriptor* new_table =
       Environment::getInstance()->getCatalog()->getTable(table_base_name);
 
@@ -160,7 +164,7 @@ RetCode DeleteStmtExec::GenerateSelectStmt(const string table_name,
   // -1 means the column row_id of the base table do not need to be selected
   // consider alias
   string tab_name;
-  if ( table_alias != "NULL" )
+  if (table_alias != "NULL")
     tab_name = table_alias;
   else
     tab_name = table_name;
@@ -241,7 +245,9 @@ void DeleteStmtExec::InsertDeletedDataIntoTableDEL(
   BlockStreamBase* block = NULL;
   BlockStreamBase::BlockStreamTraverseIterator* tuple_it = NULL;
 
-  cout << "insert del table name : " << table_del_name.c_str();
+  cout << "insert del table name : " << table_del_name.c_str() << "!!!" << endl;
+  LOG(INFO) << "insert del table name : " << table_del_name.c_str() << "!!!"
+            << endl;
   TableDescriptor* table_del =
       Environment::getInstance()->getCatalog()->getTable(table_del_name);
   if (NULL == table_del) {
@@ -252,36 +258,76 @@ void DeleteStmtExec::InsertDeletedDataIntoTableDEL(
   /**
    *    Prepare the data which will be insert into TABLE_DEL.
    */
+  vector<string> sel_result;
   ostringstream ostr;
+  unsigned int row_count = 0;
   while (block = it.nextBlock()) {
     tuple_it = block->createIterator();
     void* tuple;
     while (tuple = tuple_it->nextTuple()) {
       for (unsigned i = 0; i < exec_result->result_->column_header_list_.size();
            i++) {
-        // check whether the row has been deleted or not.
-        if (true) {
-          ostr << exec_result->result_->schema_->getcolumn(i)
-                      .operate->toString(exec_result->result_->schema_
-                                             ->getColumnAddess(i, tuple))
-                      .c_str();
-          ostr << "|";
-        } else {
-          continue;
-        }
+        //         check whether the row has been deleted or not.
+        ostr << exec_result->result_->schema_->getcolumn(i)
+                    .operate->toString(exec_result->result_->schema_
+                                           ->getColumnAddess(i, tuple))
+                    .c_str();
+        ostr << "|";
       }
       ostr << "\n";
+      ++row_count;
+      if (row_count == 1000000) {
+        sel_result.push_back(ostr.str());
+        row_count = 0;
+        ostr.str("");
+      }
     }
     delete tuple_it;
   }
+  if (row_count > 0) sel_result.push_back(ostr.str());
 
-  DataInjector* injector = new DataInjector(table_del);
-  injector->InsertFromString(ostr.str(), exec_result);
-  //  HdfsLoader* Hl = new HdfsLoader(tabledel);
-  //  string tmp = ostr.str();
-  //  Hl->append(ostr.str());
-  //  cout << tmp << endl;
-  Environment::getInstance()->getCatalog()->saveCatalog();
+  RetCode ret = rSuccess;
+  if (Config::enable_parquet) {
+    DataInjectorForParq* injector = new DataInjectorForParq(table_del);
+    if (sel_result.size() > 0) {
+      ret = injector->InsertFromStringMultithread(sel_result, exec_result);
+    }
+    DELETE_PTR(injector);
+  } else {
+    DataInjector* injector = new DataInjector(table_del);
+    if (sel_result.size() > 0) {
+      ret = injector->InsertFromStringMultithread(sel_result, exec_result);
+    }
+    DELETE_PTR(injector);
+
+    if (rSuccess != ret) {
+      LOG(ERROR) << "The table DEL " + table_del_name +
+                        " insert operation failed." << std::endl;
+    }
+    DELETE_PTR(injector);
+  }
+}
+
+RetCode DeleteStmtExec::GetWriteAndReadTables(
+    vector<vector<pair<int, string>>>& stmt_to_table_list) {
+  RetCode ret = rSuccess;
+  vector<pair<int, string>> table_list;
+  pair<int, string> table_status;
+  AstFromList* from_list =
+      reinterpret_cast<AstFromList*>(delete_stmt_ast_->from_list_);
+  AstTable* table = reinterpret_cast<AstTable*>(from_list->args_);
+  table_status.first = 1;
+  table_status.second = table->table_name_;
+  table_list.push_back(table_status);
+  while (from_list->next_ != NULL) {
+    from_list = reinterpret_cast<AstFromList*>(from_list->next_);
+    AstTable* table = reinterpret_cast<AstTable*>(from_list->args_);
+    table_status.first = 1;
+    table_status.second = table->table_name_;
+    table_list.push_back(table_status);
+  }
+  stmt_to_table_list.push_back(table_list);
+  return ret;
 }
 
 } /* namespace stmt_handler */

@@ -29,7 +29,7 @@ QNode *transformqual(Node *node, LogicalOperator *child) {
         QNode *lnode = transformqual(calnode->lnext, child);
         QNode *rnode = transformqual(calnode->rnext, child);
         QExpr_binary *qcalnode = new QExpr_binary(
-            lnode, rnode, t_boolean, oper_and, t_qexpr_cal, calnode->str);
+            lnode, rnode, t_boolean, oper_and_old, t_qexpr_cal, calnode->str);
         return qcalnode;
       } else if (strcmp(calnode->sign, "OR") == 0)  // now in or the two
                                                     // parameter should be
@@ -39,7 +39,7 @@ QNode *transformqual(Node *node, LogicalOperator *child) {
         QNode *lnode = transformqual(calnode->lnext, child);
         QNode *rnode = transformqual(calnode->rnext, child);
         QExpr_binary *qcalnode = new QExpr_binary(
-            lnode, rnode, t_boolean, oper_or, t_qexpr_cal, calnode->str);
+            lnode, rnode, t_boolean, oper_or_old, t_qexpr_cal, calnode->str);
         return qcalnode;
       } else if (strcmp(calnode->sign, "+") == 0) {
         QNode *lnode = transformqual(calnode->lnext, child);
@@ -48,7 +48,7 @@ QNode *transformqual(Node *node, LogicalOperator *child) {
         data_type a_type = TypePromotion::arith_type_promotion_map
             [lnode->actual_type][rnode->actual_type];
         QExpr_binary *qcalnode = new QExpr_binary(
-            lnode, rnode, a_type, oper_add, t_qexpr_cal, calnode->str);
+            lnode, rnode, a_type, oper_add_old, t_qexpr_cal, calnode->str);
         return qcalnode;
       } else if (strcmp(calnode->sign, "-") == 0) {
         QNode *lnode = transformqual(calnode->lnext, child);
@@ -56,7 +56,7 @@ QNode *transformqual(Node *node, LogicalOperator *child) {
         data_type a_type = TypePromotion::arith_type_promotion_map
             [lnode->actual_type][rnode->actual_type];
         QExpr_binary *qcalnode = new QExpr_binary(
-            lnode, rnode, a_type, oper_minus, t_qexpr_cal, calnode->str);
+            lnode, rnode, a_type, oper_minus_old, t_qexpr_cal, calnode->str);
         return qcalnode;
       } else if (strcmp(calnode->sign, "*") == 0) {
         QNode *lnode = transformqual(calnode->lnext, child);
@@ -64,7 +64,7 @@ QNode *transformqual(Node *node, LogicalOperator *child) {
         data_type a_type = TypePromotion::arith_type_promotion_map
             [lnode->actual_type][rnode->actual_type];
         QExpr_binary *qcalnode = new QExpr_binary(
-            lnode, rnode, a_type, oper_multiply, t_qexpr_cal, calnode->str);
+            lnode, rnode, a_type, oper_multiply_old, t_qexpr_cal, calnode->str);
         return qcalnode;
       } else if (strcmp(calnode->sign, "/") == 0) {
         QNode *lnode = transformqual(calnode->lnext, child);
@@ -72,7 +72,7 @@ QNode *transformqual(Node *node, LogicalOperator *child) {
         data_type a_type = TypePromotion::arith_type_promotion_map
             [lnode->actual_type][rnode->actual_type];
         QExpr_binary *qcalnode = new QExpr_binary(
-            lnode, rnode, a_type, oper_divide, t_qexpr_cal, calnode->str);
+            lnode, rnode, a_type, oper_divide_old, t_qexpr_cal, calnode->str);
         return qcalnode;
       } else if (strcmp(calnode->sign, "%") == 0) {
         QNode *lnode = transformqual(calnode->lnext, child);
@@ -80,7 +80,7 @@ QNode *transformqual(Node *node, LogicalOperator *child) {
         data_type a_type = TypePromotion::arith_type_promotion_map
             [lnode->actual_type][rnode->actual_type];
         QExpr_binary *qcalnode = new QExpr_binary(
-            lnode, rnode, a_type, oper_mod, t_qexpr_cal, calnode->str);
+            lnode, rnode, a_type, oper_mod_old, t_qexpr_cal, calnode->str);
         return qcalnode;
       } else if (strcmp(calnode->sign, "LIKE") == 0) {
         QNode *lnode = transformqual(calnode->lnext, child);
@@ -89,7 +89,7 @@ QNode *transformqual(Node *node, LogicalOperator *child) {
         data_type a_type = TypePromotion::arith_type_promotion_map
             [lnode->actual_type][rnode->actual_type];
         QExpr_binary *likenode = new QExpr_binary(
-            lnode, rnode, a_type, oper_like, t_qexpr_cmp, calnode->str);
+            lnode, rnode, a_type, oper_like_old, t_qexpr_cmp, calnode->str);
         return likenode;
       } else if (strcmp(calnode->sign, "NLIKE") == 0) {
         QNode *lnode = transformqual(calnode->lnext, child);
@@ -97,18 +97,18 @@ QNode *transformqual(Node *node, LogicalOperator *child) {
         data_type a_type = TypePromotion::arith_type_promotion_map
             [lnode->actual_type][rnode->actual_type];
         QExpr_binary *likenode = new QExpr_binary(
-            lnode, rnode, a_type, oper_not_like, t_qexpr_cmp, calnode->str);
+            lnode, rnode, a_type, oper_not_like_old, t_qexpr_cmp, calnode->str);
         return likenode;
       } else if (strcmp(calnode->sign, "NOT") == 0 ||
                  strcmp(calnode->sign, "!") == 0) {
         QNode *nnode = transformqual(calnode->rnext, child);
-        QExpr_unary *unode = new QExpr_unary(nnode, t_boolean, oper_not,
+        QExpr_unary *unode = new QExpr_unary(nnode, t_boolean, oper_not_old,
                                              t_qexpr_unary, calnode->str);
         return unode;
       } else if (strcmp(calnode->sign, "--") == 0) {
         QNode *nnode = transformqual(calnode->rnext, child);
         QExpr_unary *unode =
-            new QExpr_unary(nnode, nnode->actual_type, oper_negative,
+            new QExpr_unary(nnode, nnode->actual_type, oper_negative_old,
                             t_qexpr_unary, calnode->str);
         return unode;
       } else if (strcmp(calnode->sign, "INVS") ==
@@ -131,7 +131,7 @@ QNode *transformqual(Node *node, LogicalOperator *child) {
           data_type a_type = TypePromotion::arith_type_promotion_map
               [lnode[i]->actual_type][rnode[0][i]->actual_type];
           QExpr_binary *qcalnode =
-              new QExpr_binary(lnode[i], rnode[0][i], a_type, oper_equal,
+              new QExpr_binary(lnode[i], rnode[0][i], a_type, oper_equal_old,
                                t_qexpr_cmp, "tempnode");
           cmpnode.push_back(qcalnode);
         }
@@ -172,7 +172,7 @@ QNode *transformqual(Node *node, LogicalOperator *child) {
           data_type a_type = TypePromotion::arith_type_promotion_map
               [lnode[i]->actual_type][rnode[0][i]->actual_type];
           QExpr_binary *qcalnode =
-              new QExpr_binary(lnode[i], rnode[0][i], a_type, oper_equal,
+              new QExpr_binary(lnode[i], rnode[0][i], a_type, oper_equal_old,
                                t_qexpr_cmp, "tempnode");
           cmpnode.push_back(qcalnode);
         }
@@ -187,39 +187,41 @@ QNode *transformqual(Node *node, LogicalOperator *child) {
           case 1:  //"<"
           {
             QExpr_binary *qcalnode = new QExpr_binary(
-                lnode, rnode, a_type, oper_less, t_qexpr_cmp, calnode->str);
+                lnode, rnode, a_type, oper_less_old, t_qexpr_cmp, calnode->str);
             return qcalnode;
           } break;
           case 2:  //">"
           {
-            QExpr_binary *qcalnode = new QExpr_binary(
-                lnode, rnode, a_type, oper_great, t_qexpr_cmp, calnode->str);
+            QExpr_binary *qcalnode =
+                new QExpr_binary(lnode, rnode, a_type, oper_great_old,
+                                 t_qexpr_cmp, calnode->str);
             return qcalnode;
           } break;
           case 3:  //"<>"
           {
             QExpr_binary *qcalnode =
-                new QExpr_binary(lnode, rnode, a_type, oper_not_equal,
+                new QExpr_binary(lnode, rnode, a_type, oper_not_equal_old,
                                  t_qexpr_cmp, calnode->str);
             return qcalnode;
           } break;
           case 4:  //"="
           {
-            QExpr_binary *qcalnode = new QExpr_binary(
-                lnode, rnode, a_type, oper_equal, t_qexpr_cmp, calnode->str);
+            QExpr_binary *qcalnode =
+                new QExpr_binary(lnode, rnode, a_type, oper_equal_old,
+                                 t_qexpr_cmp, calnode->str);
             return qcalnode;
           } break;
           case 5:  //"<="
           {
             QExpr_binary *qcalnode =
-                new QExpr_binary(lnode, rnode, a_type, oper_less_equal,
+                new QExpr_binary(lnode, rnode, a_type, oper_less_equal_old,
                                  t_qexpr_cmp, calnode->str);
             return qcalnode;
           } break;
           case 6:  //">="
           {
             QExpr_binary *qcalnode =
-                new QExpr_binary(lnode, rnode, a_type, oper_great_equal,
+                new QExpr_binary(lnode, rnode, a_type, oper_great_equal_old,
                                  t_qexpr_cmp, calnode->str);
             return qcalnode;
           } break;
@@ -272,7 +274,7 @@ QNode *transformqual(Node *node, LogicalOperator *child) {
                       "t_const_node");  // 128 is the size of the qnode->value
         data_type a_type = t_string;
         QExpr_ternary *substrnode =
-            new QExpr_ternary(node0, node1, node2, a_type, oper_substring,
+            new QExpr_ternary(node0, node1, node2, a_type, oper_substring_old,
                               t_qexpr_ternary, funcnode->str);
         return substrnode;
       } else if (strcmp(funcnode->funname, "FSUBSTRING1") == 0) {
@@ -281,7 +283,7 @@ QNode *transformqual(Node *node, LogicalOperator *child) {
         QNode *node2 = transformqual(funcnode->parameter2, child);
         data_type a_type = t_string;
         QExpr_ternary *substrnode =
-            new QExpr_ternary(node0, node1, node2, a_type, oper_substring,
+            new QExpr_ternary(node0, node1, node2, a_type, oper_substring_old,
                               t_qexpr_ternary, funcnode->str);
         return substrnode;
       } else if (strcmp(funcnode->funname, "FTRIM0") == 0)  // both
@@ -289,8 +291,9 @@ QNode *transformqual(Node *node, LogicalOperator *child) {
         QNode *lnode = transformqual(funcnode->parameter1, child);
         QNode *rnode = transformqual(funcnode->parameter2, child);
         data_type a_type = t_string;
-        QExpr_binary *trimnode = new QExpr_binary(
-            lnode, rnode, a_type, oper_both_trim, t_qexpr_cal, funcnode->str);
+        QExpr_binary *trimnode =
+            new QExpr_binary(lnode, rnode, a_type, oper_both_trim_old,
+                             t_qexpr_cal, funcnode->str);
         return trimnode;
       } else if (strcmp(funcnode->funname, "FTRIM1") == 0)  // leading
       {
@@ -298,7 +301,7 @@ QNode *transformqual(Node *node, LogicalOperator *child) {
         QNode *rnode = transformqual(funcnode->parameter2, child);
         data_type a_type = t_string;
         QExpr_binary *trimnode =
-            new QExpr_binary(lnode, rnode, a_type, oper_leading_trim,
+            new QExpr_binary(lnode, rnode, a_type, oper_leading_trim_old,
                              t_qexpr_cal, funcnode->str);
         return trimnode;
       } else if (strcmp(funcnode->funname, "FTRIM2") == 0)  // trailing
@@ -307,7 +310,7 @@ QNode *transformqual(Node *node, LogicalOperator *child) {
         QNode *rnode = transformqual(funcnode->parameter2, child);
         data_type a_type = t_string;
         QExpr_binary *trimnode =
-            new QExpr_binary(lnode, rnode, a_type, oper_trailing_trim,
+            new QExpr_binary(lnode, rnode, a_type, oper_trailing_trim_old,
                              t_qexpr_cal, funcnode->str);
         return trimnode;
       } else if (strcmp(funcnode->funname, "FTRIM3") == 0)  // both ' '
@@ -316,13 +319,14 @@ QNode *transformqual(Node *node, LogicalOperator *child) {
             " ", t_string, "t_const_node");  // construct the ' ' const node
         QNode *rnode = transformqual(funcnode->parameter1, child);
         data_type a_type = t_string;
-        QExpr_binary *trimnode = new QExpr_binary(
-            lnode, rnode, a_type, oper_both_trim, t_qexpr_cal, funcnode->str);
+        QExpr_binary *trimnode =
+            new QExpr_binary(lnode, rnode, a_type, oper_both_trim_old,
+                             t_qexpr_cal, funcnode->str);
         return trimnode;
       } else if (strcmp(funcnode->funname, "FUPPER") == 0) {
         QNode *nnext = transformqual(funcnode->parameter1, child);
         data_type a_type = t_string;
-        QExpr_unary *uppernode = new QExpr_unary(nnext, a_type, oper_upper,
+        QExpr_unary *uppernode = new QExpr_unary(nnext, a_type, oper_upper_old,
                                                  t_qexpr_unary, funcnode->str);
         return uppernode;
       } else if (strcmp(funcnode->funname, "FCAST") == 0) {
@@ -384,12 +388,14 @@ QNode *transformqual(Node *node, LogicalOperator *child) {
         QNode *param2 = transformqual(funcnode->parameter2, child);
         data_type a_type = TypePromotion::arith_type_promotion_map
             [arg->actual_type][param1->actual_type];
-        QNode *lnext = new QExpr_binary(arg, param1, a_type, oper_great_equal,
-                                        t_qexpr_cmp, "arg>=parma1");
-        QNode *rnext = new QExpr_binary(arg, param2, a_type, oper_less_equal,
-                                        t_qexpr_cmp, "arg<=parma2");
+        QNode *lnext =
+            new QExpr_binary(arg, param1, a_type, oper_great_equal_old,
+                             t_qexpr_cmp, "arg>=parma1");
+        QNode *rnext =
+            new QExpr_binary(arg, param2, a_type, oper_less_equal_old,
+                             t_qexpr_cmp, "arg<=parma2");
         QExpr_binary *banode = new QExpr_binary(
-            lnext, rnext, t_boolean, oper_and, t_qexpr_cal, funcnode->str);
+            lnext, rnext, t_boolean, oper_and_old, t_qexpr_cal, funcnode->str);
         return banode;
       }
       /*
@@ -407,28 +413,28 @@ QNode *transformqual(Node *node, LogicalOperator *child) {
         if (strcmp(datefunc->funname, "INTERVAL_DAY") == 0) {
           QNode *rnext = transformqual(datefunc->args, child);
           date_add = new QExpr_date_add_sub(
-              lnext, rnext, t_date, oper_date_add_day, t_qexpr_date_add_sub,
+              lnext, rnext, t_date, oper_date_add_day_old, t_qexpr_date_add_sub,
               t_date_day, funcnode->str);
         } else if (strcmp(datefunc->funname, "INTERVAL_WEEK") == 0) {
           QNode *rnext = transformqual(datefunc->args, child);
           date_add = new QExpr_date_add_sub(
-              lnext, rnext, t_date, oper_date_add_week, t_qexpr_date_add_sub,
-              t_date_week, funcnode->str);
+              lnext, rnext, t_date, oper_date_add_week_old,
+              t_qexpr_date_add_sub, t_date_week, funcnode->str);
         } else if (strcmp(datefunc->funname, "INTERVAL_MONTH") == 0) {
           QNode *rnext = transformqual(datefunc->args, child);
           date_add = new QExpr_date_add_sub(
-              lnext, rnext, t_date, oper_date_add_month, t_qexpr_date_add_sub,
-              t_date_month, funcnode->str);
+              lnext, rnext, t_date, oper_date_add_month_old,
+              t_qexpr_date_add_sub, t_date_month, funcnode->str);
         } else if (strcmp(datefunc->funname, "INTERVAL_YEAR") == 0) {
           QNode *rnext = transformqual(datefunc->args, child);
           date_add = new QExpr_date_add_sub(
-              lnext, rnext, t_date, oper_date_add_year, t_qexpr_date_add_sub,
-              t_date_year, funcnode->str);
+              lnext, rnext, t_date, oper_date_add_year_old,
+              t_qexpr_date_add_sub, t_date_year, funcnode->str);
         } else if (strcmp(datefunc->funname, "INTERVAL_QUARTER") == 0) {
           QNode *rnext = transformqual(datefunc->args, child);
           date_add = new QExpr_date_add_sub(
-              lnext, rnext, t_date, oper_date_add_month, t_qexpr_date_add_sub,
-              t_date_quarter, funcnode->str);
+              lnext, rnext, t_date, oper_date_add_month_old,
+              t_qexpr_date_add_sub, t_date_quarter, funcnode->str);
         }
         return date_add;
       } else if (strcmp(funcnode->funname, "FDATE_SUB") == 0) {
@@ -438,28 +444,28 @@ QNode *transformqual(Node *node, LogicalOperator *child) {
         if (strcmp(datefunc->funname, "INTERVAL_DAY") == 0) {
           QNode *rnext = transformqual(datefunc->args, child);
           date_sub = new QExpr_date_add_sub(
-              lnext, rnext, t_date, oper_date_sub_day, t_qexpr_date_add_sub,
+              lnext, rnext, t_date, oper_date_sub_day_old, t_qexpr_date_add_sub,
               t_date_day, funcnode->str);
         } else if (strcmp(datefunc->funname, "INTERVAL_WEEK") == 0) {
           QNode *rnext = transformqual(datefunc->args, child);
           date_sub = new QExpr_date_add_sub(
-              lnext, rnext, t_date, oper_date_sub_week, t_qexpr_date_add_sub,
-              t_date_week, funcnode->str);
+              lnext, rnext, t_date, oper_date_sub_week_old,
+              t_qexpr_date_add_sub, t_date_week, funcnode->str);
         } else if (strcmp(datefunc->funname, "INTERVAL_MONTH") == 0) {
           QNode *rnext = transformqual(datefunc->args, child);
           date_sub = new QExpr_date_add_sub(
-              lnext, rnext, t_date, oper_date_sub_month, t_qexpr_date_add_sub,
-              t_date_month, funcnode->str);
+              lnext, rnext, t_date, oper_date_sub_month_old,
+              t_qexpr_date_add_sub, t_date_month, funcnode->str);
         } else if (strcmp(datefunc->funname, "INTERVAL_YEAR") == 0) {
           QNode *rnext = transformqual(datefunc->args, child);
           date_sub = new QExpr_date_add_sub(
-              lnext, rnext, t_date, oper_date_sub_year, t_qexpr_date_add_sub,
-              t_date_year, funcnode->str);
+              lnext, rnext, t_date, oper_date_sub_year_old,
+              t_qexpr_date_add_sub, t_date_year, funcnode->str);
         } else if (strcmp(datefunc->funname, "INTERVAL_QUARTER") == 0) {
           QNode *rnext = transformqual(datefunc->args, child);
           date_sub = new QExpr_date_add_sub(
-              lnext, rnext, t_date, oper_date_sub_month, t_qexpr_date_add_sub,
-              t_date_quarter, funcnode->str);
+              lnext, rnext, t_date, oper_date_sub_month_old,
+              t_qexpr_date_add_sub, t_date_quarter, funcnode->str);
         }
         return date_sub;
       } else {

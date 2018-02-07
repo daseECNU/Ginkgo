@@ -202,6 +202,7 @@ const int rDataPathError = -101;
 const int rFileInUsing = -102;
 
 const int rResourceIsLocked = -103;
+const int rTruncateFileFail = -104;
 
 // schema associated
 const int rEmptyAttributeName = -501;

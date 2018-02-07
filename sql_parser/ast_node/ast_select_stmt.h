@@ -297,7 +297,7 @@ class AstLimitClause : public AstNode {
 
 class AstSelectIntoClause : public AstNode {
  public:
-  AstSelectIntoClause(AstNodeType ast_node_type , AstNode* table,
+  AstSelectIntoClause(AstNodeType ast_node_type, AstNode* table,
                       string partition_key, int partition_number);
   ~AstSelectIntoClause();
   void Print(int level = 0) const;
@@ -305,7 +305,6 @@ class AstSelectIntoClause : public AstNode {
   AstNode* table_;
   string partition_key_;
   int partition_number_;
-
 };
 /**
  * @brief The AST of AstColumn.
@@ -360,7 +359,7 @@ class AstDistinctClause : public AstNode {
     AGGREGATION_DISTINCT
   };
   AstDistinctClause(AstNodeType ast_node_type, AstNode* distinct_list,
-                   int select_opts);
+                    int select_opts);
   ~AstDistinctClause();
   void Print(int level = 0) const;
   RetCode SemanticAnalisys(SemanticContext* sem_cnxt);
@@ -370,7 +369,7 @@ class AstDistinctClause : public AstNode {
                          LogicalOperator* const right_lplan);
   RetCode SolveSelectAlias(SelectAliasSolver* const select_alias_solver);
   RetCode SetScanAttrList(SemanticContext* sem_cnxt);
-  int GetSelectOpt() {return select_opts_;}
+  int GetSelectOpt() { return select_opts_; }
   AstDistinctList* distinct_list_;
   SelectOpts select_opts_;
 };

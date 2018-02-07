@@ -35,7 +35,7 @@
 #include <set>
 #include <string>
 #include <map>
-
+#include <utility>
 #include "../catalog/attribute.h"
 #include "../catalog/column.h"
 #include "../catalog/partitioner.h"
@@ -53,6 +53,7 @@ namespace claims {
 namespace loader {
 class DataInjector;
 class TableFileConnector;
+class DataInjectorForParq;
 };
 
 namespace catalog {
@@ -60,6 +61,7 @@ using claims::loader::TableFileConnector;
 class TableDescriptor {
  public:
   friend class claims::loader::DataInjector;
+  friend class claims::loader::DataInjectorForParq;
   friend class claims::loader::TableFileConnector;
 
  public:
@@ -153,7 +155,38 @@ class TableDescriptor {
 
   TableFileConnector& get_connector() { return *write_connector_; }
 
+  RetCode CreateLogicalFilesLength(vector<uint64_t> part_files_length);
+
+  RetCode SetLogicalFilesLength(unsigned projection_offset,
+                                unsigned partition_offset,
+                                unsigned file_length);
+
   void InitTableData();
+  map<int, map<int, vector<uint32_t>>>& getMetalength() { return meta_len_; }
+  map<int, map<int, vector<uint64_t>>>& getMetaStartPos() {
+    return meta_start_pos_;
+  }
+  map<int, map<int, vector<uint64_t>>>& getFilelength() { return file_len_; }
+  int getFileNum() { return file_num_; }
+  map<int, int>& getPartProjMap() { return part_to_proj_; }
+  void setPartProjMap(map<int, int> part_to_proj) {
+    part_to_proj_ = part_to_proj;
+  }
+
+  bool wLock() {
+    if (wr_lock_.wrlock_acquire() == 0)
+      return true;
+    else
+      return false;
+  }
+  bool rLock() {
+    if (wr_lock_.rdlock_acquire() == 0)
+      return true;
+    else
+      return false;
+  }
+  void unwrLock() { wr_lock_.release(); }
+  RetCode TruncateFilesFromTable();
 
  private:
   RetCode InitFileConnector();
@@ -205,6 +238,9 @@ class TableDescriptor {
   //      }
   //    }
   //  }
+  vector<vector<uint64_t>> GetLogicalFilesLength() const {
+    return logical_files_length_;
+  }
 
  protected:
   string tableName;
@@ -213,19 +249,30 @@ class TableDescriptor {
   vector<ProjectionDescriptor*> projection_list_;
   uint64_t row_number_;
   bool has_deleted_tuples_ = false;
+  // <partition_key_index, <partition_num, meta_length_vector>>
+  map<int, map<int, vector<uint32_t>>> meta_len_;
+  map<int, map<int, vector<uint64_t>>> meta_start_pos_;
+  map<int, map<int, vector<uint64_t>>> file_len_;
+  int file_num_;
+  // <0,1> means if projection partition key index is 0, loader use projection 1
+  // as model
+  map<int, int> part_to_proj_;
+  vector<vector<uint64_t>> logical_files_length_;
 
   // Loading or inserting blocks updating table(create new projection and so
   // on), vice versa.
   SpineLock update_lock_;
   //  vector<vector<Lock>> partitions_write_lock_;
-
+  WRLock wr_lock_;
   TableFileConnector* write_connector_ = NULL;
 
   friend class boost::serialization::access;
   template <class Archive>
   void serialize(Archive& ar, const unsigned int version) {  // NOLINT
     ar& tableName& attributes& table_id_& projection_list_& row_number_&
-        has_deleted_tuples_;
+        has_deleted_tuples_& meta_start_pos_& meta_len_& file_len_&
+            part_to_proj_& file_num_& logical_files_length_&
+                has_deleted_tuples_;
     //    InitLocks();
     InitFileConnector();
   }

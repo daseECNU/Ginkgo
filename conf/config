@@ -41,13 +41,15 @@ enable_expander_adaptivity=1
 # 1: local
 local_disk_mode = 1
 
-client_listener_port = 10012
+client_listener_port = 10000
 
 enable_prune_column = 1
 
+enable_parquet = 1 
+
 enable_codegen = 0
 
-load_thread_num = 12
+load_thread_num = 4
 
 memory_utilization = 80
 
@@ -55,5 +57,10 @@ hash_join_bucket_num = 1048576
 
 hash_join_bucket_size = 1024
 
+zk_znode_name="/Catalog_test"
+
+zookeeper_host_list = "127.0.0.1:2181"
+
 #千兆网一般设为3000 万兆网设为20000
 expander_buffer_size =3000
+

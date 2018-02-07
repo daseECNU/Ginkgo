@@ -174,10 +174,9 @@ RetCode AstExprUnary::SemanticAnalisys(SemanticContext* sem_cnxt) {
   }
   if (NULL != arg0_) {
     // upper node have agg and this node is agg, then error
-    bool here_have_agg =
-        (expr_type_ == "SUM" || expr_type_ == "MAX" || expr_type_ == "MIN" ||
-         expr_type_ == "AVG" || expr_type_ == "COUNT"
-             || expr_type_ == "TO_CHAR");
+    bool here_have_agg = (expr_type_ == "SUM" || expr_type_ == "MAX" ||
+                          expr_type_ == "MIN" || expr_type_ == "AVG" ||
+                          expr_type_ == "COUNT" || expr_type_ == "TO_CHAR");
 
     if (sem_cnxt->have_agg && here_have_agg) {
       ELOG(rAggHaveAgg, "");
@@ -229,11 +228,11 @@ void AstExprUnary::ReplaceAggregation(AstNode*& agg_column,
   // like a leaf node
   if (expr_type_ == "COUNT_ALL" || expr_type_ == "SUM" || expr_type_ == "MAX" ||
       expr_type_ == "MIN" || expr_type_ == "AVG" || expr_type_ == "COUNT") {
-//    if (this->arg0_ != NULL &&
-//        this->arg0_->ast_node_type_ == AST_DISTINCT_CLAUSE) {
-//      // make this column different with no distinct column
-//      this->expr_str_ = this->expr_str_+"_DIS";
-//    }
+    //    if (this->arg0_ != NULL &&
+    //        this->arg0_->ast_node_type_ == AST_DISTINCT_CLAUSE) {
+    //      // make this column different with no distinct column
+    //      this->expr_str_ = this->expr_str_+"_DIS";
+    //    }
     if (need_collect) {
       agg_node.insert(this);
     }
@@ -306,9 +305,9 @@ RetCode AstExprUnary::GetLogicalPlan(ExprNode*& logic_expr,
   ExprNode* child_logic_expr = NULL;
   RetCode ret = rSuccess;
   // count(*) = count(1)
-  if (expr_type_ == "COUNT_ALL" || expr_type_ == "COUNT") {
-      child_logic_expr =
-          new ExprConst(ExprNodeType::t_qexpr, t_u_long, "COUNT(1)", "1");
+  if (expr_type_ == "COUNT_ALL") {
+    child_logic_expr =
+        new ExprConst(ExprNodeType::t_qexpr, t_u_long, "COUNT(1)", "1");
   } else {
     ret = arg0_->GetLogicalPlan(child_logic_expr, left_lplan, right_lplan);
   }
@@ -317,19 +316,54 @@ RetCode AstExprUnary::GetLogicalPlan(ExprNode*& logic_expr,
   }
   assert(NULL != child_logic_expr);
   if (oper_flag == 0) {
-    if (expr_type_== "TO_CHAR") {
+    if (expr_type_ == "TO_CHAR") {
       logic_expr = new ExprUnary(ExprNodeType::t_qexpr_unary,
-       child_logic_expr->actual_type_, child_logic_expr->actual_type_,
-       expr_str_, oper, child_logic_expr, expr_type_);
+                                 child_logic_expr->actual_type_,
+                                 child_logic_expr->actual_type_, expr_str_,
+                                 oper, child_logic_expr, expr_type_);
     } else {
-      logic_expr = new ExprUnary(ExprNodeType::t_qexpr_unary,
-                               child_logic_expr->actual_type_, expr_str_, oper,
-                               child_logic_expr);
+      if (oper == OperType::oper_agg_avg &&
+          (child_logic_expr->actual_type_ == t_smallInt ||
+           child_logic_expr->actual_type_ == t_u_smallInt ||
+           child_logic_expr->actual_type_ == t_int ||
+           child_logic_expr->actual_type_ == t_u_long)) {
+        logic_expr = new ExprUnary(ExprNodeType::t_qexpr_unary, t_double,
+                                   expr_str_, oper, child_logic_expr);
+      } else if (expr_type_ == "COUNT_ALL" || expr_type_ == "COUNT") {
+        logic_expr = new ExprUnary(ExprNodeType::t_qexpr_unary, t_u_long,
+                                   expr_str_, oper, child_logic_expr);
+      } else {
+        logic_expr = new ExprUnary(ExprNodeType::t_qexpr_unary,
+                                   child_logic_expr->actual_type_, expr_str_,
+                                   oper, child_logic_expr);
+      }
     }
   } else {
     logic_expr = new ExprUnary(ExprNodeType::t_qexpr_unary, t_boolean,
                                child_logic_expr->actual_type_, expr_str_, oper,
                                child_logic_expr);
+  }
+  switch (child_logic_expr->actual_type_) {
+    case t_string:
+    case t_boolean: {
+      if (oper == oper_agg_sum || oper == oper_max || oper == oper_min ||
+          oper == oper_agg_avg) {
+        LOG(ERROR) << expr_type_ << " operation is not supported on column  "
+                   << child_logic_expr->alias_ << "  !" << endl;
+        return rNotSupport;
+      }
+    } break;
+    case t_date:
+    case t_time:
+    case t_datetime: {
+      if (oper == oper_agg_sum || oper == oper_agg_avg) {
+        LOG(ERROR) << expr_type_ << " operation is not supported on column  "
+                   << child_logic_expr->alias_ << "   !" << endl;
+        return rNotSupport;
+      }
+    } break;
+    default:
+      break;
   }
 
   return rSuccess;

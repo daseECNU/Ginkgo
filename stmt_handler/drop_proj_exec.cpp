@@ -138,7 +138,6 @@ RetCode DropProjExec::Execute(ExecutedResult* exec_result) {
       return ret;
     }
   }
-  local_catalog->saveCatalog();
   exec_result->status_ = true;
   exec_result->result_ = NULL;
   return ret;
@@ -178,7 +177,7 @@ RetCode DropProjExec::DropAllProj(const string& table_name) {
 RetCode DropProjExec::DropAllProjFromCatalog(const string& table_name) {
   Catalog* local_catalog = Environment::getInstance()->getCatalog();
   TableDescriptor* table_desc = local_catalog->getTable(table_name);
-  if (local_catalog->DropAllProjection(table_name)) {
+  if (local_catalog->dropAllProjection(table_name)) {
     LOG(INFO) << "drop all projections "
               << "of [" + table_name + "] from catalog success! " << endl;
     return rSuccess;
@@ -226,7 +225,7 @@ RetCode DropProjExec::DropOneProjFromCatalog(const string& table_name,
   RetCode ret = rSuccess;
   Catalog* local_catalog = Environment::getInstance()->getCatalog();
   TableDescriptor* table_desc = local_catalog->getTable(table_name);
-  if (local_catalog->DropOneProjection(table_name, projection_id)) {
+  if (local_catalog->dropOneProjection(table_name, projection_id)) {
     LOG(INFO) << "drop projection[" << projection_id
               << "] of [" + table_name + "] from catalog success! " << endl;
     return rSuccess;
@@ -267,5 +266,16 @@ bool DropProjExec::FreeProjectionFromMemory(const string& table_name,
   return true;
 }
 
+RetCode DropProjExec::GetWriteAndReadTables(
+    vector<vector<pair<int, string>>>& stmt_to_table_list) {
+  RetCode ret = rSuccess;
+  vector<pair<int, string>> table_list;
+  pair<int, string> table_status;
+  table_status.first = 1;
+  table_status.second = drop_proj_ast_->table_name_;
+  table_list.push_back(table_status);
+  stmt_to_table_list.push_back(table_list);
+  return ret;
+}
 } /* namespace stmt_handler */
 } /* namespace claims */

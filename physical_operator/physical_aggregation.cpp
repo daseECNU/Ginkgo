@@ -46,6 +46,7 @@ using claims::common::DataTypeOperFunc;
 using claims::common::ExprEvalCnxt;
 using claims::common::ExprNode;
 using claims::common::ExprUnary;
+using claims::common::OperType;
 using std::vector;
 namespace claims {
 namespace physical_operator {
@@ -105,7 +106,8 @@ PhysicalAggregation::State::State(
     PhysicalOperatorBase *child, unsigned num_of_buckets, unsigned bucket_size,
     unsigned block_size, std::vector<unsigned> avg_index,
     AggNodeType agg_node_type, vector<ExprNode *> group_by_attrs,
-    vector<ExprUnary *> aggregation_attrs, int count_column_id)
+    vector<ExprUnary *> aggregation_attrs,
+    map<unsigned, unsigned> avg_id_to_count)
     : input_schema_(input),
       output_schema_(output),
       hash_schema_(hash_schema),
@@ -117,7 +119,7 @@ PhysicalAggregation::State::State(
       agg_node_type_(agg_node_type),
       group_by_attrs_(group_by_attrs),
       aggregation_attrs_(aggregation_attrs),
-      count_column_id_(count_column_id) {}
+      avg_id_to_count_(avg_id_to_count) {}
 
 /**
  * while one thread starts Open(), the thread will be registered to all
@@ -277,9 +279,45 @@ bool PhysicalAggregation::Open(SegmentExecStatus *const exec_status,
           // value_in_input_tuple by expression
           // update function
           for (int i = 0; i < agg_attrs.size(); ++i) {
-            agg_attrs[i]->ExprEvaluate(
-                eecnxt, state_.hash_schema_->getColumnAddess(
-                            i + group_by_size, tuple_in_hashtable));
+            void *value_in_private = state_.hash_schema_->getColumnAddess(
+                i + group_by_size, tuple_in_hashtable);
+            if (!agg_attrs[i]->arg0_->isNullValue(eecnxt)) {
+              if (agg_attrs[i]->oper_type_ == OperType::oper_agg_count) {
+                if (state_.agg_node_type_ ==
+                        PhysicalAggregation::State::kNotHybridAgg ||
+                    state_.agg_node_type_ ==
+                        PhysicalAggregation::State::kHybridAggLocal) {
+                  unsigned long const_value = 1;
+                  state_.hash_schema_->getcolumn(group_by_size + i)
+                      .operate->add(value_in_private, &const_value);
+                } else {
+                  void *value_in_cur =
+                      agg_attrs[i]->arg0_->ExprEvaluate(eecnxt);
+                  state_.hash_schema_->getcolumn(group_by_size + i)
+                      .operate->add(value_in_private, value_in_cur);
+                }
+              } else if (agg_attrs[i]->oper_type_ == OperType::oper_agg_sum) {
+                agg_attrs[i]->ExprEvaluate(eecnxt, value_in_private);
+              } else if (agg_attrs[i]->oper_type_ == OperType::oper_max ||
+                         agg_attrs[i]->oper_type_ == OperType::oper_min) {
+                bool input, hash;
+                void *value_in_cur = agg_attrs[i]->arg0_->ExprEvaluate(eecnxt);
+                input = state_.hash_schema_->getcolumn(group_by_size + i)
+                            .operate->isNull(value_in_cur);
+                hash = state_.hash_schema_->getcolumn(group_by_size + i)
+                           .operate->isNull(value_in_private);
+                if ((!input) && hash) {
+                  state_.hash_schema_->getcolumn(i + group_by_size)
+                      .operate->assignment(value_in_cur, value_in_private);
+                } else if ((!input) && (!hash)) {
+                  agg_attrs[i]->ExprEvaluate(value_in_cur, value_in_private);
+                }
+              }
+            } else {
+              // count(*)
+              if (agg_attrs[i]->arg0_->alias_ == "COUNT(1)")
+                agg_attrs[i]->ExprEvaluate(eecnxt, value_in_private);
+            }
           }
           bsti->increase_cur_();
           break;
@@ -290,7 +328,6 @@ bool PhysicalAggregation::Open(SegmentExecStatus *const exec_status,
       if (key_exist) {
         continue;
       }
-      eecnxt.tuple[0] = cur;
       new_tuple_in_hash_table = private_hashtable->allocate(bn);
       // set group-by's original value by expression
       for (int i = 0; i < group_by_attrs.size(); ++i) {
@@ -302,11 +339,58 @@ bool PhysicalAggregation::Open(SegmentExecStatus *const exec_status,
       }
       // get value_in_input_tuple from expression
       for (int i = 0; i < agg_attrs.size(); ++i) {
-        value_in_input_tuple = agg_attrs[i]->arg0_->ExprEvaluate(eecnxt);
         value_in_hash_table = state_.hash_schema_->getColumnAddess(
             group_by_size + i, new_tuple_in_hash_table);
-        state_.hash_schema_->getcolumn(group_by_size + i)
-            .operate->assignment(value_in_input_tuple, value_in_hash_table);
+        if (!agg_attrs[i]->arg0_->isNullValue(eecnxt)) {
+          if (agg_attrs[i]->oper_type_ == OperType::oper_agg_count) {
+            if (state_.agg_node_type_ ==
+                    PhysicalAggregation::State::kNotHybridAgg ||
+                state_.agg_node_type_ ==
+                    PhysicalAggregation::State::kHybridAggLocal) {
+              unsigned long const_value = 1;
+              state_.hash_schema_->getcolumn(i + group_by_size)
+                  .operate->assignment(&const_value, value_in_hash_table);
+            } else {
+              value_in_input_tuple = agg_attrs[i]->arg0_->ExprEvaluate(eecnxt);
+              state_.hash_schema_->getcolumn(i + group_by_size)
+                  .operate->assignment(value_in_input_tuple,
+                                       value_in_hash_table);
+            }
+          } else if (agg_attrs[i]->oper_type_ == OperType::oper_agg_sum) {
+            value_in_input_tuple = agg_attrs[i]->arg0_->ExprEvaluate(eecnxt);
+            state_.hash_schema_->getcolumn(group_by_size + i)
+                .operate->assignment(value_in_input_tuple, value_in_hash_table);
+          }
+        } else {
+          if (agg_attrs[i]->oper_type_ == OperType::oper_agg_count) {
+            unsigned long const_value = 0;
+            if (agg_attrs[i]->arg0_->alias_ == "COUNT(1)") const_value = 1;
+            state_.hash_schema_->getcolumn(i + group_by_size)
+                .operate->assignment(&const_value, value_in_hash_table);
+          } else if (agg_attrs[i]->oper_type_ == OperType::oper_agg_sum) {
+            if (agg_attrs[i]->arg0_->get_type_ == t_decimal) {
+              OperateDecimal *op =
+                  (OperateDecimal *)state_.hash_schema_->getcolumn(
+                                                             i + group_by_size)
+                      .operate;
+              int p = op->getPrecision();
+              int s = op->getScale();
+              Decimal tmp(p, s, "0");
+              state_.hash_schema_->getcolumn(i + group_by_size)
+                  .operate->assignment(&tmp, value_in_hash_table);
+            } else {
+              unsigned long const_value = 0;
+              state_.hash_schema_->getcolumn(i + group_by_size)
+                  .operate->assignment(&const_value, value_in_hash_table);
+            }
+          }
+        }
+        if (agg_attrs[i]->oper_type_ == OperType::oper_max ||
+            agg_attrs[i]->oper_type_ == OperType::oper_min) {
+          value_in_input_tuple = agg_attrs[i]->arg0_->ExprEvaluate(eecnxt);
+          state_.hash_schema_->getcolumn(group_by_size + i)
+              .operate->assignment(value_in_input_tuple, value_in_hash_table);
+        }
       }
       bsti->increase_cur_();
     }
@@ -327,6 +411,7 @@ bool PhysicalAggregation::Open(SegmentExecStatus *const exec_status,
        * Note that bn is always 0 for scalar aggregation.
        */
       bn = 0;
+      eecnxt.tuple[0] = cur;
       if (group_by_attrs.size() > 0) {
         bn = state_.hash_schema_->getcolumn(0).operate->getPartitionValue(
             state_.hash_schema_->getColumnAddess(0, cur),
@@ -334,7 +419,6 @@ bool PhysicalAggregation::Open(SegmentExecStatus *const exec_status,
       }
       // add a lock to guarantee operating the hash_table atomically
       hashtable_->lockBlock(bn);
-
       hashtable_->placeIterator(ht_it, bn);
       key_exist = false;
       while (NULL != (tuple_in_hashtable = ht_it.readCurrent())) {
@@ -357,12 +441,32 @@ bool PhysicalAggregation::Open(SegmentExecStatus *const exec_status,
           // hash table have the key (the value in group-by attribute)
           // global_aggregation update
           for (int i = 0; i < agg_attrs.size(); ++i) {
-            agg_attrs[i]->ExprEvaluate(
-                state_.hash_schema_->getColumnAddess(i + group_by_size, cur),
-                state_.hash_schema_->getColumnAddess(i + group_by_size,
-                                                     tuple_in_hashtable));
+            // if the value in tuple is null, do nothing in max min sum count
+            // operation
+            void *value_in_global = state_.hash_schema_->getColumnAddess(
+                i + group_by_size, tuple_in_hashtable);
+            void *value_in_private =
+                state_.hash_schema_->getColumnAddess(i + group_by_size, cur);
+            if (agg_attrs[i]->oper_type_ == OperType::oper_agg_count) {
+              state_.hash_schema_->getcolumn(i + group_by_size)
+                  .operate->add(value_in_global, value_in_private);
+            } else if (agg_attrs[i]->oper_type_ == OperType::oper_agg_sum) {
+              agg_attrs[i]->ExprEvaluate(value_in_private, value_in_global);
+            } else if (agg_attrs[i]->oper_type_ == OperType::oper_max ||
+                       agg_attrs[i]->oper_type_ == OperType::oper_min) {
+              bool input, hash;
+              input = state_.hash_schema_->getcolumn(group_by_size + i)
+                          .operate->isNull(value_in_private);
+              hash = state_.hash_schema_->getcolumn(group_by_size + i)
+                         .operate->isNull(value_in_global);
+              if ((!input) && (!hash)) {
+                agg_attrs[i]->ExprEvaluate(value_in_private, value_in_global);
+              } else if ((!input) && hash) {
+                state_.hash_schema_->getcolumn(group_by_size + i)
+                    .operate->assignment(value_in_private, value_in_global);
+              }
+            }
           }
-
           pht_it.increase_cur_();
           hashtable_->unlockBlock(bn);
           break;
@@ -384,12 +488,19 @@ bool PhysicalAggregation::Open(SegmentExecStatus *const exec_status,
             .operate->assignment(key_in_input_tuple, key_in_hash_table);
       }
       for (int i = 0; i < agg_attrs.size(); ++i) {
-        value_in_input_tuple =
-            state_.hash_schema_->getColumnAddess(i + group_by_size, cur);
         value_in_hash_table = state_.hash_schema_->getColumnAddess(
-            i + group_by_size, new_tuple_in_hash_table);
-        state_.hash_schema_->getcolumn(i + group_by_size)
-            .operate->assignment(value_in_input_tuple, value_in_hash_table);
+            group_by_size + i, new_tuple_in_hash_table);
+        if (agg_attrs[i]->oper_type_ == OperType::oper_agg_count ||
+            agg_attrs[i]->oper_type_ == OperType::oper_agg_sum) {
+          state_.hash_schema_->getcolumn(i + group_by_size).operate->assignment(
+              state_.hash_schema_->getColumnAddess(group_by_size + i, cur),
+              value_in_hash_table);
+        } else if (agg_attrs[i]->oper_type_ == OperType::oper_max ||
+                   agg_attrs[i]->oper_type_ == OperType::oper_min) {
+          state_.hash_schema_->getcolumn(group_by_size + i).operate->assignment(
+              state_.hash_schema_->getColumnAddess(group_by_size + i, cur),
+              value_in_hash_table);
+        }
       }
       hashtable_->unlockBlock(bn);
       pht_it.increase_cur_();
@@ -471,13 +582,14 @@ bool PhysicalAggregation::Next(SegmentExecStatus *const exec_status,
              state_.agg_node_type_ == State::kNotHybridAgg)) {
           int id = 0;
           void *sum_value;
-          int64_t count_value =
-              *(int64_t *)(state_.hash_schema_->getColumnAddess(
-                  state_.count_column_id_ + state_.group_by_attrs_.size(),
-                  tuple));
+          int64_t count_value;
           for (int i = 0; i < state_.avg_index_.size(); ++i) {
             id = state_.group_by_attrs_.size() + state_.avg_index_[i];
             sum_value = state_.hash_schema_->getColumnAddess(id, tuple);
+            count_value = *(int64_t *)(state_.hash_schema_->getColumnAddess(
+                state_.avg_id_to_count_[state_.avg_index_[i]] +
+                    state_.group_by_attrs_.size(),
+                tuple));
             DataTypeOper::avg_divide_[state_.hash_schema_->columns[id].type](
                 sum_value, count_value, sum_value);
           }

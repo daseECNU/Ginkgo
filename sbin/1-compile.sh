@@ -12,4 +12,4 @@ cd install
 ../configure 
 
 gcc --version
-make -j all
+make -j 6

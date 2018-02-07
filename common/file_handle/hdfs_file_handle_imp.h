@@ -92,6 +92,8 @@ class HdfsFileHandleImp : public FileHandleImp {
 
   virtual RetCode SwitchStatus(FileStatus status_to_be);
 
+  RetCode Truncate(const size_t newlength);
+
  protected:
   virtual RetCode SetPosition(size_t pos);
 
