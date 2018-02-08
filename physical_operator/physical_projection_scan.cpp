@@ -293,6 +293,7 @@ bool PhysicalProjectionScan::Close(SegmentExecStatus* const exec_status) {
     TableParquetReader::getInstance()->column_readers_[file_name_].clear();
     TableParquetReader::getInstance()->has_data_[file_name_] = false;
     TableParquetReader::getInstance()->metadata_.erase(file_name_);
+    TableParquetReader::getInstance()->pools_[file_name_]->purge_memory();
   }
   DestoryAllContext();
 

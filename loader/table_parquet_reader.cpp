@@ -111,7 +111,6 @@ int TableParquetReader::LoadFromParq(const ChunkID& chunk_id, void* const& desc,
             string final = sstr->str();
             final.copy((char*)desc, totoal_read, 0);
             delete sstr;
-            pools_[meta_info.file_name_]->purge_memory();
             return totoal_read;
           }
         }
@@ -128,7 +127,6 @@ int TableParquetReader::LoadFromParq(const ChunkID& chunk_id, void* const& desc,
   string final = sstr->str();
   delete sstr;
   final.copy((char*)desc, totoal_read, 0);
-  pools_[meta_info.file_name_]->purge_memory();
   return totoal_read;
 }
 void TableParquetReader::loadDataPage(string name, const PageHeader& header,

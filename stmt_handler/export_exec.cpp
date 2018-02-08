@@ -139,8 +139,8 @@ RetCode ExportExec::Execute(ExecutedResult *exec_result) {
     int partition_number = table_->getProjectoin(model_proj_idx)
                                ->getPartitioner()
                                ->getNumberOfPartitions();
-    TableParquetReader *tbl_parq_reader = TableParquetReader::getInstance();
     std::vector<column_type> &columns = pj->getSchema()->columns;
+    TableParquetReader *tbl_parq_reader = TableParquetReader::getInstance();
     vector<ParquetColumnReader *> readers;
     readers.resize(columns.size());
     for (int i = 0; i < columns.size(); ++i) {
@@ -249,6 +249,7 @@ RetCode ExportExec::Execute(ExecutedResult *exec_result) {
       TableParquetReader::getInstance()->column_readers_[it].clear();
       TableParquetReader::getInstance()->has_data_[it] = false;
       TableParquetReader::getInstance()->metadata_.erase(it);
+      TableParquetReader::getInstance()->pools_[it]->purge_memory();
     }
     for (auto it : readers) delete it;
   }
