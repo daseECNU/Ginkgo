@@ -53,7 +53,7 @@ class ExportExec : public StmtExec {
   RetCode ExportExec::ExportIntoFile(int attr_size , std::vector<ChunkID*> chunk_id,
 		  string path);
   void ExportExec::flush(string *result ,unsigned int *file_size ,int*file_num,int * write_buffer_size, string path);
-  virtual RetCode GetWriteAndReadTables(
+  virtual RetCode GetWriteAndReadTables(ExecutedResult& result,
       vector<vector<pair<int, string>>>& stmt_to_table_list) ;
  private:
   /**

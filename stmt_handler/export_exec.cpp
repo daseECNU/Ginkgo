@@ -376,7 +376,7 @@ void ExportExec::AnnounceIAmExporting() {
   static int count = 0;
   cout << load_output_info[count = (++count % 7)] << std::flush;
 }
-RetCode ExportExec::GetWriteAndReadTables(
+RetCode ExportExec::GetWriteAndReadTables(ExecutedResult& result,
     vector<vector<pair<int, string>>> &stmt_to_table_list) {
   RetCode ret = rSuccess;
   vector<pair<int, string>> table_list;

@@ -266,7 +266,7 @@ RetCode StmtHandler::GetTablesInfomation(
     }
     case AST_EXPORT_TABLE: {
       stmt_exec_ = new ExportExec(stmt_ast);
-      stmt_exec_->GetWriteAndReadTables(stmt_to_table_list);
+      stmt_exec_->GetWriteAndReadTables(result,stmt_to_table_list);
       break;
     }
     default: {
