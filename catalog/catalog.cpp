@@ -488,6 +488,7 @@ RetCode Catalog::truncateDirtyData() {
     string tbname = it_tableid_to_table->second->getTableName();
     ret = getTable(tbname)->TruncateFilesFromTable();
     if (rSuccess != ret) {
+      cout << "failed to truncate dirty data!" << endl;
       return ret;
     }
   }
@@ -495,5 +496,24 @@ RetCode Catalog::truncateDirtyData() {
   return ret;
 }
 
+RetCode Catalog::getStringstream(string& str) {
+  std::ostringstream oss;
+  boost::archive::text_oarchive oa(oss);
+  oa << *this;
+  if (0 == oss.str().length()) {
+    cout << "failed to backup catalog" << endl;
+    return rFailure;
+  } else {
+    str = oss.str();
+    return rSuccess;
+  }
+}
+
+RetCode Catalog::restoreCatalogFromBackup(const string backup) {
+  std::istringstream iss(backup);
+  boost::archive::text_iarchive ia(iss);
+  ia >> *this;
+  return rSuccess;
+}
 } /* namespace catalog */
 } /* namespace claims */

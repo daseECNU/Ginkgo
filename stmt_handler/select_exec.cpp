@@ -377,39 +377,45 @@ RetCode SelectExec::IsUpperExchangeRegistered(
   }
   return ret;
 }
+
 RetCode SelectExec::GetWriteAndReadTables(
+    ExecutedResult& result,
     vector<vector<pair<int, string>>>& stmt_to_table_list) {
   RetCode ret = rSuccess;
   vector<pair<int, string>> table_list;
   pair<int, string> table_status;
-  AstFromList* from_list =
-      reinterpret_cast<AstFromList*>(select_ast_->from_list_);
-  AstTable* table = reinterpret_cast<AstTable*>(from_list->args_);
-  table_status.first = 0;
-  cout << "table->table_name_:" << table->table_name_ << endl;
-  table_status.second = table->table_name_;
-  cout << "table_status.second:" << table_status.second << endl;
-  table_list.push_back(table_status);
-  while (from_list->next_ != NULL) {
-    from_list = reinterpret_cast<AstFromList*>(from_list->next_);
+  SemanticContext sem_cnxt;
+  ret = select_ast_->SemanticAnalisys(&sem_cnxt);
+  if (rSuccess != ret) {
+    result.SetError("Semantic analysis error.\n" + sem_cnxt.error_msg_);
+    LOG(ERROR) << "semantic analysis error result= : " << ret;
+    return ret;
+  } else {
+    AstFromList* from_list =
+        reinterpret_cast<AstFromList*>(select_ast_->from_list_);
     AstTable* table = reinterpret_cast<AstTable*>(from_list->args_);
     table_status.first = 0;
-    cout << "table->table_name_:" << table->table_name_ << endl;
-    table_status.second = table->table_name_;
-    cout << "table_status.second:" << table_status.second << endl;
-    table_list.push_back(table_status);
-  }
-  if (select_ast_->select_into_clause_ != NULL) {
-    AstSelectIntoClause* select_into_clause =
-        reinterpret_cast<AstSelectIntoClause*>(
-            select_ast_->select_into_clause_);
-    AstTable* table = reinterpret_cast<AstTable*>(select_into_clause->table_);
-    table_status.first = 1;
     table_status.second = table->table_name_;
     table_list.push_back(table_status);
+    while (from_list->next_ != NULL) {
+      from_list = reinterpret_cast<AstFromList*>(from_list->next_);
+      AstTable* table = reinterpret_cast<AstTable*>(from_list->args_);
+      table_status.first = 0;
+      table_status.second = table->table_name_;
+      table_list.push_back(table_status);
+    }
+    if (select_ast_->select_into_clause_ != NULL) {
+      AstSelectIntoClause* select_into_clause =
+          reinterpret_cast<AstSelectIntoClause*>(
+              select_ast_->select_into_clause_);
+      AstTable* table = reinterpret_cast<AstTable*>(select_into_clause->table_);
+      table_status.first = 1;
+      table_status.second = table->table_name_;
+      table_list.push_back(table_status);
+    }
+    stmt_to_table_list.push_back(table_list);
+    return ret;
   }
-  stmt_to_table_list.push_back(table_list);
-  return ret;
 }
 
 int isUnsigned(data_type type) {

@@ -197,15 +197,26 @@ RetCode CreateProjectionExec::AddPartitionAttributeToDel(
 }
 
 RetCode CreateProjectionExec::GetWriteAndReadTables(
+    ExecutedResult& result,
     vector<vector<pair<int, string>>>& stmt_to_table_list) {
   RetCode ret = rSuccess;
+  SemanticContext sem_cnxt;
   vector<pair<int, string>> table_list;
   pair<int, string> table_status;
-  table_status.first = 1;
-  table_status.second = create_projection_ast_->table_name_;
-  table_list.push_back(table_status);
-  stmt_to_table_list.push_back(table_list);
-  return ret;
+  ret = create_projection_ast_->SemanticAnalisys(&sem_cnxt);
+  if (rSuccess != ret) {
+    result.error_info_ = "Semantic analysis error.\n" + sem_cnxt.error_msg_;
+    result.status_ = false;
+    LOG(ERROR) << "semantic analysis error result= : " << ret;
+    cout << "semantic analysis error result= : " << ret << endl;
+    return ret;
+  } else {
+    table_status.first = 1;
+    table_status.second = create_projection_ast_->table_name_;
+    table_list.push_back(table_status);
+    stmt_to_table_list.push_back(table_list);
+    return ret;
+  }
 }
 } /* namespace stmt_handler */
 } /* namespace claims */

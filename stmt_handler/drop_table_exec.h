@@ -100,6 +100,7 @@ class DropTableExec : public StmtExec {
   static bool FreeTableFromMemory(const string& table_name);
 
   RetCode GetWriteAndReadTables(
+      ExecutedResult& result,
       vector<vector<pair<int, string>>>& stmt_to_table_list);
 
  private:

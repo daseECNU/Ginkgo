@@ -200,6 +200,10 @@ class WRLock {
 
   int rdlock_acquire() { return pthread_rwlock_rdlock(&rwlock); }
 
+  int trywrlock_acquire() { return pthread_rwlock_trywrlock(&rwlock); }
+
+  int tryrdlock_acquire() { return pthread_rwlock_tryrdlock(&rwlock); }
+
   void release() { pthread_rwlock_unlock(&rwlock); }
 
   void destroy() { pthread_rwlock_destroy(&rwlock); }

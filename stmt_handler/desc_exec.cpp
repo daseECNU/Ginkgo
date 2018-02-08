@@ -53,17 +53,7 @@ DescExec::DescExec(AstNode* stmt) : StmtExec(stmt) {
 DescExec::~DescExec() {}
 
 RetCode DescExec::Execute(ExecutedResult* exec_result) {
-  SemanticContext sem_cnxt;
-  RetCode ret = desc_stmt_ast_->SemanticAnalisys(&sem_cnxt);
-  if (rSuccess != ret) {
-    exec_result->error_info_ =
-        "Semantic analysis error.\n" + sem_cnxt.error_msg_;
-    exec_result->status_ = false;
-    LOG(ERROR) << "semantic analysis error result= : " << ret;
-    cout << "semantic analysis error result= : " << ret << endl;
-    return ret;
-  }
-
+  RetCode ret = rSuccess;
   ostringstream ostr;
   Catalog* local_catalog = Environment::getInstance()->getCatalog();
   TableDescriptor* table = local_catalog->getTable(desc_stmt_ast_->table_name_);
@@ -350,17 +340,30 @@ RetCode DescExec::Execute(ExecutedResult* exec_result) {
   exec_result->info_ = ostr.str();
   exec_result->status_ = true;
   exec_result->result_ = NULL;
+
+  return ret;
 }
 RetCode DescExec::GetWriteAndReadTables(
+    ExecutedResult& result,
     vector<vector<pair<int, string>>>& stmt_to_table_list) {
   RetCode ret = rSuccess;
   vector<pair<int, string>> table_list;
   pair<int, string> table_status;
-  table_status.first = 3;
-  table_status.second = "";
-  table_list.push_back(table_status);
-  stmt_to_table_list.push_back(table_list);
-  return ret;
+  SemanticContext sem_cnxt;
+  ret = desc_stmt_ast_->SemanticAnalisys(&sem_cnxt);
+  if (rSuccess != ret) {
+    result.error_info_ = "Semantic analysis error.\n" + sem_cnxt.error_msg_;
+    result.status_ = false;
+    LOG(ERROR) << "semantic analysis error result= : " << ret;
+    cout << "semantic analysis error result= : " << ret << endl;
+    return ret;
+  } else {
+    table_status.first = 0;
+    table_status.second = desc_stmt_ast_->table_name_;
+    table_list.push_back(table_status);
+    stmt_to_table_list.push_back(table_list);
+    return ret;
+  }
 }
 } /* namespace stmt_handler */
 } /* namespace claims */

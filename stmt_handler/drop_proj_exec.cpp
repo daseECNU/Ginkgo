@@ -58,16 +58,6 @@ DropProjExec::~DropProjExec() {}
 RetCode DropProjExec::Execute(ExecutedResult* exec_result) {
   RetCode ret = rSuccess;
 
-  SemanticContext sem_cnxt;
-  ret = drop_proj_ast_->SemanticAnalisys(&sem_cnxt);
-  if (rSuccess != ret) {
-    exec_result->error_info_ =
-        "Semantic analysis error.\n" + sem_cnxt.error_msg_;
-    exec_result->status_ = false;
-    LOG(WARNING) << "semantic analysis error result= : " << ret;
-    return ret;
-  }
-
   string table_name = drop_proj_ast_->table_name_;
   Catalog* local_catalog = Environment::getInstance()->getCatalog();
   TableDescriptor* table_desc = local_catalog->getTable(table_name);
@@ -267,15 +257,25 @@ bool DropProjExec::FreeProjectionFromMemory(const string& table_name,
 }
 
 RetCode DropProjExec::GetWriteAndReadTables(
+    ExecutedResult& result,
     vector<vector<pair<int, string>>>& stmt_to_table_list) {
   RetCode ret = rSuccess;
   vector<pair<int, string>> table_list;
   pair<int, string> table_status;
-  table_status.first = 1;
-  table_status.second = drop_proj_ast_->table_name_;
-  table_list.push_back(table_status);
-  stmt_to_table_list.push_back(table_list);
-  return ret;
+  SemanticContext sem_cnxt;
+  ret = drop_proj_ast_->SemanticAnalisys(&sem_cnxt);
+  if (rSuccess != ret) {
+    result.error_info_ = "Semantic analysis error.\n" + sem_cnxt.error_msg_;
+    result.status_ = false;
+    LOG(WARNING) << "semantic analysis error result= : " << ret;
+    return ret;
+  } else {
+    table_status.first = 1;
+    table_status.second = drop_proj_ast_->table_name_;
+    table_list.push_back(table_status);
+    stmt_to_table_list.push_back(table_list);
+    return ret;
+  }
 }
 } /* namespace stmt_handler */
 } /* namespace claims */

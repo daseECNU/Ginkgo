@@ -47,6 +47,7 @@ class ShowExec : public StmtExec {
   virtual ~ShowExec();
 
   RetCode GetWriteAndReadTables(
+      ExecutedResult &result,
       vector<vector<pair<int, string>>> &stmt_to_table_list);
 
   /**

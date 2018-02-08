@@ -187,12 +187,6 @@ RetCode InsertExec::Execute(ExecutedResult *exec_result) {
   string table_name(insert_ast_->table_name_);
   TableDescriptor *table =
       Environment::getInstance()->getCatalog()->getTable(table_name);
-  if (table == NULL) {
-    ret = rTableNotExisted;
-    exec_result->SetError("The table " + table_name + " does not exist!");
-    ELOG(ret, "table name: " << table_name);
-    return ret;
-  }
 
   unsigned col_count = 0;
   AstColumn *col = dynamic_cast<AstColumn *>(insert_ast_->col_list_);
@@ -470,10 +464,20 @@ RetCode InsertExec::Execute(ExecutedResult *exec_result) {
 }
 
 RetCode InsertExec::GetWriteAndReadTables(
+    ExecutedResult &result,
     vector<vector<pair<int, string>>> &stmt_to_table_list) {
   RetCode ret = rSuccess;
   vector<pair<int, string>> table_list;
   pair<int, string> table_status;
+  TableDescriptor *table = Environment::getInstance()->getCatalog()->getTable(
+      insert_ast_->table_name_);
+  if (table == NULL) {
+    ret = rTableNotExisted;
+    result.SetError("The table " + insert_ast_->table_name_ +
+                    " does not exist!");
+    ELOG(ret, "table name: " << insert_ast_->table_name_);
+    return ret;
+  }
   table_status.first = 1;
   table_status.second = insert_ast_->table_name_;
   table_list.push_back(table_status);

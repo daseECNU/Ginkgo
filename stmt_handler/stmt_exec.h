@@ -59,6 +59,7 @@ class StmtExec {
   virtual ~StmtExec();
   virtual int Execute(ExecutedResult* exec_result);
   virtual RetCode GetWriteAndReadTables(
+      ExecutedResult& result,
       vector<vector<pair<int, string>>>& stmt_to_table_list) = 0;
   StmtExecStatus* get_stmt_exec_status() { return stmt_exec_status_; }
   void set_stmt_exec_status(StmtExecStatus* stmt_exec_status) {

@@ -121,6 +121,10 @@ class Catalog {
    */
   RetCode truncateDirtyData();
 
+  RetCode getStringstream(string& str);
+  RetCode restoreCatalogFromBackup(const string backup);
+  //  RetCode update_UnorderedMap(TableDescriptor* table);
+
  private:
   Catalog();  // avoiding generate more instance
   bool IsDataFileExist();

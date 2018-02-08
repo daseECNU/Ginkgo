@@ -30,6 +30,7 @@
 #include "../stmt_handler/trans_handler.h"
 #include "../catalog/catalog.h"
 #include "../catalog/table.h"
+#include "../Environment.h"
 
 using claims::stmt_handler::StmtHandler;
 using claims::common::rFailure;
@@ -38,7 +39,7 @@ using boost::algorithm::trim;
 namespace claims {
 namespace trans_handler {
 TransHandler::TransHandler(string sql_stmt, int socket_fd)
-    : sql_stmt_(sql_stmt), socket_fd_(socket_fd), tables_backup_(NULL) {
+    : sql_stmt_(sql_stmt), socket_fd_(socket_fd), catalog_backup_("") {
   stmt_handler_ = new StmtHandler(sql_stmt_);
 }
 TransHandler::~TransHandler() {
@@ -59,20 +60,21 @@ RetCode TransHandler::Execute() {
     auto end = stmt_to_table_list_[i].end();
     while (beg != end) {
       TableDescriptor* table = Catalog::getInstance()->getTable((*beg).second);
-      if (table != NULL) {
-        if ((*beg).first == 0) {
-          if (table->rLock()) rlock_tables_.push_back((*beg).second);
-        } else if ((*beg).first == 1) {
-          if (table->wLock()) {
-            if (first_write) {
-              Snapshot();
-              first_write = false;
-            }
-            wlock_tables_.push_back((*beg).second);
-          }
-        } else if ((*beg).first == 2) {
-          table->wLock();
+      if ((*beg).first == 0) {
+        if (table->rLock()) {
+          rlock_tables_.push_back((*beg).second);
         }
+      } else if ((*beg).first == 1) {
+        if (table->wLock()) {
+          wlock_tables_.push_back((*beg).second);
+          if (first_write) {
+            // Snapshot
+            ret == Catalog::getInstance()->getStringstream(catalog_backup_);
+            first_write = false;
+          }
+        }
+      } else if ((*beg).first == 2) {
+        table->wLock();
       }
       ++beg;
     }
@@ -88,16 +90,18 @@ RetCode TransHandler::Execute() {
   }
   switch (trans_block_status_) {
     case Commit: {
-      CommitTransactionBlock();
+      ret = Catalog::getInstance()->saveCatalog();
       UnlockAllWriteTables();
       cout << "Transaction Commit" << endl;
       break;
     }
     case Abort: {
-      AbortTransactionBlock();
-      UnlockAllWriteTables();
+      ret = Catalog::getInstance()->restoreCatalogFromBackup(catalog_backup_);
+      if (ret == rSuccess) ret = Catalog::getInstance()->truncateDirtyData();
+      result.error_info_ = "Execution Error. Rollback";
+      result.status_ = false;
+      Daemon::getInstance()->addExecutedResult(result);
       cout << "Transaction Abort" << endl;
-
       break;
     }
   }
@@ -139,43 +143,10 @@ RetCode TransHandler::StartTransactionCommand(ExecutedResult result) {
   if (trans_block_status_ == Begin) {
     EXEC_AND_RETURN_ERROR(ret, stmt_handler_->Execute(result),
                           "failed to execute");
+    return ret;
   } else {
-    LOG(ERROR) << "In StartTransactionCommand, the status of transaction error"
-               << endl;
     return rFailure;
   }
-  return ret;
-}
-
-RetCode TransHandler::AbortTransactionBlock() {
-  if (tables_backup_.size() != 0) {
-    auto beg = tables_backup_.begin();
-    while (beg != tables_backup_.end()) {
-      TableDescriptor* table =
-          Catalog::getInstance()->getTable((*beg).getTableName());
-      table = &(*beg);
-      table->TruncateFilesFromTable();
-      ++beg;
-    }
-  }
-  return rSuccess;
-}
-
-RetCode TransHandler::CommitTransactionBlock() {
-  Catalog::getInstance()->saveCatalog();
-  return rSuccess;
-}
-
-RetCode TransHandler::Snapshot() {
-  if (wlock_tables_.size() != 0) {
-    auto beg = wlock_tables_.begin();
-    while (beg != wlock_tables_.end()) {
-      TableDescriptor table = *(Catalog::getInstance()->getTable(*beg));
-      tables_backup_.push_back(table);
-      ++beg;
-    }
-  }
-  return rSuccess;
 }
 
 }  // namespace trans_handler

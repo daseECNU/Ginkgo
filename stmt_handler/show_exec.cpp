@@ -75,6 +75,7 @@ RetCode ShowExec::Execute(ExecutedResult* exec_result) {
 }
 
 RetCode ShowExec::GetWriteAndReadTables(
+    ExecutedResult& result,
     vector<vector<pair<int, string>>>& stmt_to_table_list) {
   RetCode ret = rSuccess;
   vector<pair<int, string>> table_list;

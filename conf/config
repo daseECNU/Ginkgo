@@ -19,7 +19,7 @@ coordinator:
 master = 1
 
 #hadoop上的数据目录
-data = "/home/claims/data/"
+data = "/home/he/imdb/data/1partition/"
 
 #hdfs主节点
 hdfs_master_ip = "172.16.1.102"
@@ -28,10 +28,10 @@ hdfs_master_ip = "172.16.1.102"
 hdfs_master_port = 9000
 
 #最大单机算子并行度
-max_degree_of_parallelism=1
+max_degree_of_parallelism=4
 
 #初始单机算子并行度
-initial_degree_of_parallelism=4
+initial_degree_of_parallelism=1
 
 expander_adaptivity_check_frequency=1000
 

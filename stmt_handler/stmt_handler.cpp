@@ -174,7 +174,7 @@ RetCode StmtHandler::StmtContentAnalysis(
   RetCode ret = rSuccess;
   stmt_list_ = reinterpret_cast<AstStmtList*>(sql_parser_->GetRawAST());
   if (stmt_list_->stmt_ != NULL) {
-    ret = GetTablesInfomation(stmt_list_->stmt_, stmt_to_table_list);
+    ret = GetTablesInfomation(stmt_list_->stmt_, result, stmt_to_table_list);
     if (rSuccess != ret) {
       cout << "GetTablesInfomation Wrong" << endl;
       Daemon::getInstance()->addExecutedResult(result);
@@ -183,9 +183,9 @@ RetCode StmtHandler::StmtContentAnalysis(
   }
   while (stmt_list_->next_ != NULL) {
     stmt_list_ = reinterpret_cast<AstStmtList*>(stmt_list_->next_);
-    ret = GetTablesInfomation(stmt_list_->stmt_, stmt_to_table_list);
+    ret = GetTablesInfomation(stmt_list_->stmt_, result, stmt_to_table_list);
     if (rSuccess != ret) {
-      cout << "GetTablesInfomation Wrong" << endl;
+      cout << "GetTablesInformation Wrong" << endl;
       Daemon::getInstance()->addExecutedResult(result);
       return ret;
     }
@@ -195,72 +195,73 @@ RetCode StmtHandler::StmtContentAnalysis(
 }
 
 RetCode StmtHandler::GetTablesInfomation(
-    AstNode* stmt_ast, vector<vector<pair<int, string>>>& stmt_to_table_list) {
+    AstNode* stmt_ast, ExecutedResult& result,
+    vector<vector<pair<int, string>>>& stmt_to_table_list) {
   RetCode ret = rSuccess;
   pair<int, string> table_status;
   vector<pair<int, string>> table_list;
   switch (stmt_ast->ast_node_type_) {
     case AST_SELECT_STMT: {
       stmt_exec_ = new SelectExec(stmt_ast, sql_stmt_);
-      stmt_exec_->GetWriteAndReadTables(stmt_to_table_list);
+      ret = stmt_exec_->GetWriteAndReadTables(result, stmt_to_table_list);
       break;
     }
     case AST_INSERT_STMT: {
       stmt_exec_ = new InsertExec(stmt_ast);
-      stmt_exec_->GetWriteAndReadTables(stmt_to_table_list);
+      ret = stmt_exec_->GetWriteAndReadTables(result, stmt_to_table_list);
       break;
     }
     case AST_LOAD_TABLE: {
       stmt_exec_ = new LoadExec(stmt_ast);
-      stmt_exec_->GetWriteAndReadTables(stmt_to_table_list);
+      ret = stmt_exec_->GetWriteAndReadTables(result, stmt_to_table_list);
       break;
     }
     case AST_SHOW_STMT: {
       stmt_exec_ = new ShowExec(stmt_ast);
-      stmt_exec_->GetWriteAndReadTables(stmt_to_table_list);
+      ret = stmt_exec_->GetWriteAndReadTables(result, stmt_to_table_list);
       break;
     }
     case AST_DESC_STMT: {
       stmt_exec_ = new DescExec(stmt_ast);
-      stmt_exec_->GetWriteAndReadTables(stmt_to_table_list);
+      ret = stmt_exec_->GetWriteAndReadTables(result, stmt_to_table_list);
       break;
     }
     case AST_CREATE_TABLE_LIST:
     case AST_CREATE_TABLE_LIST_SEL:
     case AST_CREATE_TABLE_SEL: {
       stmt_exec_ = new CreateTableExec(stmt_ast);
-      stmt_exec_->GetWriteAndReadTables(stmt_to_table_list);
+      ret = stmt_exec_->GetWriteAndReadTables(result, stmt_to_table_list);
       break;
     }
     case AST_CREATE_PROJECTION:
     case AST_CREATE_PROJECTION_NUM: {
       stmt_exec_ = new CreateProjectionExec(stmt_ast);
-      stmt_exec_->GetWriteAndReadTables(stmt_to_table_list);
+      ret = stmt_exec_->GetWriteAndReadTables(result, stmt_to_table_list);
       break;
     }
     case AST_DROP_TABLE: {
       stmt_exec_ = new DropTableExec(stmt_ast);
-      stmt_exec_->GetWriteAndReadTables(stmt_to_table_list);
+      ret = stmt_exec_->GetWriteAndReadTables(result, stmt_to_table_list);
       break;
     }
     case AST_DROP_PROJECTION: {
       stmt_exec_ = new DropProjExec(stmt_ast);
-      stmt_exec_->GetWriteAndReadTables(stmt_to_table_list);
+      ret = stmt_exec_->GetWriteAndReadTables(result, stmt_to_table_list);
       break;
     }
     case AST_DELETE_STMT: {
       stmt_exec_ = new DeleteStmtExec(stmt_ast);
-      stmt_exec_->GetWriteAndReadTables(stmt_to_table_list);
+      ret = stmt_exec_->GetWriteAndReadTables(result, stmt_to_table_list);
       break;
     }
     case AST_UPDATE_STMT: {
       stmt_exec_ = new UpdateStmtExec(stmt_ast);
-      stmt_exec_->GetWriteAndReadTables(stmt_to_table_list);
+      ret = stmt_exec_->GetWriteAndReadTables(result, stmt_to_table_list);
       break;
     }
     case AST_TRUNCATE_TABLE: {
       stmt_exec_ = new TruncateTableExec(stmt_ast);
-      stmt_exec_->GetWriteAndReadTables(stmt_to_table_list);
+      ret = stmt_exec_->GetWriteAndReadTables(result, stmt_to_table_list);
       break;
     }
     case AST_EXPORT_TABLE: {

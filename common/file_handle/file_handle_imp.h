@@ -130,8 +130,6 @@ class FileHandleImp {
 
   const size_t& get_logical_file_length() { return logical_file_length_; }
 
-  // set_logical_file_length - called when the first load catalog of table. Put
-  // the the record of length into memory
   void set_logical_file_length(size_t logical_file_length) {
     logical_file_length_ = logical_file_length;
   }

@@ -47,6 +47,7 @@ class TruncateTableExec : public StmtExec {
   RetCode Execute(ExecutedResult* exec_result);
 
   RetCode GetWriteAndReadTables(
+      ExecutedResult& result,
       vector<vector<pair<int, string>>>& stmt_to_table_list);
 
  private:

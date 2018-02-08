@@ -92,6 +92,7 @@ namespace common {
 
 const int rSuccess = EXIT_SUCCESS;
 const int rFailure = EXIT_FAILURE;
+const int rTruncateReset = 100;
 
 /* errorno begin from here   */
 /******************************************************************************
