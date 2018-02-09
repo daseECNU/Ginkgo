@@ -558,9 +558,8 @@ RetCode DataInjectorForParq::PrepareLocalPartBuffer(
     map<int, vector<BlockStreamBase*>>& part_buffer) {
   for (auto it : write_path_) {
     for (int i = 0; i < it.second.size(); i++) {
-      part_buffer[it.first].push_back(
-          BlockStreamBase::createBlock(table_->getSchema(),
-                                       BLOCK_SIZE - sizeof(unsigned)));
+      part_buffer[it.first].push_back(BlockStreamBase::createBlock(
+          table_->getSchema(), BLOCK_SIZE - sizeof(unsigned)));
     }
   }
 }

@@ -136,6 +136,9 @@ void TableParquetReader::loadDataPage(string name, const PageHeader& header,
     data = malloc(header.compressed_page_size);
     cout << "malloc data " << header.compressed_page_size << endl;
   } else {
+	if(pools_[name]==NULL){
+		pools_[name] = new pool<>(MEM_POOL_SIZE);
+	}
     data = pools_[name]->malloc();
   }
   if (data == nullptr) {
@@ -180,17 +183,24 @@ int TableParquetReader::readRowGroup(string file_name,
   for (int i = 0; i < file_cur_[file_name]; i++) {
     common_offset += Pmi.file_length_[i];
   }
-  pools_[file_name]->release_memory();
+  //  pools_[file_name]->release_memory();
 
   RowGroup& rg = metadata_[file_name].first.row_groups[idx];
   vector<ParquetColumnReader*>& readers = column_readers_[file_name];
-  for (auto it : readers) {
-    it->num_of_page_ = 0;
-    prepareDataForReader(it, rg.columns[it->col_id_], common_offset, file_name);
+  if (rg.num_rows != 0) {
+    for (auto it : readers) {
+      it->num_of_page_ = 0;
+      prepareDataForReader(it, rg.columns[it->col_id_], common_offset,
+                           file_name);
+    }
+    metadata_[file_name].second++;
+    has_data_[file_name] = true;
+    return rSuccess;
+  } else {
+    metadata_[file_name].second++;
+    has_data_[file_name] = false;
+    return rSuccess;
   }
-  metadata_[file_name].second++;
-  has_data_[file_name] = true;
-  return rSuccess;
 }
 int TableParquetReader::readMetaData(string file_name, uint32_t meta_len,
                                      uint64_t meta_start) {

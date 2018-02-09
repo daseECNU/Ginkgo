@@ -472,6 +472,9 @@ RetCode TableFileConnector::UpdateWithNewProj() {
                                              ->getPartitioner()
                                              ->getNumberOfPartitions();
       part_to_proj_.insert(make_pair(hash_key_index, proj_index));
+      part_num = table_->getProjectoin(proj_index)
+                     ->getPartitioner()
+                     ->getNumberOfPartitions();
       need_fix = true;
     } else {
       part_num = table_->getProjectoin(proj_index)
@@ -489,8 +492,8 @@ RetCode TableFileConnector::UpdateWithNewProj() {
       vector<Lock> partition_locks;
       for (int i = 0; i < part_num; i++) {
         stringstream ss;
-        ss << 'T' << table_->table_id_ << 'P' << hash_key_index << 'N' << i
-           << ".parq";
+        ss << Config::data_dir << 'T' << table_->table_id_ << 'P'
+           << hash_key_index << 'N' << i << ".parq";
         string tbl_name = ss.str();
         parq_write_path.push_back(tbl_name);
       }

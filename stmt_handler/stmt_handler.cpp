@@ -136,12 +136,10 @@ RetCode StmtHandler::Execute(ExecutedResult& result) {
   if (stmt_list_->stmt_ != NULL) {
     ret = GenerateStmtExec(stmt_list_->stmt_);
     if (rSuccess != ret) {
-      Daemon::getInstance()->addExecutedResult(result);
       return ret;
     }
     ret = stmt_exec_->Execute(exec_result);
     if (rSuccess != ret) {
-      Daemon::getInstance()->addExecutedResult(result);
       return ret;
     }
     Daemon::getInstance()->addExecutedResult(result);
@@ -266,7 +264,7 @@ RetCode StmtHandler::GetTablesInfomation(
     }
     case AST_EXPORT_TABLE: {
       stmt_exec_ = new ExportExec(stmt_ast);
-      stmt_exec_->GetWriteAndReadTables(result,stmt_to_table_list);
+      stmt_exec_->GetWriteAndReadTables(result, stmt_to_table_list);
       break;
     }
     default: {

@@ -96,8 +96,10 @@ RetCode TransHandler::Execute() {
       break;
     }
     case Abort: {
-      ret = Catalog::getInstance()->restoreCatalogFromBackup(catalog_backup_);
-      if (ret == rSuccess) ret = Catalog::getInstance()->truncateDirtyData();
+      if (wlock_tables_.size() != NULL) {
+        ret = Catalog::getInstance()->restoreCatalogFromBackup(catalog_backup_);
+        if (ret == rSuccess) ret = Catalog::getInstance()->truncateDirtyData();
+      }
       result.error_info_ = "Execution Error. Rollback";
       result.status_ = false;
       Daemon::getInstance()->addExecutedResult(result);
@@ -148,6 +150,5 @@ RetCode TransHandler::StartTransactionCommand(ExecutedResult result) {
     return rFailure;
   }
 }
-
 }  // namespace trans_handler
 }  // namespace claims

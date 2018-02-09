@@ -155,16 +155,16 @@ RetCode SelectExec::Execute() {
   select_ast_->Print();
   cout << "--------------begin semantic analysis---------------" << endl;
 #endif
-  SemanticContext sem_cnxt;
+  //  SemanticContext sem_cnxt;
   RetCode ret = rSuccess;
-  ret = select_ast_->SemanticAnalisys(&sem_cnxt);
-  if (rSuccess != ret) {
-    stmt_exec_status_->set_exec_info("semantic analysis error \n" +
-                                     sem_cnxt.error_msg_);
-    stmt_exec_status_->set_exec_status(StmtExecStatus::ExecStatus::kError);
-    LOG(ERROR) << "semantic analysis error result= : " << ret;
-    return ret;
-  }
+//  ret = select_ast_->SemanticAnalisys(&sem_cnxt);
+//  if (rSuccess != ret) {
+//    stmt_exec_status_->set_exec_info("semantic analysis error \n" +
+//                                     sem_cnxt.error_msg_);
+//    stmt_exec_status_->set_exec_status(StmtExecStatus::ExecStatus::kError);
+//    LOG(ERROR) << "semantic analysis error result= : " << ret;
+//    return ret;
+//  }
 
 #ifdef PRINTCONTEXT
   select_ast_->Print();
@@ -181,10 +181,10 @@ RetCode SelectExec::Execute() {
     return ret;
   }
   //#ifndef PRINTCONTEXT
-  ret = select_ast_->SetScanAttrList(&sem_cnxt);
+  ret = select_ast_->SetScanAttrList(&sem_cnxt_);
   if (rSuccess != ret) {
     stmt_exec_status_->set_exec_info("semantic analysis error \n" +
-                                     sem_cnxt.error_msg_);
+                                     sem_cnxt_.error_msg_);
     stmt_exec_status_->set_exec_status(StmtExecStatus::ExecStatus::kError);
     LOG(ERROR) << " Set Scan Attribute list error result= : " << ret;
     return ret;
@@ -211,9 +211,9 @@ RetCode SelectExec::Execute() {
   bool prune_column_flag = true;
   if (((AstSelectList*)(select_ast_->select_list_))->is_all_ == 1)
     prune_column_flag = false;
-  if (sem_cnxt.is_all) prune_column_flag = false;
-  for (auto it = sem_cnxt.table_to_column.begin();
-       it != sem_cnxt.table_to_column.end(); it++) {
+  if (sem_cnxt_.is_all) prune_column_flag = false;
+  for (auto it = sem_cnxt_.table_to_column.begin();
+       it != sem_cnxt_.table_to_column.end(); it++) {
     if (it->second.size() == 1 && it->second.find("*") != it->second.end()) {
       prune_column_flag = false;
     }
@@ -378,46 +378,6 @@ RetCode SelectExec::IsUpperExchangeRegistered(
   return ret;
 }
 
-RetCode SelectExec::GetWriteAndReadTables(
-    ExecutedResult& result,
-    vector<vector<pair<int, string>>>& stmt_to_table_list) {
-  RetCode ret = rSuccess;
-  vector<pair<int, string>> table_list;
-  pair<int, string> table_status;
-  SemanticContext sem_cnxt;
-  ret = select_ast_->SemanticAnalisys(&sem_cnxt);
-  if (rSuccess != ret) {
-    result.SetError("Semantic analysis error.\n" + sem_cnxt.error_msg_);
-    LOG(ERROR) << "semantic analysis error result= : " << ret;
-    return ret;
-  } else {
-    AstFromList* from_list =
-        reinterpret_cast<AstFromList*>(select_ast_->from_list_);
-    AstTable* table = reinterpret_cast<AstTable*>(from_list->args_);
-    table_status.first = 0;
-    table_status.second = table->table_name_;
-    table_list.push_back(table_status);
-    while (from_list->next_ != NULL) {
-      from_list = reinterpret_cast<AstFromList*>(from_list->next_);
-      AstTable* table = reinterpret_cast<AstTable*>(from_list->args_);
-      table_status.first = 0;
-      table_status.second = table->table_name_;
-      table_list.push_back(table_status);
-    }
-    if (select_ast_->select_into_clause_ != NULL) {
-      AstSelectIntoClause* select_into_clause =
-          reinterpret_cast<AstSelectIntoClause*>(
-              select_ast_->select_into_clause_);
-      AstTable* table = reinterpret_cast<AstTable*>(select_into_clause->table_);
-      table_status.first = 1;
-      table_status.second = table->table_name_;
-      table_list.push_back(table_status);
-    }
-    stmt_to_table_list.push_back(table_list);
-    return ret;
-  }
-}
-
 int isUnsigned(data_type type) {
   switch (type) {
     case t_u_long:
@@ -453,6 +413,7 @@ AstColumnAtts* GenerateColumnAtts(Schema* schema, int i) {
     return new AstColumnAtts(AST_COLUMN_ATTS, 1, 0, 0, "", NULL);
   }
 }
+
 int GenerateDatatypeBytype(int a) {
   switch (a) {
     case t_smallInt:
@@ -481,6 +442,7 @@ int GenerateDatatypeBytype(int a) {
       return 3;
   }
 }
+
 RetCode createTableAndProj(StmtExecStatus* exec_status,
                            AstSelectIntoClause* select_into,
                            ExecutedResult* exec_result) {
@@ -562,6 +524,7 @@ RetCode createTableAndProj(StmtExecStatus* exec_status,
   delete ast_proj;
   return ret;
 }
+
 RetCode execSelectInto(StmtExecStatus* exec_status,
                        AstSelectIntoClause* select_into,
                        ExecutedResult* exec_result) {
@@ -601,5 +564,60 @@ RetCode execSelectInto(StmtExecStatus* exec_status,
   }
   return ret;
 }
+
+RetCode SelectExec::GetWriteAndReadTables(
+    ExecutedResult& result,
+    vector<vector<pair<int, string>>>& stmt_to_table_list) {
+  RetCode ret = rSuccess;
+  vector<pair<int, string>> table_list;
+  pair<int, string> table_status;
+  ret = select_ast_->SemanticAnalisys(&sem_cnxt_);
+  if (rSuccess != ret) {
+    result.error_info_ = "Semantic analysis error.\n" + sem_cnxt_.error_msg_;
+    result.status_ = false;
+    LOG(ERROR) << "semantic analysis error result= : " << ret;
+    cout << "semantic analysis error result= : " << ret << endl;
+    return ret;
+  } else {
+    AstFromList* from_list =
+        reinterpret_cast<AstFromList*>(select_ast_->from_list_);
+    if (AST_JOIN == from_list->args_->ast_node_type_) {
+      AstJoin* ast_join = reinterpret_cast<AstJoin*>(from_list->args_);
+      AstTable* table = reinterpret_cast<AstTable*>(ast_join->left_table_);
+      table_status.first = 0;
+      table_status.second = table->table_name_;
+      table_list.push_back(table_status);
+      table = reinterpret_cast<AstTable*>(ast_join->right_table_);
+      table_status.first = 0;
+      table_status.second = table->table_name_;
+      table_list.push_back(table_status);
+    } else {
+      AstTable* table = reinterpret_cast<AstTable*>(from_list->args_);
+      table_status.first = 0;
+      table_status.second = table->table_name_;
+      table_list.push_back(table_status);
+      while (from_list->next_ != NULL) {
+        from_list = reinterpret_cast<AstFromList*>(from_list->next_);
+        AstTable* table = reinterpret_cast<AstTable*>(from_list->args_);
+        table_status.first = 0;
+        table_status.second = table->table_name_;
+        table_list.push_back(table_status);
+      }
+      if (select_ast_->select_into_clause_ != NULL) {
+        AstSelectIntoClause* select_into_clause =
+            reinterpret_cast<AstSelectIntoClause*>(
+                select_ast_->select_into_clause_);
+        AstTable* table =
+            reinterpret_cast<AstTable*>(select_into_clause->table_);
+        table_status.first = 3;
+        table_status.second = "";
+        table_list.push_back(table_status);
+      }
+    }
+    stmt_to_table_list.push_back(table_list);
+    return ret;
+  }
+}
+
 }  // namespace stmt_handler
 }  // namespace claims

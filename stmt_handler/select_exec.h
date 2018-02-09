@@ -65,6 +65,7 @@ class SelectExec : public StmtExec {
  private:
   AstSelectStmt* select_ast_;
   string raw_sql_;
+  SemanticContext sem_cnxt_;
   stack<Segment*> all_segments_;
 };
 }  // namespace stmt_handler

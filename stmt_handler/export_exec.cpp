@@ -75,17 +75,6 @@ ExportExec::~ExportExec() {
  */
 RetCode ExportExec::Execute(ExecutedResult *exec_result) {
   RetCode ret = rSuccess;
-  SemanticContext sem_cnxt;
-  ret = export_ast_->SemanticAnalisys(&sem_cnxt);
-  if (rSuccess != ret) {
-    exec_result->SetError("Semantic analysis error.\n" + sem_cnxt.error_msg_);
-    //    exec_result->error_info_ =
-    //        "Semantic analysis error.\n" + sem_cnxt.error_msg_;
-    //    exec_result->status_ = false;
-    LOG(ERROR) << "semantic analysis error result= : " << ret;
-    cout << "semantic analysis error result= : " << ret << endl;
-    return ret;
-  }
 
   table_ = Environment::getInstance()->getCatalog()->getTable(
       export_ast_->table_name_);
@@ -98,13 +87,13 @@ RetCode ExportExec::Execute(ExecutedResult *exec_result) {
 
   std::vector<ChunkID *> chunk_id;
   int target_projection = 0;
-  int max_pj=0;
-  vector<ProjectionDescriptor*>* pj_list=table_->GetProjectionList();
-  for (auto pj :*pj_list){
-	  if(pj->getAttributeList().size()> max_pj){
-		  max_pj=pj->getAttributeList().size();
-		  target_projection=pj->getProjectionID().projection_off;
-	  }
+  int max_pj = 0;
+  vector<ProjectionDescriptor *> *pj_list = table_->GetProjectionList();
+  for (auto pj : *pj_list) {
+    if (pj->getAttributeList().size() > max_pj) {
+      max_pj = pj->getAttributeList().size();
+      target_projection = pj->getProjectionID().projection_off;
+    }
   }
 
   ProjectionDescriptor *pj = table_->getProjectoin(target_projection);
@@ -249,7 +238,8 @@ RetCode ExportExec::Execute(ExecutedResult *exec_result) {
       TableParquetReader::getInstance()->column_readers_[it].clear();
       TableParquetReader::getInstance()->has_data_[it] = false;
       TableParquetReader::getInstance()->metadata_.erase(it);
-      TableParquetReader::getInstance()->pools_[it]->purge_memory();
+      if (TableParquetReader::getInstance()->pools_[it] != NULL)
+    	  TableParquetReader::getInstance()->pools_[it]->purge_memory();
     }
     for (auto it : readers) delete it;
   }
@@ -298,7 +288,7 @@ RetCode ExportExec::ExportIntoFile(int attr_size,
               BLOCK_SIZE * block_ + tuple_ * tup_size + buffer, i);
           (*result).append(colval);
           (*result).append(column_separator_);
-          }
+        }
         (*result).append(tuple_separator_);
         write_buffer_size += tup_size;
         file_size += tup_size;
@@ -306,11 +296,11 @@ RetCode ExportExec::ExportIntoFile(int attr_size,
 
         if (0 == row_id_in_file % 40000) AnnounceIAmExporting();
         ++row_id_in_file;
-       }
+      }
       block_++;
       if (write_buffer_size >= 64 * 1024) {
         flush(result, &file_size, &file_num, &write_buffer_size, path);
-       }
+      }
     }
   }
   if (write_buffer_size != 0) {
@@ -341,11 +331,14 @@ void ExportExec::flush(string *result, unsigned int *file_size, int *file_num,
     ostringstream os;
     os << *file_num;
     if (*file_num == 1) {
-      string new_name = path_former + file_name_former + "_1" + file_name_latter;
+      string new_name =
+          path_former + file_name_former + "_1" + file_name_latter;
       int rename_result = rename(path.c_str(), new_name.c_str());
     } else {
-      string new_path = path_former + file_name_former + "_" + os.str() + file_name_latter;
-      imp_ = common::FileHandleImpFactory::Instance().CreateFileHandleImp( platform_, new_path);
+      string new_path =
+          path_former + file_name_former + "_" + os.str() + file_name_latter;
+      imp_ = common::FileHandleImpFactory::Instance().CreateFileHandleImp(
+          platform_, new_path);
       (*file_size) = 0;
     }
     os.clear();
@@ -359,10 +352,10 @@ RetCode ExportExec::CreateChunklist(vector<PartitionInfo *> pt_list,
   int ret = rSuccess;
   int pt_num = 0;
   for (auto ww : pt_list) {
-	 int number_of_blocks = ww->get_number_of_blocks();
+    int number_of_blocks = ww->get_number_of_blocks();
     unsigned number_of_chunks = ceil((number_of_blocks) / (float)1024);
     for (unsigned i = 0; i < number_of_chunks; i++) {
-     chunk_id.push_back(new ChunkID(ptid_list[pt_num], i));
+      chunk_id.push_back(new ChunkID(ptid_list[pt_num], i));
     }
     pt_num++;
   }
@@ -376,16 +369,29 @@ void ExportExec::AnnounceIAmExporting() {
   static int count = 0;
   cout << load_output_info[count = (++count % 7)] << std::flush;
 }
-RetCode ExportExec::GetWriteAndReadTables(ExecutedResult& result,
+RetCode ExportExec::GetWriteAndReadTables(
+    ExecutedResult &result,
     vector<vector<pair<int, string>>> &stmt_to_table_list) {
   RetCode ret = rSuccess;
   vector<pair<int, string>> table_list;
   pair<int, string> table_status;
-  table_status.first = 0;
-  table_status.second = export_ast_->table_name_;
-  table_list.push_back(table_status);
-  stmt_to_table_list.push_back(table_list);
-  return ret;
+  SemanticContext sem_cnxt;
+  ret = export_ast_->SemanticAnalisys(&sem_cnxt);
+  if (rSuccess != ret) {
+    result.SetError("Semantic analysis error.\n" + sem_cnxt.error_msg_);
+    //    exec_result->error_info_ =
+    //        "Semantic analysis error.\n" + sem_cnxt.error_msg_;
+    //    exec_result->status_ = false;
+    LOG(ERROR) << "semantic analysis error result= : " << ret;
+    cout << "semantic analysis error result= : " << ret << endl;
+    return ret;
+  } else {
+    table_status.first = 0;
+    table_status.second = export_ast_->table_name_;
+    table_list.push_back(table_status);
+    stmt_to_table_list.push_back(table_list);
+    return ret;
+  }
 }
 vector<int> getPosition(const vector<Attribute> &model,
                         const vector<Attribute> &current) {
