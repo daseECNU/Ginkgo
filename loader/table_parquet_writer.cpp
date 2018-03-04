@@ -247,6 +247,7 @@ RetCode TableParquetWriter::AppendRows(BlockStreamBase* blk) {
     file_size_estimate_ = 0;
   }
   delete tuple_it;
+  return ret;
 }
 
 RetCode TableParquetWriter::WriteFileHeader() {
@@ -301,7 +302,9 @@ RetCode TableParquetWriter::FlushCurrentRowGroup() {
   for (int i = 0; i < size; i++) {
     int64_t data_page_offset = 0;
     int64_t dict_page_offset = 0;
-    columns_[i]->Flush(&file_pos_, &data_page_offset, &dict_page_offset);
+    if ((ret = columns_[i]->Flush(&file_pos_, &data_page_offset,
+                                  &dict_page_offset)) != rSuccess)
+      return ret;
     ColumnChunk& col_chunk = current_row_group_->columns[i];
     ColumnMetaData& col_metadata = col_chunk.meta_data;
     col_metadata.data_page_offset = data_page_offset;
@@ -593,6 +596,7 @@ RetCode ColumnWriter<T>::Flush(int64_t* file_pos, int64_t* first_data_page,
     if (subret != rSuccess) {
       ret = subret;
       LOG(ERROR) << "col_index_ :" << col_index_ << "flush error" << endl;
+      return ret;
     }
 
     *file_pos += page.header.compressed_page_size;

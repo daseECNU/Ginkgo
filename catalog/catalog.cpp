@@ -257,18 +257,20 @@ RetCode Catalog::restoreCatalog() {
   //  LockGuard<Lock> guard(write_lock_);
 
   // check whether there is catalog file if there are data file
-  if (!read_connector_->CanAccess() && IsDataFileExist()) {
+  if (!read_connector_->CanAccess()) {  // !read_connector_->CanAccess() &&
+                                        // IsDataFileExist()
     LOG(ERROR) << "The data file are existed while catalog file "
                << catalog_file << " is not existed!" << endl;
     return rCatalogNotFound;
-  } else if (!read_connector_->CanAccess()) {
+  } else {
+    /*else if (!read_connector_->CanAccess()) {
     LOG(INFO) << "The catalog file and data file all are not existed" << endl;
     return rSuccess;
   } else if (!IsDataFileExist()) {
     LOG(WARNING) << "There are no data file while catalog file exists. "
                     "The catalog file will be overwrite" << endl;
     return rSuccess;
-  } else {
+  }*/
     EXEC_AND_ONLY_LOG_ERROR(
         ret, read_connector_->Open(),
         "failed to open catalog file: " << catalog_file << " with Read mode");

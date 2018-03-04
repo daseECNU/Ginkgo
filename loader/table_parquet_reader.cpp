@@ -136,9 +136,9 @@ void TableParquetReader::loadDataPage(string name, const PageHeader& header,
     data = malloc(header.compressed_page_size);
     cout << "malloc data " << header.compressed_page_size << endl;
   } else {
-	if(pools_[name]==NULL){
-		pools_[name] = new pool<>(MEM_POOL_SIZE);
-	}
+    if (pools_[name] == NULL) {
+      pools_[name] = new pool<>(MEM_POOL_SIZE);
+    }
     data = pools_[name]->malloc();
   }
   if (data == nullptr) {
@@ -267,6 +267,7 @@ void TableParquetReader::prepareDataForReader(ParquetColumnReader* reader,
     // seek to row group
     lseek(fd, start, SEEK_SET);
     read(fd, data_ptr, column_chunk.meta_data.total_compressed_size);
+    close(fd);
   } else {
     hdfsFS fs = HdfsConnector::Instance();
     hdfsFile readFile = hdfsOpenFile(fs, file_name.c_str(), O_RDONLY, 0, 0, 0);
@@ -278,6 +279,7 @@ void TableParquetReader::prepareDataForReader(ParquetColumnReader* reader,
       hdfsPread(fs, readFile, start, static_cast<void*>(data_ptr),
                 column_chunk.meta_data.total_compressed_size);
     }
+    hdfsCloseFile(fs, readFile);
   }
   uint8_t* data_start = chunk_data.data();
   uint8_t* data_end = data_start + column_chunk.meta_data.total_compressed_size;

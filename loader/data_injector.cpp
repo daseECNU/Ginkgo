@@ -414,6 +414,7 @@ RetCode DataInjector::CheckFiles(vector<string> input_file_names,
   for (auto& file_name : input_file_names) {
     // add the load from hdfs by hcs 22/feb/2017
     if (file_name.find(hdfs_name) == 0) {
+      hdfsloader_->PrepareForLoadFromHdfs();
       file_name = file_name.substr(hdfs_name.length());
       ret = hdfsloader_->CheckHdfsFile(file_name);
       if (ret != rSuccess) {
@@ -452,6 +453,8 @@ RetCode DataInjector::PrepareEverythingForLoading(
   GET_TIME_DI(prepare_start_time);
   EXEC_AND_RETURN_ERROR(ret, PrepareInitInfo(open_flag),
                         "failed to prepare initialization info");
+  EXEC_AND_RETURN_ERROR(ret, hdfsloader_->PrepareForLoadFromHdfs(),
+                        "failed to prepare load_from_hdfs .");
   PLOG_DI("prepare time: " << GetElapsedTimeInUs(prepare_start_time) /
                                   1000000.0);
 

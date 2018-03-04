@@ -590,8 +590,11 @@ RetCode DataInjectorForParq::InsertTupleIntoParquet(
       part_buffer[partkey_index][partNum]->allocateTuple(tuple_size);
   if (block_tuple_addr == NULL) {
     LockGuard<Lock> guard(write_locks_parq_[partkey_index][partNum]);
-    writers_[partkey_index][partNum]->AppendRows(
+    ret = writers_[partkey_index][partNum]->AppendRows(
         part_buffer[partkey_index][partNum]);
+    if (ret != rSuccess) {
+      return ret;
+    }
     part_buffer[partkey_index][partNum]->setEmpty();
     block_tuple_addr =
         part_buffer[partkey_index][partNum]->allocateTuple(tuple_size);
