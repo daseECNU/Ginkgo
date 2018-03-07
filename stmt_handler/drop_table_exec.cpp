@@ -73,15 +73,15 @@ RetCode DropTableExec::Execute(ExecutedResult* exec_result) {
       // to make consistency, drop the del table first, and then the base table
       table_name = table_list->table_name_;
       if (CheckBaseTbl(table_name)) {  // drop the base table
-        ret = DropTable(table_name + "_DEL");
+        ret = DropTable(table_name);
         if (ret == rSuccess) {
+          LOG(INFO) << table_name + " is dropped from this database!" << endl;
+          ret = DropTable(table_name + "_DEL");
           LOG(INFO) << table_name + "_DEL is dropped from this database!"
                     << endl;
-          ret = DropTable(table_name);
-          LOG(INFO) << table_name + " is dropped from this database!" << endl;
         } else {
-          DropTable(table_name + "_DEL");
-          DropTable(table_name);
+          LOG(ERROR) << "drop " << table_name + " failure!" << endl;
+          return ret;
         }
       } else {  // drop the del table only, but the information in the catalog
                 // does not need to be removed
@@ -161,6 +161,7 @@ RetCode DropTableExec::DropTable(const string& table_name) {
                  table_name);
         return ret;
       }
+      return ret;
     } else {
       ELOG(ret, "failed to delete the table from memory when dropping table " +
                     table_name);
@@ -179,11 +180,11 @@ RetCode DropTableExec::DropTable(const string& table_name) {
  * @return
  */
 RetCode DropTableExec::DropTableFromCatalog(const string& table_name) {
-  RetCode ret = rSuccess;
   Catalog* local_catalog = Environment::getInstance()->getCatalog();
   TableDescriptor* table_desc = local_catalog->getTable(table_name);
   local_catalog->dropTable(table_name, table_desc->get_table_id());
   delete table_desc;
+  return rSuccess;
 }
 
 /**
@@ -196,17 +197,27 @@ static RetCode DropTableExec::DeleteTableFiles(const string& table_name) {
   // start to delete the files
   TableDescriptor* table =
       Environment::getInstance()->getCatalog()->getTable(table_name);
-  if (!table->GetProjectionList()->empty()) {
-    TableFileConnector* connector = new TableFileConnector(
-        Config::local_disk_mode ? FilePlatform::kDisk : FilePlatform::kHdfs,
-        table, common::kReadFile);
-    EXEC_AND_RETURN_ERROR(
-        ret, connector->DeleteAllTableFiles(),
-        "failed to delete all the projections, when delete the file on table " +
-            table_name);
-    delete connector;
+  if (table != NULL) {
+    if (!table->GetProjectionList()->empty()) {
+      TableFileConnector* connector = new TableFileConnector(
+          Config::local_disk_mode ? FilePlatform::kDisk : FilePlatform::kHdfs,
+          table, common::kReadFile);
+      EXEC_AND_RETURN_ERROR(ret, connector->DeleteAllTableFiles(),
+                            "failed to delete all the projections, when delete "
+                            "the file on table " +
+                                table_name);
+      delete connector;
+      return ret;
+    } else {
+      ELOG(rFailure, "failed to drop table '" + table_name +
+                         "' files, cause its projections is null");
+      return rFailure;
+    }
+  } else {
+    ELOG(rFailure, "failed to drop table '" + table_name +
+                       "' files, cannot find the table in catalog");
+    return rFailure;
   }
-  return ret;
 }
 
 /**

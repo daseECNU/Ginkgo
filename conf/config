@@ -22,7 +22,7 @@ master = 1
 data = "/home/he/imdb/data/1partition/"
 
 #hdfs主节点
-hdfs_master_ip = "172.16.1.102"
+hdfs_master_ip = "127.0.0.1"
 
 #hdfs主节点端口
 hdfs_master_port = 9000
@@ -39,13 +39,13 @@ enable_expander_adaptivity=1
 
 # 0: hdfs
 # 1: local
-local_disk_mode = 1
+local_disk_mode = 0
 
 client_listener_port = 10000
 
 enable_prune_column = 1
 
-enable_parquet = 1 
+enable_parquet = 0
 
 enable_codegen = 0
 

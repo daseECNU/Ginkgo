@@ -74,7 +74,9 @@ RetCode TransHandler::Execute() {
           }
         }
       } else if ((*beg).first == 2) {
-        table->wLock();
+        if (table->wLock()) {
+          wlock_tables_.push_back((*beg).second);
+        }
       }
       ++beg;
     }
@@ -97,8 +99,14 @@ RetCode TransHandler::Execute() {
     }
     case Abort: {
       if (wlock_tables_.size() != NULL) {
-        ret = Catalog::getInstance()->restoreCatalogFromBackup(catalog_backup_);
-        if (ret == rSuccess) ret = Catalog::getInstance()->truncateDirtyData();
+        if (!catalog_backup_.empty()) {
+          ret =
+              Catalog::getInstance()->restoreCatalogFromBackup(catalog_backup_);
+          if (ret == rSuccess)
+            ret = Catalog::getInstance()->truncateDirtyData();
+        } else {
+          UnlockAllWriteTables();
+        }
       }
       result.error_info_ = "Execution Error. Rollback";
       result.status_ = false;
@@ -123,7 +131,7 @@ void TransHandler::UnlockAllWriteTables() {
   if (wlock_tables_.size() != 0) {
     auto beg = wlock_tables_.begin();
     while (beg != wlock_tables_.end()) {
-      Catalog::getInstance()->getTable(*beg)->unwrLock();
+        Catalog::getInstance()->getTable(*beg)->unwrLock();
       ++beg;
     }
     wlock_tables_.clear();
@@ -150,5 +158,6 @@ RetCode TransHandler::StartTransactionCommand(ExecutedResult result) {
     return rFailure;
   }
 }
+
 }  // namespace trans_handler
 }  // namespace claims

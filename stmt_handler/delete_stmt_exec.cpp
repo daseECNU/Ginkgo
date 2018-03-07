@@ -242,7 +242,7 @@ void DeleteStmtExec::InsertDeletedDataIntoTableDEL(
   TableDescriptor* table_del =
       Environment::getInstance()->getCatalog()->getTable(table_del_name);
   if (NULL == table_del) {
-    LOG(ERROR) << "The table DEL " + table_del_name +
+    LOG(ERROR) << "The table " + table_del_name +
                       " is not existed during delete data." << std::endl;
     return;
   }
