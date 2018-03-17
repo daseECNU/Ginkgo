@@ -23,7 +23,6 @@
  *       Email: huang_qiuli@outlook.com
  */
 
-
 #ifndef SQL_PARSER_AST_NODE_AST_EXPORT_STMT_H_
 #define SQL_PARSER_AST_NODE_AST_EXPORT_STMT_H_
 
@@ -43,7 +42,8 @@ using std::string;
 class AstExportTable : public AstNode {
  public:
   AstExportTable(AstNodeType ast_node_type, string table_name, AstNode* path,
-               string column_separator, string tuple_separator);
+                 string column_separator, string tuple_separator,
+                 AstNode* select_stmt);
   ~AstExportTable();
   void Print(int level = 0) const;
   RetCode SemanticAnalisys(SemanticContext* sem_cnxt);
@@ -52,10 +52,10 @@ class AstExportTable : public AstNode {
   AstNode* path_;
   string column_separator_;
   string tuple_separator_;
+  AstNode* select_stmt_;
 
  private:
 };
-
 
 //}  // namespace sql_parser
 //}  // namespace claims

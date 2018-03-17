@@ -428,6 +428,7 @@ void* ExchangeSenderPipeline::Sender(void* arg) {
                            ->getBuffer(it->second)
                            ->InsertOneBlock(
                                reinterpret_cast<Block*>(block_for_sending));
+            if (consumed == false) continue;
             block_for_sending->IncreaseActualSize(block_for_sending->getsize());
           } else {
             consumed = true;

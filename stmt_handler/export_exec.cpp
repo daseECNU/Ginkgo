@@ -40,6 +40,7 @@
 #include "../common/memory_handle.h"
 #include "../loader/table_parquet_reader.h"
 #include "../common/ids.h"
+#include "../stmt_handler/select_exec.h"
 
 using claims::loader::TableParquetReader;
 using std::vector;
@@ -75,174 +76,277 @@ ExportExec::~ExportExec() {
  */
 RetCode ExportExec::Execute(ExecutedResult *exec_result) {
   RetCode ret = rSuccess;
-
-  table_ = Environment::getInstance()->getCatalog()->getTable(
-      export_ast_->table_name_);
-  int attr_size = table_->getNumberOfAttribute();
   column_separator_ = export_ast_->column_separator_;
   tuple_separator_ = export_ast_->tuple_separator_;
   AstExprList *path_node = dynamic_cast<AstExprList *>(export_ast_->path_);
   AstExprConst *data = dynamic_cast<AstExprConst *>(path_node->expr_);
   string path = data->data_;
-
-  std::vector<ChunkID *> chunk_id;
-  int target_projection = 0;
-  int max_pj = 0;
-  vector<ProjectionDescriptor *> *pj_list = table_->GetProjectionList();
-  for (auto pj : *pj_list) {
-    if (pj->getAttributeList().size() > max_pj) {
-      max_pj = pj->getAttributeList().size();
-      target_projection = pj->getProjectionID().projection_off;
-    }
-  }
-
-  ProjectionDescriptor *pj = table_->getProjectoin(target_projection);
-  vector<PartitionInfo *> pt_list = pj->getPartitioner()->getPartitionList();
-  vector<PartitionID> ptid_list = pj->getPartitioner()->getPartitionIDList();
-
-  // create chunk_list
-  EXEC_AND_LOG(ret, CreateChunklist(pt_list, ptid_list, chunk_id),
-               "CreateChunklist", "failed to CreateChunklist");
-
-  vector<string> file_name_parq;
-  vector<ParquetColumnReader *> readers;
-  if (Config::enable_parquet) {
-    // information for parquet
-    TableID table_id = table_->get_table_id();
-    int part_key_idx =
-        table_->getProjectoin(target_projection)
-            ->getAttributeIndex(table_->getProjectoin(target_projection)
-                                    ->getPartitioner()
-                                    ->getPartitionKey());
-    int file_num_ = table_->getFileNum();
-    map<int, vector<uint32_t>> meta_len = table_->getMetalength()[part_key_idx];
-    map<int, vector<uint64_t>> meta_start =
-        table_->getMetaStartPos()[part_key_idx];
-    map<int, vector<uint64_t>> file_length =
-        table_->getFilelength()[part_key_idx];
-    int model_proj_idx = table_->getPartProjMap()[part_key_idx];
-    vector<Attribute> model =
-        table_->getProjectoin(model_proj_idx)->getAttributeList();
-    vector<Attribute> current = pj->getAttributeList();
-    vector<int> order = getPosition(model, current);
-    int partition_number = table_->getProjectoin(model_proj_idx)
-                               ->getPartitioner()
-                               ->getNumberOfPartitions();
-    std::vector<column_type> &columns = pj->getSchema()->columns;
-    TableParquetReader *tbl_parq_reader = TableParquetReader::getInstance();
-    vector<ParquetColumnReader *> readers;
-    readers.resize(columns.size());
-    for (int i = 0; i < columns.size(); ++i) {
-      ParquetColumnReader *parq_reader = nullptr;
-      int col_id = order[i];
-      data_type type = columns[i].type;
-      unsigned fix_length = columns[i].get_length();
-      switch (columns[i].type) {
-        case t_int:
-        case t_boolean:
-          parq_reader = new ColumnReader<int>(col_id, type, fix_length);
-          break;
-        case t_float:
-          parq_reader = new ColumnReader<float>(col_id, type, fix_length);
-          break;
-        case t_double:
-          parq_reader = new ColumnReader<double>(col_id, type, fix_length);
-          break;
-        case t_string:
-          parq_reader = new ColumnReader<char *>(col_id, type, fix_length);
-          break;
-        case t_u_long:
-          parq_reader =
-              new ColumnReader<unsigned long>(col_id, type, fix_length);
-          break;
-        case t_date:
-          parq_reader = new ColumnReader<date>(col_id, type, fix_length);
-          break;
-        case t_time:
-          parq_reader =
-              new ColumnReader<time_duration>(col_id, type, fix_length);
-          break;
-        case t_datetime:
-          parq_reader = new ColumnReader<ptime>(col_id, type, fix_length);
-          break;
-        case t_decimal:
-          parq_reader = new ColumnReader<Decimal>(col_id, type, fix_length);
-          break;
-        case t_smallInt:
-          parq_reader = new ColumnReader<short>(col_id, type, fix_length);
-          break;
-        case t_u_smallInt:
-          parq_reader =
-              new ColumnReader<unsigned short>(col_id, type, fix_length);
-          break;
+  if (export_ast_->select_stmt_ == NULL) {
+    table_ = Environment::getInstance()->getCatalog()->getTable(
+        export_ast_->table_name_);
+    int attr_size = table_->getNumberOfAttribute();
+    std::vector<ChunkID *> chunk_id;
+    int target_projection = 0;
+    int max_pj = 0;
+    vector<ProjectionDescriptor *> *pj_list = table_->GetProjectionList();
+    for (auto pj : *pj_list) {
+      if (pj->getAttributeList().size() > max_pj) {
+        max_pj = pj->getAttributeList().size();
+        target_projection = pj->getProjectionID().projection_off;
       }
-      readers[i] = parq_reader;
     }
-    for (unsigned part_offset = 0; part_offset < partition_number;
-         part_offset++) {
-      ParqMetaInfo meta_info;
-      stringstream ss;
-      ss << Config::data_dir << 'T' << table_id << 'P' << part_key_idx << 'N'
-         << part_offset << ".parq";
-      meta_info.meta_start_ = meta_start[part_offset];
-      meta_info.meta_length_ = meta_len[part_offset];
-      meta_info.file_length_ = file_length[part_offset];
-      meta_info.file_name_ = ss.str();
-      file_name_parq.push_back(meta_info.file_name_);
-      tbl_parq_reader
-          ->meta_info_[PartitionID(pj->getProjectionID(), part_offset)] =
-          meta_info;
-      tbl_parq_reader->column_readers_[meta_info.file_name_] = readers;
-      tbl_parq_reader->file_cur_[meta_info.file_name_] = 0;
-      tbl_parq_reader->file_total_[meta_info.file_name_] = file_num_;
+
+    ProjectionDescriptor *pj = table_->getProjectoin(target_projection);
+    vector<PartitionInfo *> pt_list = pj->getPartitioner()->getPartitionList();
+    vector<PartitionID> ptid_list = pj->getPartitioner()->getPartitionIDList();
+
+    // create chunk_list
+    EXEC_AND_LOG(ret, CreateChunklist(pt_list, ptid_list, chunk_id),
+                 "CreateChunklist", "failed to CreateChunklist");
+
+    vector<string> file_name_parq;
+    vector<ParquetColumnReader *> readers;
+    if (Config::enable_parquet) {
+      // information for parquet
+      TableID table_id = table_->get_table_id();
+      int part_key_idx =
+          table_->getProjectoin(target_projection)
+              ->getAttributeIndex(table_->getProjectoin(target_projection)
+                                      ->getPartitioner()
+                                      ->getPartitionKey());
+      int file_num_ = table_->getFileNum();
+      map<int, vector<uint32_t>> meta_len =
+          table_->getMetalength()[part_key_idx];
+      map<int, vector<uint64_t>> meta_start =
+          table_->getMetaStartPos()[part_key_idx];
+      map<int, vector<uint64_t>> file_length =
+          table_->getFilelength()[part_key_idx];
+      int model_proj_idx = table_->getPartProjMap()[part_key_idx];
+      vector<Attribute> model =
+          table_->getProjectoin(model_proj_idx)->getAttributeList();
+      vector<Attribute> current = pj->getAttributeList();
+      vector<int> order = getPosition(model, current);
+      int partition_number = table_->getProjectoin(model_proj_idx)
+                                 ->getPartitioner()
+                                 ->getNumberOfPartitions();
+      std::vector<column_type> &columns = pj->getSchema()->columns;
+      TableParquetReader *tbl_parq_reader = TableParquetReader::getInstance();
+      vector<ParquetColumnReader *> readers;
+      readers.resize(columns.size());
+      for (int i = 0; i < columns.size(); ++i) {
+        ParquetColumnReader *parq_reader = nullptr;
+        int col_id = order[i];
+        data_type type = columns[i].type;
+        unsigned fix_length = columns[i].get_length();
+        switch (columns[i].type) {
+          case t_int:
+          case t_boolean:
+            parq_reader = new ColumnReader<int>(col_id, type, fix_length);
+            break;
+          case t_float:
+            parq_reader = new ColumnReader<float>(col_id, type, fix_length);
+            break;
+          case t_double:
+            parq_reader = new ColumnReader<double>(col_id, type, fix_length);
+            break;
+          case t_string:
+            parq_reader = new ColumnReader<char *>(col_id, type, fix_length);
+            break;
+          case t_u_long:
+            parq_reader =
+                new ColumnReader<unsigned long>(col_id, type, fix_length);
+            break;
+          case t_date:
+            parq_reader = new ColumnReader<date>(col_id, type, fix_length);
+            break;
+          case t_time:
+            parq_reader =
+                new ColumnReader<time_duration>(col_id, type, fix_length);
+            break;
+          case t_datetime:
+            parq_reader = new ColumnReader<ptime>(col_id, type, fix_length);
+            break;
+          case t_decimal:
+            parq_reader = new ColumnReader<Decimal>(col_id, type, fix_length);
+            break;
+          case t_smallInt:
+            parq_reader = new ColumnReader<short>(col_id, type, fix_length);
+            break;
+          case t_u_smallInt:
+            parq_reader =
+                new ColumnReader<unsigned short>(col_id, type, fix_length);
+            break;
+        }
+        readers[i] = parq_reader;
+      }
+      for (unsigned part_offset = 0; part_offset < partition_number;
+           part_offset++) {
+        ParqMetaInfo meta_info;
+        stringstream ss;
+        ss << Config::data_dir << 'T' << table_id << 'P' << part_key_idx << 'N'
+           << part_offset << ".parq";
+        meta_info.meta_start_ = meta_start[part_offset];
+        meta_info.meta_length_ = meta_len[part_offset];
+        meta_info.file_length_ = file_length[part_offset];
+        meta_info.file_name_ = ss.str();
+        file_name_parq.push_back(meta_info.file_name_);
+        tbl_parq_reader
+            ->meta_info_[PartitionID(pj->getProjectionID(), part_offset)] =
+            meta_info;
+        tbl_parq_reader->column_readers_[meta_info.file_name_] = readers;
+        tbl_parq_reader->file_cur_[meta_info.file_name_] = 0;
+        tbl_parq_reader->file_total_[meta_info.file_name_] = file_num_;
+      }
     }
-  }
-  platform_ = 0;
-  imp_ = common::FileHandleImpFactory::Instance().CreateFileHandleImp(platform_,
-                                                                      path);
-  GETCURRENTTIME(start_time);
+    platform_ = 0;
+    imp_ = common::FileHandleImpFactory::Instance().CreateFileHandleImp(
+        platform_, path);
+    GETCURRENTTIME(start_time);
 
-  int file_num_ = ExportIntoFile(attr_size, chunk_id, path);
+    int file_num_ = ExportIntoFile(attr_size, chunk_id, path);
 
-  for (unsigned i = 0; i < chunk_id.size(); i++) {
-    delete chunk_id[i];
-    chunk_id[i] = NULL;
-  }
-  chunk_id.clear();
+    for (unsigned i = 0; i < chunk_id.size(); i++) {
+      delete chunk_id[i];
+      chunk_id[i] = NULL;
+    }
+    chunk_id.clear();
 
-  LOG(INFO) << "complete export table." << std::endl;
-  double export_time_ms = GetElapsedTime(start_time);
-  LOG(INFO) << " export time: " << export_time_ms / 1000.0 << " sec" << endl;
-  if (ret != rSuccess) {
+    LOG(INFO) << "complete export table." << std::endl;
+    double export_time_ms = GetElapsedTime(start_time);
+    LOG(INFO) << " export time: " << export_time_ms / 1000.0 << " sec" << endl;
+    if (ret != rSuccess) {
+      LOG(ERROR) << "failed to export table: " << table_->getTableName() << " ";
+
+      LOG(ERROR) << " into file " << path << endl;
+
+      if (exec_result->error_info_ == "")
+        exec_result->SetError("failed to export table");
+    } else {
+      ostringstream oss;
+      oss << "export table successfully (" << export_time_ms / 1000.0
+          << " sec) \n";
+      if (file_num_ > 1) {
+        ostringstream os;
+        os << file_num_;
+        oss << "the table is divided into " + os.str() +
+                   " parts for the table is  too large.\n";
+      }
+      exec_result->SetResult(oss.str(), NULL);
+      oss.clear();
+    }
+    if (Config::enable_parquet) {
+      for (auto it : file_name_parq) {
+        TableParquetReader::getInstance()->column_readers_[it].clear();
+        TableParquetReader::getInstance()->has_data_[it] = false;
+        TableParquetReader::getInstance()->metadata_.erase(it);
+        if (TableParquetReader::getInstance()->pools_[it] != NULL)
+          TableParquetReader::getInstance()->pools_[it]->purge_memory();
+      }
+      for (auto it : readers) delete it;
+    }
+  } else if (export_ast_->select_stmt_ != NULL) {
+    SelectExec *sel_exec = new SelectExec(export_ast_->select_stmt_);
+    ExecutedResult exec_sel_result;
+    GETCURRENTTIME(start_time);
+    ret = sel_exec->Execute(&exec_sel_result);
+    unsigned int sel_count =
+        exec_sel_result.result_->column_header_list_.size();
+
+    //  unsigned
+    // sample_budget=20>this->getNumberOftuples()?20:this->getNumberOftuples();
+    ResultSet::Iterator it = exec_sel_result.result_->createIterator();
+    BlockStreamBase *block;
+    BlockStreamBase::BlockStreamTraverseIterator *tuple_it;
+    Schema *schema = exec_sel_result.result_->schema_->duplicateSchema();
+    std::vector<std::string> column_header_list =
+        exec_sel_result.result_->column_header_list_;
+    // StmtExecStatus* exec_status = new StmtExecStatus(raw_sql_);
+    //  exec_sel_result.result_
+
+    platform_ = 0;
+    imp_ = common::FileHandleImpFactory::Instance().CreateFileHandleImp(
+        platform_, path);
+    string *result = new string;
+    int row_id_in_file = 0;
+    int write_buffer_size = 0;
+    int file_num = 1;
+    unsigned long long file_size = 1;
+    int tup_size = exec_sel_result.result_->schema_->getTupleMaxSize();
+
+    while (block = it.nextBlock()) {
+      tuple_it = block->createIterator();
+      void *tuple;
+      while (tuple = tuple_it->nextTuple()) {
+        for (unsigned i = 0; i < column_header_list.size(); i++) {
+          if (exec_sel_result.result_->column_header_list_[i].find("row_id") !=
+              exec_sel_result.result_->column_header_list_[i].npos)
+            continue;
+
+          string colval = schema->getcolumn(i).operate->toString(
+              schema->getColumnAddess(i, tuple));
+          (*result).append(colval);
+          (*result).append(column_separator_);
+        }
+        (*result).append(tuple_separator_);
+        write_buffer_size += tup_size;
+        file_size += tup_size;
+        if (0 == row_id_in_file % 40000) AnnounceIAmExporting();
+        ++row_id_in_file;
+      }
+      if (write_buffer_size >= 64 * 1024) {
+        flush(result, &file_size, &file_num, &write_buffer_size, path);
+      }
+      delete tuple_it;
+    }
+
+    if (write_buffer_size != 0) {
+      flush(result, &file_size, &file_num, &write_buffer_size, path);
+    }
+
+    LOG(INFO) << "complete export table." << std::endl;
+    double export_time_ms = GetElapsedTime(start_time);
+    LOG(INFO) << " export time: " << export_time_ms / 1000.0 << " sec" << endl;
+    if (ret != rSuccess) {
+      LOG(ERROR) << "failed to export table: " << table_->getTableName() << " ";
+
+      LOG(ERROR) << " into file " << path << endl;
+
+      if (exec_result->error_info_ == "")
+        exec_result->SetError("failed to export table");
+    } else {
+      ostringstream oss;
+      oss << "export table successfully (" << export_time_ms / 1000.0
+          << " sec) \n";
+      if (file_num > 1) {
+        ostringstream os;
+        os << file_num;
+        oss << "the table is divided into " + os.str() +
+                   " parts for the table is  too large.\n";
+      }
+      exec_result->SetResult(oss.str(), NULL);
+      oss.clear();
+    }
+
+    delete result;
+    result = NULL;
+    delete schema;
+    exec_sel_result.result_->destory();
+    delete exec_sel_result.result_;
+    exec_result->result_ = NULL;
+    delete sel_exec;
+    imp_->Close();
+
+    return ret;
+
+    /* print horizontal line */
+
+  } else {
+    ret = rFailure;
     LOG(ERROR) << "failed to export table: " << table_->getTableName() << " ";
 
     LOG(ERROR) << " into file " << path << endl;
+  }
 
-    if (exec_result->error_info_ == "")
-      exec_result->SetError("failed to export table");
-  } else {
-    ostringstream oss;
-    oss << "export table successfully (" << export_time_ms / 1000.0
-        << " sec) \n";
-    if (file_num_ > 1) {
-      ostringstream os;
-      os << file_num_;
-      oss << "the table is divided into " + os.str() +
-                 " parts for the table is  too large.\n";
-    }
-    exec_result->SetResult(oss.str(), NULL);
-    oss.clear();
-  }
-  if (Config::enable_parquet) {
-    for (auto it : file_name_parq) {
-      TableParquetReader::getInstance()->column_readers_[it].clear();
-      TableParquetReader::getInstance()->has_data_[it] = false;
-      TableParquetReader::getInstance()->metadata_.erase(it);
-      if (TableParquetReader::getInstance()->pools_[it] != NULL)
-    	  TableParquetReader::getInstance()->pools_[it]->purge_memory();
-    }
-    for (auto it : readers) delete it;
-  }
   return ret;
 }
 RetCode ExportExec::ExportIntoFile(int attr_size,
@@ -255,7 +359,7 @@ RetCode ExportExec::ExportIntoFile(int attr_size,
   int row_id_in_file = 0;
   int write_buffer_size = 0;
   int file_num = 1;
-  unsigned int file_size = 1;
+  unsigned long long file_size = 1;
 
   for (auto chunklist : chunk_id) {
     memset((void *)buffer, '\0', 64 * 1024 * 1024);
@@ -315,13 +419,13 @@ RetCode ExportExec::ExportIntoFile(int attr_size,
   return file_num;
 }
 
-void ExportExec::flush(string *result, unsigned int *file_size, int *file_num,
-                       int *write_buffer_size, string path) {
+void ExportExec::flush(string *result, unsigned long long *file_size,
+                       int *file_num, int *write_buffer_size, string path) {
   imp_->AppendNoCompress((*result).c_str(), strlen((*result).c_str()));
   (*result).clear();
   string().swap(*result);
   *write_buffer_size = 0;
-  if (*file_size > (4 * 1024 * 1024 * 1024 - 10)) {
+  if (*file_size / 1024 > (10.8 * 1024 * 1024)) {
     unsigned pos = path.rfind("/");
     string path_former = path.substr(0, pos + 1);
     string file_name = path.substr(pos + 1, path.length());
@@ -386,9 +490,41 @@ RetCode ExportExec::GetWriteAndReadTables(
     cout << "semantic analysis error result= : " << ret << endl;
     return ret;
   } else {
-    table_status.first = 0;
-    table_status.second = export_ast_->table_name_;
-    table_list.push_back(table_status);
+    if (export_ast_->select_stmt_ != NULL) {
+      AstSelectStmt *select_ast_ =
+          reinterpret_cast<AstSelectStmt *>(export_ast_->select_stmt_);
+      AstFromList *from_list =
+          reinterpret_cast<AstFromList *>(select_ast_->from_list_);
+      if (AST_JOIN == from_list->args_->ast_node_type_) {
+        AstJoin *ast_join = reinterpret_cast<AstJoin *>(from_list->args_);
+        AstTable *table = reinterpret_cast<AstTable *>(ast_join->left_table_);
+        table_status.first = 0;
+        table_status.second = table->table_name_;
+        table_list.push_back(table_status);
+        table = reinterpret_cast<AstTable *>(ast_join->right_table_);
+        table_status.first = 0;
+        table_status.second = table->table_name_;
+        table_list.push_back(table_status);
+      } else {
+        AstTable *table = reinterpret_cast<AstTable *>(from_list->args_);
+        table_status.first = 0;
+        table_status.second = table->table_name_;
+        table_list.push_back(table_status);
+        while (from_list->next_ != NULL) {
+          from_list = reinterpret_cast<AstFromList *>(from_list->next_);
+          AstTable *table = reinterpret_cast<AstTable *>(from_list->args_);
+          table_status.first = 0;
+          table_status.second = table->table_name_;
+          table_list.push_back(table_status);
+        }
+      }
+
+    } else {
+      table_status.first = 0;
+      table_status.second = export_ast_->table_name_;
+      table_list.push_back(table_status);
+    }
+
     stmt_to_table_list.push_back(table_list);
     return ret;
   }

@@ -181,8 +181,8 @@ void ResultSet::getResult(unsigned int &change_row,
         }
       }
       ostr <<"\n";
-      ++change_row;
-      ++row_count;
+      change_row++;
+      row_count++;
       if (row_count == 1000000) {
         sel_result.push_back(ostr.str());
         row_count = 0;
