@@ -1048,11 +1048,16 @@ stmt: export_table_stmt	                    { $$ = $1;}
 	
 export_table_stmt: EXPORT TABLE NAME INTO expr_list WITH STRING ',' STRING
       { 
-      $$ = new AstExportTable(AST_EXPORT_TABLE, string($3), $5, string($7), string($9));
+      $$ = new AstExportTable(AST_EXPORT_TABLE, string($3), $5, string($7), string($9), NULL);
 
            }
 	;
-	
+export_table_stmt: EXPORT INTO expr_list WITH STRING ',' STRING select_stmt
+      { 
+      $$ = new AstExportTable(AST_EXPORT_TABLE, "", $3, string($5), string($7),$8);
+      
+           }
+    ;	
 	/** drop index **/	
 stmt: drop_index_stmt                       { $$ = $1; /*output($$, 1); puts("SQL parser： This is a drop_index statement");*/ }
     ;

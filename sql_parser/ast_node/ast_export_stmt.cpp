@@ -44,25 +44,43 @@ using std::bitset;
 // namespace claims {
 // namespace sql_parser {
 AstExportTable::AstExportTable(AstNodeType ast_node_type, string table_name,
-                           AstNode* path, string column_separator,
-                           string tuple_separator)
+                               AstNode* path, string column_separator,
+                               string tuple_separator, AstNode* select_stmt)
     : AstNode(ast_node_type),
       table_name_(table_name),
       path_(path),
       column_separator_(column_separator),
-      tuple_separator_(tuple_separator){}
+      tuple_separator_(tuple_separator),
+      select_stmt_(select_stmt) {}
 
-AstExportTable::~AstExportTable() { delete path_; }
+AstExportTable::~AstExportTable() {
+  delete path_;
+  delete select_stmt_;
+}
 
 void AstExportTable::Print(int level) const {
-  cout << setw(level * TAB_SIZE) << " "
-       << "|Export Table|"
-       << "    ";
-  cout << " Table name: " << table_name_ << endl;
-  cout << setw(level * TAB_SIZE) << " "
-       << " Path: " << endl;
-  if (path_ != NULL) {
-    path_->Print(++level);
+  if (select_stmt_ == NULL) {
+    cout << setw(level * TAB_SIZE) << " "
+         << "|Export Table|"
+         << "    ";
+    cout << " Table name: " << table_name_ << endl;
+    cout << setw(level * TAB_SIZE) << " "
+         << " Path: " << endl;
+    if (path_ != NULL) {
+      path_->Print(++level);
+    }
+  } else {
+    cout << setw(level * TAB_SIZE) << " "
+         << "|Export Table|"
+         << "    ";
+    cout << setw(level * TAB_SIZE) << " "
+         << " Path: " << endl;
+    if (path_ != NULL) {
+      path_->Print(++level);
+    }
+    if (select_stmt_ != NULL) {
+      select_stmt_->Print();
+    }
   }
 }
 
@@ -70,30 +88,34 @@ RetCode AstExportTable::SemanticAnalisys(SemanticContext* sem_cnxt) {
   RetCode ret = rSuccess;
   TableDescriptor* table =
       Environment::getInstance()->getCatalog()->getTable(table_name_);
-  AstExprList *path_node = dynamic_cast<AstExprList *>(path_);
-  AstExprConst *data = dynamic_cast<AstExprConst *>(path_node->expr_);
-  string path =data->data_;
+  AstExprList* path_node = dynamic_cast<AstExprList*>(path_);
+  AstExprConst* data = dynamic_cast<AstExprConst*>(path_node->expr_);
+  string path = data->data_;
   unsigned pos = path.rfind("/");
   string path_name_former = path.substr(0, pos);
-  if (NULL == table) {
-    sem_cnxt->error_msg_ =
-        "the table " + table_name_ + " does not exist !";
-    ret = rTableNotExisted;
-    return ret;
+  if (select_stmt_ == NULL) {
+    if (NULL == table) {
+      sem_cnxt->error_msg_ = "the table " + table_name_ + " does not exist !";
+      ret = rTableNotExisted;
+      return ret;
+    }
+    if (0 == table->getNumberOfProjection()) {
+      sem_cnxt->error_msg_ = "the table has not been created a projection!";
+      ret = rNoProjection;
+      return ret;
+    }
   }
-  if (0 == table->getNumberOfProjection()) {
-    sem_cnxt->error_msg_ = "the table has not been created a projection!";
-    ret = rNoProjection;
-    return ret;
-  }
-  if ( -1 ==access(path_name_former.c_str(), 0)){
-	  sem_cnxt->error_msg_ = "the path "+ path_name_former + " does not exsit!" ;
 
-	  ret = rDataPathError;
-  }else if(-1 ==access(path_name_former.c_str(), 2)){
-	  sem_cnxt->error_msg_ = "the path "+ path_name_former + " has not write permission!";
-	  ret = rNoPermission;
+  if (-1 == access(path_name_former.c_str(), 0)) {
+    sem_cnxt->error_msg_ = "the path " + path_name_former + " does not exsit!";
+
+    ret = rDataPathError;
+  } else if (-1 == access(path_name_former.c_str(), 2)) {
+    sem_cnxt->error_msg_ =
+        "the path " + path_name_former + " has not write permission!";
+    ret = rNoPermission;
   }
+
   return ret;
 }
 

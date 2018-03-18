@@ -32,6 +32,7 @@
 #include "../common/memory_handle.h"
 #include "../common/rename.h"
 #include "../storage/ChunkStorage.h"
+#include "../common/Block/DynamicBlockBuffer.h"
 
 namespace claims {
 namespace stmt_handler {
@@ -48,13 +49,18 @@ class ExportExec : public StmtExec {
    */
   RetCode Execute(ExecutedResult* exec_result);
   void ExportExec::AnnounceIAmExporting();
-  RetCode ExportExec::CreateChunklist(vector<PartitionInfo *> pt_list,
-		  vector<PartitionID> ptid_list,   std::vector<ChunkID*> &chunk_id) ;
-  RetCode ExportExec::ExportIntoFile(int attr_size , std::vector<ChunkID*> chunk_id,
-		  string path);
-  void ExportExec::flush(string *result ,unsigned int *file_size ,int*file_num,int * write_buffer_size, string path);
-  virtual RetCode GetWriteAndReadTables(ExecutedResult& result,
-      vector<vector<pair<int, string>>>& stmt_to_table_list) ;
+  RetCode ExportExec::CreateChunklist(vector<PartitionInfo*> pt_list,
+                                      vector<PartitionID> ptid_list,
+                                      std::vector<ChunkID*>& chunk_id);
+  RetCode ExportExec::ExportIntoFile(int attr_size,
+                                     std::vector<ChunkID*> chunk_id,
+                                     string path);
+  void ExportExec::flush(string* result, unsigned long long* file_size,
+                         int* file_num, int* write_buffer_size, string path);
+  virtual RetCode GetWriteAndReadTables(
+      ExecutedResult& result,
+      vector<vector<pair<int, string>>>& stmt_to_table_list);
+
  private:
   /**
    * this pointer describes the abstract syntax tree about export data from
@@ -63,16 +69,16 @@ class ExportExec : public StmtExec {
    * object.
    */
 
-  //int file_size;
-  //int file_num;
-  TableDescriptor *table_;
+  // int file_size;
+  // int file_num;
+  TableDescriptor* table_;
   AstExportTable* export_ast_;
   common::FileHandleImp* imp_;
   common::FilePlatform platform_;
   string file_name_;
   string column_separator_;
   string tuple_separator_;
-  int  fd_;
+  int fd_;
 };
 
 }  // namespace stmt_handler
