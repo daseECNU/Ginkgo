@@ -41,6 +41,7 @@
 #include "../loader/table_parquet_reader.h"
 #include "../common/ids.h"
 #include "../stmt_handler/select_exec.h"
+#include "../common/Block/ResultSet.cpp"
 
 using claims::loader::TableParquetReader;
 using std::vector;
@@ -78,6 +79,8 @@ RetCode ExportExec::Execute(ExecutedResult *exec_result) {
   RetCode ret = rSuccess;
   column_separator_ = export_ast_->column_separator_;
   tuple_separator_ = export_ast_->tuple_separator_;
+  int column_separator_len = utf8_strlen(column_separator_);
+  int tuple_separator_len = utf8_strlen(tuple_separator_);
   AstExprList *path_node = dynamic_cast<AstExprList *>(export_ast_->path_);
   AstExprConst *data = dynamic_cast<AstExprConst *>(path_node->expr_);
   string path = data->data_;
@@ -286,10 +289,13 @@ RetCode ExportExec::Execute(ExecutedResult *exec_result) {
               schema->getColumnAddess(i, tuple));
           (*result).append(colval);
           (*result).append(column_separator_);
+          write_buffer_size =
+              write_buffer_size + utf8_strlen(colval) + column_separator_len;
+          file_size = file_size + utf8_strlen(colval) + column_separator_len;
         }
         (*result).append(tuple_separator_);
-        write_buffer_size += tup_size;
-        file_size += tup_size;
+        write_buffer_size += tuple_separator_len;
+        file_size += tuple_separator_len;
         if (0 == row_id_in_file % 40000) AnnounceIAmExporting();
         ++row_id_in_file;
       }
@@ -338,8 +344,6 @@ RetCode ExportExec::Execute(ExecutedResult *exec_result) {
 
     return ret;
 
-    /* print horizontal line */
-
   } else {
     ret = rFailure;
     LOG(ERROR) << "failed to export table: " << table_->getTableName() << " ";
@@ -356,6 +360,8 @@ RetCode ExportExec::ExportIntoFile(int attr_size,
   void *buffer = malloc(64 * 1024 * 1024);
   string *result = new string;
   Schema *schema = table_->getSchema();
+  int column_separator_len = utf8_strlen(column_separator_);
+  int tuple_separator_len = utf8_strlen(tuple_separator_);
   int row_id_in_file = 0;
   int write_buffer_size = 0;
   int file_num = 1;
@@ -392,10 +398,13 @@ RetCode ExportExec::ExportIntoFile(int attr_size,
               BLOCK_SIZE * block_ + tuple_ * tup_size + buffer, i);
           (*result).append(colval);
           (*result).append(column_separator_);
+          file_size = file_size + utf8_strlen(colval) + column_separator_len;
+          write_buffer_size =
+              write_buffer_size + utf8_strlen(colval) + column_separator_len;
         }
         (*result).append(tuple_separator_);
-        write_buffer_size += tup_size;
-        file_size += tup_size;
+        write_buffer_size += tuple_separator_len;
+        file_size += tuple_separator_len;
         tuple_++;
 
         if (0 == row_id_in_file % 40000) AnnounceIAmExporting();
@@ -425,7 +434,7 @@ void ExportExec::flush(string *result, unsigned long long *file_size,
   (*result).clear();
   string().swap(*result);
   *write_buffer_size = 0;
-  if (*file_size / 1024 > (10.8 * 1024 * 1024)) {
+  if (*file_size / 1024 > (4 * 1024 * 1024)) {
     unsigned pos = path.rfind("/");
     string path_former = path.substr(0, pos + 1);
     string file_name = path.substr(pos + 1, path.length());
@@ -433,11 +442,16 @@ void ExportExec::flush(string *result, unsigned long long *file_size,
     string file_name_former = file_name.substr(0, pos1);
     string file_name_latter = file_name.substr(pos1, file_name.length());
     ostringstream os;
-    os << *file_num;
+    os << (*file_num) + 1;
     if (*file_num == 1) {
       string new_name =
           path_former + file_name_former + "_1" + file_name_latter;
       int rename_result = rename(path.c_str(), new_name.c_str());
+      string new_name1 =
+          path_former + file_name_former + "_2" + file_name_latter;
+      imp_ = common::FileHandleImpFactory::Instance().CreateFileHandleImp(
+          platform_, new_name1);
+      (*file_size) = 0;
     } else {
       string new_path =
           path_former + file_name_former + "_" + os.str() + file_name_latter;
