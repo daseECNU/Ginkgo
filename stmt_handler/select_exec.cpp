@@ -155,16 +155,16 @@ RetCode SelectExec::Execute() {
   select_ast_->Print();
   cout << "--------------begin semantic analysis---------------" << endl;
 #endif
-  SemanticContext sem_cnxt;
+  //  SemanticContext sem_cnxt;
   RetCode ret = rSuccess;
-  ret = select_ast_->SemanticAnalisys(&sem_cnxt);
-  if (rSuccess != ret) {
-    stmt_exec_status_->set_exec_info("semantic analysis error \n" +
-                                     sem_cnxt.error_msg_);
-    stmt_exec_status_->set_exec_status(StmtExecStatus::ExecStatus::kError);
-    LOG(ERROR) << "semantic analysis error result= : " << ret;
-    return ret;
-  }
+//  ret = select_ast_->SemanticAnalisys(&sem_cnxt);
+//  if (rSuccess != ret) {
+//    stmt_exec_status_->set_exec_info("semantic analysis error \n" +
+//                                     sem_cnxt.error_msg_);
+//    stmt_exec_status_->set_exec_status(StmtExecStatus::ExecStatus::kError);
+//    LOG(ERROR) << "semantic analysis error result= : " << ret;
+//    return ret;
+//  }
 
 #ifdef PRINTCONTEXT
   select_ast_->Print();
