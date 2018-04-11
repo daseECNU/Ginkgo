@@ -55,6 +55,7 @@ class SelectExec : public StmtExec {
   RetCode GetWriteAndReadTables(
       ExecutedResult& result,
       vector<vector<pair<int, string>>>& stmt_to_table_list);
+  RetCode SemanticAnalisys(ExecutedResult& result);
   RetCode Execute();
 
  private:

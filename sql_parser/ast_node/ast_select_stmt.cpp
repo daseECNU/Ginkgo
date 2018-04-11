@@ -481,6 +481,7 @@ RetCode AstTable::SemanticAnalisys(SemanticContext* sem_cnxt) {
   if (table_alias_ == "NULL") {
     table_alias_ = table_name_;
   }
+  sem_cnxt->AddOriTable(table_name_);
   sem_cnxt->AddTable(table_alias_);
 
   std::vector<Attribute> attrs = tbl->getAttributes();
@@ -628,6 +629,10 @@ RetCode AstSubquery::SemanticAnalisys(SemanticContext* sem_cnxt) {
 
   // subquery_ is OK?
   RetCode ret = subquery_->SemanticAnalisys(&sub_sem_cnxt);
+  vector<string> ori_tables_ = sub_sem_cnxt.GetOriTables();
+  for (auto i : ori_tables_) {
+    sem_cnxt->AddOriTable(i);
+  }
   if (rSuccess != ret) {
     return ret;
   }
@@ -839,6 +844,10 @@ RetCode AstJoin::SemanticAnalisys(SemanticContext* sem_cnxt) {
     }
   }
   ret = sem_cnxt->AddTable(join_sem_cnxt.get_tables());
+  vector<string> table_set = join_sem_cnxt.GetOriTables();
+  for (auto i : table_set) {
+    ret = sem_cnxt->AddOriTable(i);
+  }
   ret = sem_cnxt->AddTableColumn(join_sem_cnxt.get_column_to_table());
   //  join_sem_cnxt.~SemanticContext();
   return ret;

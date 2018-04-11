@@ -162,6 +162,7 @@ class SemanticContext {
   RetCode IsColumnExist(string& table, const string column);
   RetCode AddTable(string table);
   RetCode AddTable(set<string> table);
+  RetCode AddOriTable(string table);
   RetCode AddTableColumn(const string& table, const string& column);
   RetCode AddTableColumn(const multimap<string, string>& column_to_table);
   RetCode RebuildTableColumn(set<AstNode*>& aggregation);
@@ -176,6 +177,7 @@ class SemanticContext {
   void GetTableAllColumn(const string table,
                          multimap<string, string>& new_columns);
   void GetUniqueAggAttr(set<AstNode*>& new_set);
+  vector<string> GetOriTables() { return ori_tables_; };
   void ClearSelectAttrs() { select_attrs_.clear(); }
   set<AstNode*> get_aggregation();
   vector<AstNode*> get_groupby_attrs();
@@ -202,6 +204,7 @@ class SemanticContext {
   set<AstNode*> select_attrs_;
   multimap<string, string> column_to_table_;
   set<string> tables_;
+  vector<string> ori_tables_;
 };
 class PushDownConditionContext {
  public:

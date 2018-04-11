@@ -39,7 +39,7 @@ enable_expander_adaptivity=1
 
 # 0: hdfs
 # 1: local
-local_disk_mode = 0
+local_disk_mode = 1
 
 client_listener_port = 10000
 

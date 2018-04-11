@@ -88,6 +88,7 @@ RetCode DeleteStmtExec::Execute(ExecutedResult* exec_result) {
     appended_query_sel_stmt->Print();
     // ExecutedResult* appended_result = new ExecutedResult();
     SelectExec* appended_query_exec = new SelectExec(appended_query_sel_stmt);
+    appended_query_exec->SemanticAnalisys(*exec_result);
     ret = appended_query_exec->Execute(exec_result);
     if (ret != rSuccess) {
       WLOG(ret, "failed to find the delete tuples from the table ");
@@ -313,19 +314,12 @@ RetCode DeleteStmtExec::GetWriteAndReadTables(
     cout << "semantic analysis error result= : " << ret << endl;
     return ret;
   } else {
-    AstFromList* from_list =
-        reinterpret_cast<AstFromList*>(delete_stmt_ast_->from_list_);
-    AstTable* table = reinterpret_cast<AstTable*>(from_list->args_);
-    table_status.first = 1;
-    table_status.second = table->table_name_;
-    table_list.push_back(table_status);
-    while (from_list->next_ != NULL) {
-      from_list = reinterpret_cast<AstFromList*>(from_list->next_);
-      AstTable* table = reinterpret_cast<AstTable*>(from_list->args_);
+    vector<string> ori_tables = sem_cnxt.GetOriTables();
+    for (auto str : ori_tables) {
       table_status.first = 1;
-      table_status.second = table->table_name_;
-      table_list.push_back(table_status);
+      table_status.second = str;
     }
+    table_list.push_back(table_status);
     stmt_to_table_list.push_back(table_list);
     return ret;
   }
