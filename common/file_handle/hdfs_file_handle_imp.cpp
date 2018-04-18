@@ -31,6 +31,11 @@
 //// it will also prohibit assert()
 // #define NDEBUG
 
+//// this macro decides whether compile the hdfs_truncate()
+//// 1 = yes
+//// 0 = no
+#define COMPILE_TRUNCATE 0
+
 #include "./hdfs_file_handle_imp.h"
 #include <glog/logging.h>
 #include <string>
@@ -39,7 +44,6 @@
 #include "../memory_handle.h"
 #include "../../utility/lock_guard.h"
 #include "snappy.h"
-
 using std::endl;
 using claims::utility::LockGuard;
 using snappy::Compress;
@@ -375,9 +379,9 @@ RetCode HdfsFileHandleImp::Truncate(const size_t newlength) {
     return rFailure;
   }
   hdfsFileInfo* hdfsfile = hdfsGetPathInfo(fs_, file_name_.c_str());
-  size_t actul_file_length = hdfsfile->mSize;
-
-  if (actul_file_length > newlength) {
+  size_t actual_file_length = hdfsfile->mSize;
+#if COMPILE_TRUNCATE
+  if (actual_file_length > newlength) {
     int i = hdfsTruncateFile(fs_, file_name_.c_str(), newlength);
     if (-1 == i) {
       LOG(ERROR) << "Failed to truncate file : [" + file_name_ + "]." << endl;
@@ -387,7 +391,7 @@ RetCode HdfsFileHandleImp::Truncate(const size_t newlength) {
       LOG(INFO) << "The file " << file_name_ << " is truncated successfully"
                 << endl;
     }
-  } else if (actul_file_length < newlength) {
+  } else if (actual_file_length < newlength) {
     int i = hdfsTruncateFile(fs_, file_name_.c_str(), 0);
     if (-1 == i) {
       LOG(ERROR) << "Failed to truncate file : [" + file_name_ + "]." << endl;
@@ -400,6 +404,14 @@ RetCode HdfsFileHandleImp::Truncate(const size_t newlength) {
     }
   }
   return rSuccess;
+#else
+  if (actual_file_length != newlength) {
+    LOG(ERROR) << "Failed to truncate dirty data because the hadoop version is "
+                  "lower than 2.7!" << endl;
+    return rHdfsDataError;
+  }
+  return rSuccess;
+#endif
 }
 
 }  // namespace common

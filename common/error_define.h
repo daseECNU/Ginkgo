@@ -204,6 +204,7 @@ const int rFileInUsing = -102;
 
 const int rResourceIsLocked = -103;
 const int rTruncateFileFail = -104;
+const int rHdfsDataError = -105;
 
 // schema associated
 const int rEmptyAttributeName = -501;

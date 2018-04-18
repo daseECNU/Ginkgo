@@ -65,7 +65,6 @@ Environment::Environment(bool ismaster) : ismaster_(ismaster) {
     }
     if (rSuccess != catalog_->truncateDirtyData()) {
       LOG(ERROR) << "failed to truncate dirty data" << std::endl;
-      cerr << "ERROR: truncate dirty data failed" << endl;
     }
   }
   stmt_exec_tracker_ = new StmtExecTracker();

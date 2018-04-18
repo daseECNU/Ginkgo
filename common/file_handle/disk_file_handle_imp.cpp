@@ -347,15 +347,15 @@ RetCode DiskFileHandleImp::Truncate(const size_t newlength) {
   }
   const char* file_name = file_name_.c_str();
   if (CanAccess(file_name_)) {
-    size_t actul_file_length = lseek(fd_, 0, SEEK_END);
-    if (actul_file_length > newlength) {
+    size_t actual_file_length = lseek(fd_, 0, SEEK_END);
+    if (actual_file_length > newlength) {
       if (truncate(file_name, newlength) == 0) {
         logical_file_length_ = newlength;
         return rSuccess;
       } else {
         return rTruncateFileFail;
       }
-    } else if (actul_file_length < newlength) {
+    } else if (actual_file_length < newlength) {
       if (truncate(file_name, 0) == 0) {
         logical_file_length_ = 0;
         return rTruncateReset;

@@ -39,7 +39,7 @@ enable_expander_adaptivity=1
 
 # 0: hdfs
 # 1: local
-local_disk_mode = 1
+local_disk_mode = 0
 
 client_listener_port = 10000
 
@@ -62,5 +62,4 @@ zk_znode_name="/Catalog_test"
 zookeeper_host_list = "127.0.0.1:2181"
 
 #千兆网一般设为3000 万兆网设为20000
-expander_buffer_size =3000
-
+expander_buffer_size = 3000
