@@ -356,7 +356,7 @@ RetCode TableDescriptor::TruncateFilesFromTable() {
       }
     }
   }
-  return rSuccess;
+  return ret;
 }
 
 } /* namespace catalog */

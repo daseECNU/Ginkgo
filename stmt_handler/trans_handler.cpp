@@ -131,6 +131,7 @@ void TransHandler::UnlockAllWriteTables() {
   if (wlock_tables_.size() != 0) {
     auto beg = wlock_tables_.begin();
     while (beg != wlock_tables_.end()) {
+      if (Catalog::getInstance()->getTable(*beg) != NULL)
         Catalog::getInstance()->getTable(*beg)->unwrLock();
       ++beg;
     }

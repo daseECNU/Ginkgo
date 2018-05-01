@@ -137,6 +137,7 @@ RetCode AstDropTableList::SemanticAnalisys(SemanticContext* sem_cnxt) {
     ret = rTableNotExisted;
     return ret;
   }
+  sem_cnxt->AddOriTable(table_name_);
   if (NULL != next_) {
     ret = next_->SemanticAnalisys(sem_cnxt);
   }

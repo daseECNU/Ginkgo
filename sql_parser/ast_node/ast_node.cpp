@@ -304,6 +304,10 @@ RetCode SemanticContext::AddTable(string table) {
   tables_.insert(table);
   return rSuccess;
 }
+RetCode SemanticContext::AddOriTable(string table) {
+  ori_tables_.push_back(table);
+  return rSuccess;
+}
 set<string> SemanticContext::get_tables() { return tables_; }
 
 /**

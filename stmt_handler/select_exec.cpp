@@ -564,13 +564,8 @@ RetCode execSelectInto(StmtExecStatus* exec_status,
   }
   return ret;
 }
-
-RetCode SelectExec::GetWriteAndReadTables(
-    ExecutedResult& result,
-    vector<vector<pair<int, string>>>& stmt_to_table_list) {
+RetCode SelectExec::SemanticAnalisys(ExecutedResult& result) {
   RetCode ret = rSuccess;
-  vector<pair<int, string>> table_list;
-  pair<int, string> table_status;
   ret = select_ast_->SemanticAnalisys(&sem_cnxt_);
   if (rSuccess != ret) {
     result.error_info_ = "Semantic analysis error.\n" + sem_cnxt_.error_msg_;
@@ -579,40 +574,24 @@ RetCode SelectExec::GetWriteAndReadTables(
     cout << "semantic analysis error result= : " << ret << endl;
     return ret;
   } else {
-    AstFromList* from_list =
-        reinterpret_cast<AstFromList*>(select_ast_->from_list_);
-    if (AST_JOIN == from_list->args_->ast_node_type_) {
-      AstJoin* ast_join = reinterpret_cast<AstJoin*>(from_list->args_);
-      AstTable* table = reinterpret_cast<AstTable*>(ast_join->left_table_);
+    return ret;
+  }
+}
+RetCode SelectExec::GetWriteAndReadTables(
+    ExecutedResult& result,
+    vector<vector<pair<int, string>>>& stmt_to_table_list) {
+  RetCode ret = rSuccess;
+  vector<pair<int, string>> table_list;
+  pair<int, string> table_status;
+  ret = SemanticAnalisys(result);
+  if (rSuccess != ret) {
+    return ret;
+  } else {
+    vector<string> ori_tables = sem_cnxt_.GetOriTables();
+    for (auto str : ori_tables) {
       table_status.first = 0;
-      table_status.second = table->table_name_;
+      table_status.second = str;
       table_list.push_back(table_status);
-      table = reinterpret_cast<AstTable*>(ast_join->right_table_);
-      table_status.first = 0;
-      table_status.second = table->table_name_;
-      table_list.push_back(table_status);
-    } else {
-      AstTable* table = reinterpret_cast<AstTable*>(from_list->args_);
-      table_status.first = 0;
-      table_status.second = table->table_name_;
-      table_list.push_back(table_status);
-      while (from_list->next_ != NULL) {
-        from_list = reinterpret_cast<AstFromList*>(from_list->next_);
-        AstTable* table = reinterpret_cast<AstTable*>(from_list->args_);
-        table_status.first = 0;
-        table_status.second = table->table_name_;
-        table_list.push_back(table_status);
-      }
-      if (select_ast_->select_into_clause_ != NULL) {
-        AstSelectIntoClause* select_into_clause =
-            reinterpret_cast<AstSelectIntoClause*>(
-                select_ast_->select_into_clause_);
-        AstTable* table =
-            reinterpret_cast<AstTable*>(select_into_clause->table_);
-        table_status.first = 3;
-        table_status.second = "";
-        table_list.push_back(table_status);
-      }
     }
     stmt_to_table_list.push_back(table_list);
     return ret;

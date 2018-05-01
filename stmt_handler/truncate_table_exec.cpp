@@ -204,17 +204,12 @@ RetCode TruncateTableExec::GetWriteAndReadTables(
     LOG(WARNING) << "semantic analysis error result= : " << ret;
     return ret;
   } else {
-    AstDropTableList* drop_list =
-        reinterpret_cast<AstDropTableList*>(truncate_table_ast_->table_list_);
-    table_status.first = 1;
-    table_status.second = drop_list->table_name_;
-    table_list.push_back(table_status);
-    while (drop_list->next_ != NULL) {
-      drop_list = reinterpret_cast<AstDropTableList*>(drop_list->next_);
-      table_status.first = 1;
-      table_status.second = drop_list->table_name_;
-      table_list.push_back(table_status);
+    vector<string> ori_tables = sem_cnxt.GetOriTables();
+    for (auto str : ori_tables) {
+      table_status.first = 2;
+      table_status.second = str;
     }
+    table_list.push_back(table_status);
     stmt_to_table_list.push_back(table_list);
     return ret;
   }

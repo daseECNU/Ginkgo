@@ -62,5 +62,4 @@ zk_znode_name="/Catalog_test"
 zookeeper_host_list = "127.0.0.1:2181"
 
 #千兆网一般设为3000 万兆网设为20000
-expander_buffer_size =3000
-
+expander_buffer_size = 3000
