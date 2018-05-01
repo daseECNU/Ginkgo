@@ -77,6 +77,7 @@ class Config {
   static bool enable_codegen;
   static bool enable_parquet;
   static bool enable_prune_column;
+  static bool enable_kerberos;
   static std::string catalog_file;
   static int thread_pool_init_thread_num;
   static int memory_utilization;
@@ -86,6 +87,10 @@ class Config {
   static int hash_join_bucket_size;
   static int hash_join_bucket_num;
   static int expander_buffer_size;
+  static std::string krb_listen_address;
+  static std::string krb_server_keyfile;
+  static std::string krb_srvname;
+  static int kerberos_notify_port;
 
  private:
   static Config* instance_;

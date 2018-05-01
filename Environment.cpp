@@ -29,6 +29,15 @@
 #include "common/expression/data_type_oper.h"
 #include "common/expression/expr_type_cast.h"
 #include "common/expression/type_conversion_matrix.h"
+#include <netinet/in.h>
+#include <unistd.h>      //for fork and read
+#include <sys/types.h>   //for socket
+#include <sys/socket.h>  //for socket
+#include <arpa/inet.h>
+#include <cstdlib>
+#include "k5-int.h"
+#include "krb5.h"
+#include <net_write.c>
 
 using caf::announce;
 using claims::BaseNode;
@@ -45,7 +54,62 @@ using claims::NodeAddr;
 using claims::NodeSegmentID;
 using claims::StmtExecTracker;
 
-Environment* Environment::_instance = 0;
+Environment *Environment::_instance = 0;
+
+void *sendauthinfo(void *args) {
+  int SERVERPORT = Config::kerberos_notify_port;
+  cout << SERVERPORT << endl;
+  const int BACKLOG = 10;  //
+  const int MAXSIZE = 1024;
+  int sock, client_fd;
+  sockaddr_in myAddr;
+  sockaddr_in remoteAddr;
+  sock = socket(AF_INET, SOCK_STREAM, 0);
+  int n = 0;
+  // create socket
+  if (sock == -1) {
+    cout << "socket create fail!" << endl;
+    exit(1);
+  }
+  // bind
+  myAddr.sin_family = AF_INET;
+  myAddr.sin_port = htons(SERVERPORT);
+  myAddr.sin_addr.s_addr = INADDR_ANY;
+  bzero(&(myAddr.sin_zero), 8);
+  if (bind(sock, (sockaddr *)(&myAddr), sizeof(sockaddr)) == -1) {
+    cout << "bind error!" << endl;
+    exit(1);
+  }
+  // listen
+  if (listen(sock, 99) == -1) {
+    cout << "listen error" << endl;
+    exit(1);
+  }
+  while (true) {
+    unsigned int sin_size = sizeof(sockaddr_in);
+    if ((client_fd = accept(sock, (sockaddr *)(&remoteAddr), &sin_size)) ==
+        -1) {
+      cout << "accept error!" << endl;
+      continue;
+    }
+
+    if (!fork()) {
+      int rval;
+      char buf[MAXSIZE];
+      stringstream ss;
+      if (Config::enable_kerberos)
+        ss << "yes";
+      else
+        ss << "no";
+      string s1 = ss.str();
+      const char *msg = (char *)s1.c_str();
+      if (send(client_fd, const_cast<char *>(msg), strlen(msg), 0) == -1)
+        cout << "send error!" << endl;
+      close(client_fd);
+      exit(0);
+    }
+  }
+}
 
 Environment::Environment(bool ismaster) : ismaster_(ismaster) {
   _instance = this;
@@ -108,6 +172,10 @@ Environment::Environment(bool ismaster) : ismaster_(ismaster) {
   expander_tracker_ = ExpanderTracker::getInstance();
 #ifndef DEBUG_MODE
   if (ismaster) {
+    int kerberos_notify_port = Config::kerberos_notify_port;
+    pthread_t test1;
+    pthread_create(&test1, NULL, sendauthinfo, (void *)kerberos_notify_port);
+    if (Config::enable_kerberos) initializeKerberosListener();
     initializeClientListener();
   }
 #endif
@@ -133,7 +201,7 @@ Environment::~Environment() {
   delete blockManager_;
   delete bufferManager_;
 }
-Environment* Environment::getInstance(bool ismaster) {
+Environment *Environment::getInstance(bool ismaster) {
   if (_instance == 0) {
     new Environment(ismaster);
   }
@@ -142,12 +210,12 @@ Environment* Environment::getInstance(bool ismaster) {
 std::string Environment::getIp() { return ip; }
 unsigned Environment::getPort() { return port; }
 
-ThreadPool* Environment::getThreadPool() const { return thread_pool_; }
+ThreadPool *Environment::getThreadPool() const { return thread_pool_; }
 
 void Environment::readConfigFile() {
   libconfig::Config cfg;
   cfg.readFile(Config::config_file.c_str());
-  ip = (const char*)cfg.lookup("ip");
+  ip = (const char *)cfg.lookup("ip");
 }
 
 void Environment::AnnounceCafMessage() {
@@ -205,15 +273,15 @@ void Environment::initializeIndexManager() {
   indexManager_ = IndexManager::getInstance();
 }
 
-ExchangeTracker* Environment::getExchangeTracker() { return exchangeTracker; }
-ResourceManagerMaster* Environment::getResourceManagerMaster() {
+ExchangeTracker *Environment::getExchangeTracker() { return exchangeTracker; }
+ResourceManagerMaster *Environment::getResourceManagerMaster() {
   return resourceManagerMaster_;
 }
-InstanceResourceManager* Environment::getResourceManagerSlave() {
+InstanceResourceManager *Environment::getResourceManagerSlave() {
   return resourceManagerSlave_;
 }
 NodeID Environment::getNodeID() const { return node_id_; }
-claims::catalog::Catalog* Environment::getCatalog() const { return catalog_; }
+claims::catalog::Catalog *Environment::getCatalog() const { return catalog_; }
 
 void Environment::initializeClientListener() {
   listener_ = new ClientListener(Config::client_listener_port);
@@ -238,6 +306,139 @@ bool Environment::initializeThreadPool() {
   return thread_pool_->Init(Config::thread_pool_init_thread_num);
 }
 
-IteratorExecutorSlave* Environment::getIteratorExecutorSlave() const {
+IteratorExecutorSlave *Environment::getIteratorExecutorSlave() const {
   return iteratorExecutorSlave;
+}
+
+void *krbserver(void *args) {
+  krb5_context context;
+  struct sockaddr_in peername;
+  GETPEERNAME_ARG3_TYPE namelen = sizeof(peername);
+  int sock = -1; /* incoming connection fd */
+  krb5_data recv_data;
+  short xmitlen;
+  krb5_error_code retval;
+  krb5_principal server;
+  char repbuf[BUFSIZ];
+  char *cname;
+  const char *service;
+  short port = 0; /* If user specifies port */
+  const char *keytab_path;
+  extern int opterr, optind;
+  extern char *optarg;
+  int ch;
+  krb5_keytab keytab = NULL; /* Allow specification on command line */
+  char *progname;
+  int on = 1;
+
+  port = atoi(Config::krb_listen_address.c_str());
+  keytab_path = Config::krb_server_keyfile.c_str();
+  service = Config::krb_srvname.c_str();
+
+  retval = krb5_init_context(&context);
+  if (retval) {
+    exit(1);
+  }
+
+  if ((retval = krb5_kt_resolve(context, keytab_path, &keytab))) {
+    cout << "error while resolving keytab file" << endl;
+    exit(2);
+  }
+
+  retval =
+      krb5_sname_to_principal(context, NULL, service, KRB5_NT_SRV_HST, &server);
+  if (retval) {
+    cout << "while generating service name" << endl;
+
+    exit(1);
+  }
+
+  if (port) {
+    struct sockaddr_in sockin;
+
+    if ((sock = socket(PF_INET, SOCK_STREAM, 0)) < 0) {
+      // syslog(LOG_ERR, "socket: %m");
+      exit(3);
+    }
+
+    /* Let the socket be reused right away */
+    //        (void) setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, (char *)&on,
+    //                          sizeof(on));
+    sockin.sin_family = AF_INET;
+    sockin.sin_addr.s_addr = 0;
+    sockin.sin_port = htons(port);
+    if (bind(sock, (struct sockaddr *)&sockin, sizeof(sockin))) {
+      cout << "bind error!" << endl;
+      exit(3);
+    }
+    if (listen(sock, 99) == -1) {
+      cout << "listen error!" << endl;
+      exit(3);
+    }
+  }
+
+  while (true) {
+    int client_fd;
+
+    if ((client_fd = accept(sock, (struct sockaddr *)&peername, &namelen)) ==
+        -1) {
+      cout << "accept error!" << endl;
+      exit(3);
+    }
+
+    if (!fork()) {
+      krb5_ticket *ticket;
+      krb5_auth_context auth_context = NULL;
+      retval =
+          krb5_recvauth(context, &auth_context, (krb5_pointer)&client_fd,
+                        "KRB5_sample_protocol_v1.0", server, 0, /* no flags */
+                        keytab, /* default keytab is NULL */
+                        &ticket);
+
+      if (retval) {
+        //        cout << "recvauth failed--%s" << error_message(retval)
+        //             << endl;  // prints !!!Hello World!!!
+
+        // syslog(LOG_ERR, "recvauth failed--%s", error_message(retval));
+        exit(1);
+      }
+      retval = krb5_unparse_name(context, ticket->enc_part2->client, &cname);
+      if (retval) {
+        cout << "krb5_unparse_name error" << endl;
+        strncpy(repbuf, "You are <unparse error>\n", sizeof(repbuf) - 1);
+      } else {
+        strncpy(repbuf, "You are ", sizeof(repbuf) - 1);
+        strncat(repbuf, cname, sizeof(repbuf) - 1 - strlen(repbuf));
+        strncat(repbuf, "\n", sizeof(repbuf) - 1 - strlen(repbuf));
+        free(cname);
+      }
+      xmitlen = htons(strlen(repbuf));
+      recv_data.length = strlen(repbuf);
+      recv_data.data = repbuf;
+      if ((retval = krb5_net_write(context, client_fd, (char *)&xmitlen,
+                                   sizeof(xmitlen))) < 0) {
+        cout << "krb5_net_write len  error" << endl;
+        exit(1);
+      }
+      if ((retval = krb5_net_write(context, client_fd, (char *)recv_data.data,
+                                   recv_data.length)) < 0) {
+        cout << "krb5_net_write data error" << endl;
+        exit(1);
+      }
+
+      krb5_free_ticket(context, ticket);
+      if (keytab) krb5_kt_close(context, keytab);
+      krb5_free_principal(context, server);
+      krb5_auth_con_free(context, auth_context);
+      krb5_free_context(context);
+      close(client_fd);
+      exit(0);
+    }
+  }
+}
+
+void Environment::initializeKerberosListener() {
+  int a;
+  pthread_t test;
+  pthread_create(&test, NULL, krbserver, NULL);
 }

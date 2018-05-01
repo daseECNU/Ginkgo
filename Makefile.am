@@ -8,7 +8,9 @@ AM_CPPFLAGS=-fPIC  -DTHERON_XS\
 -I${CAF_HOME}/libcaf_io	\
 -I${CAF_HOME}/libcaf_core\
 -I${ZOOKEEPER_HOME}/src/c/include \
--I${ZOOKEEPER_HOME}/src/c/generated
+-I${ZOOKEEPER_HOME}/src/c/generated \
+-I${KERBEROS_HOME}/src/include \
+-I${KERBEROS_HOME}/src/lib/krb5/os
 
 #-L/usr/local/lib \
 #-L/usr/local/lib \-lprofiler
@@ -72,6 +74,7 @@ LDADD =  \
 	${JAVA_HOME}/jre/lib/amd64/server/libjvm.so\
 	${GTEST_HOME}/libgtest.a \
 	${GLOG_HOME}/.libs/libglog.so.0 \
+      ${KERBEROS_HOME}/src/lib/libkrb5.so\
 	-lLLVMJIT -lLLVMX86Disassembler -lLLVMX86AsmParser -lLLVMX86CodeGen -lLLVMSelectionDAG -lLLVMAsmPrinter \
 	-lLLVMMCParser -lLLVMCodeGen -lLLVMScalarOpts -lLLVMInstCombine -lLLVMTransformUtils -lLLVMipa -lLLVMAnalysis \
 	-lLLVMX86Desc -lLLVMX86Info -lLLVMX86AsmPrinter -lLLVMX86Utils -lLLVMMCJIT -lLLVMTarget -lLLVMRuntimeDyld \

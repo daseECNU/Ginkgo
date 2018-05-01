@@ -48,7 +48,7 @@ class Environment {
   ResourceManagerMaster* getResourceManagerMaster();
   InstanceResourceManager* getResourceManagerSlave();
   NodeID getNodeID() const;
-  void setNodeID(NodeID node_id){ node_id_ = node_id ;}
+  void setNodeID(NodeID node_id) { node_id_ = node_id; }
   claims::catalog::Catalog* getCatalog() const;
   ThreadPool* getThreadPool() const;
   IteratorExecutorSlave* getIteratorExecutorSlave() const;
@@ -76,6 +76,7 @@ class Environment {
   void destoryClientListener();
   bool initializeThreadPool();
   void InitMembership();
+  void initializeKerberosListener();
 
  private:
   static Environment* _instance;
@@ -105,6 +106,7 @@ class Environment {
 
   StmtExecTracker* stmt_exec_tracker_;
   SegmentExecTracker* seg_exec_tracker_;
+
   /**
    * TODO: the master and slave pair, such as ResouceManagerMaster and
    * ResourceManagerSlave, should have a
