@@ -205,12 +205,19 @@ RetCode TruncateTableExec::GetWriteAndReadTables(
     return ret;
   } else {
     vector<string> ori_tables = sem_cnxt.GetOriTables();
-    for (auto str : ori_tables) {
+    if (ori_tables.empty()) {
       table_status.first = 2;
-      table_status.second = str;
+      table_status.second = truncate_table_ast_->table_name_;
+      table_list.push_back(table_status);
+      stmt_to_table_list.push_back(table_list);
+    } else {
+      for (auto str : ori_tables) {
+        table_status.first = 2;
+        table_status.second = str;
+        table_list.push_back(table_status);
+        stmt_to_table_list.push_back(table_list);
+      }
     }
-    table_list.push_back(table_status);
-    stmt_to_table_list.push_back(table_list);
     return ret;
   }
 }
