@@ -77,19 +77,19 @@ void *sendauthinfo(void *args) {
   myAddr.sin_addr.s_addr = INADDR_ANY;
   bzero(&(myAddr.sin_zero), 8);
   if (bind(sock, (sockaddr *)(&myAddr), sizeof(sockaddr)) == -1) {
-    cout << "bind error!" << endl;
+    cout << "bind " << SERVERPORT << " error!" << endl;
     exit(1);
   }
   // listen
   if (listen(sock, 99) == -1) {
-    cout << "listen error" << endl;
+    cout << "listen" << SERVERPORT << "  error" << endl;
     exit(1);
   }
   while (true) {
     unsigned int sin_size = sizeof(sockaddr_in);
     if ((client_fd = accept(sock, (sockaddr *)(&remoteAddr), &sin_size)) ==
         -1) {
-      cout << "accept error!" << endl;
+      cout << "accept " << SERVERPORT << " error!" << endl;
       continue;
     }
 
@@ -104,7 +104,7 @@ void *sendauthinfo(void *args) {
       string s1 = ss.str();
       const char *msg = (char *)s1.c_str();
       if (send(client_fd, const_cast<char *>(msg), strlen(msg), 0) == -1)
-        cout << "send error!" << endl;
+        cout << "send " << SERVERPORT << " error!" << endl;
       close(client_fd);
       exit(0);
     }

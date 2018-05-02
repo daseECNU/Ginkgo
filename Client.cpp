@@ -265,6 +265,7 @@ int krbclient(char *hostname, char *portstr, char *service) {
   retval = krb5_cc_default(context, &ccdef);
 
   if (retval) {
+    cout << "error while getting default ccache " << endl;
     //  com_err(argv[0], retval, "while getting default ccache");
     exit(1);
   }
@@ -272,6 +273,8 @@ int krbclient(char *hostname, char *portstr, char *service) {
   retval = krb5_cc_get_principal(context, ccdef, &client);
 
   if (retval) {
+    cout << "error while getting client principal name " << endl;
+
     //  com_err(argv[0], retval, "while getting client principal name");
     exit(1);
   }
@@ -302,13 +305,14 @@ int krbclient(char *hostname, char *portstr, char *service) {
 
     if ((retval = net_read(sock, (char *)&xmitlen, sizeof(xmitlen))) <= 0) {
       if (retval == 0) errno = ECONNABORTED;
+      cout << "error while reading data from server" << endl;
+
       //     com_err(argv[0], errno, "while reading data from server");
       exit(1);
     }
     recv_data.length = ntohs(xmitlen);
     if (!(recv_data.data = (char *)malloc((size_t)recv_data.length + 1))) {
-      //         com_err(argv[0], ENOMEM,
-      //                   "while allocating buffer to read from server");
+      cout << "error while allocating buffer to read from server" << endl;
       exit(1);
     }
     if ((retval = net_read(sock, (char *)recv_data.data, recv_data.length)) <=
@@ -318,10 +322,11 @@ int krbclient(char *hostname, char *portstr, char *service) {
       exit(1);
     }
     recv_data.data[recv_data.length] = '\0';
-    // printf("reply len %d, contents:\n%s\n", recv_data.length,
-    // recv_data.data);
+    printf("krbauth reply len %d,krbauth contents:\n%s\n", recv_data.length,
+           recv_data.data);
     free(recv_data.data);
   } else {
+    cout << "no error or reply from sendauth" << endl;
     // com_err(argv[0], 0, "no error or reply from sendauth!");
     exit(1);
   }
@@ -332,14 +337,12 @@ int krbclient(char *hostname, char *portstr, char *service) {
   return 0;
 }
 
-int recvauth(int SERVERPORT) {
-  // const unsigned short SERVERPORT = 15000;
+int recvauth(int server_port, char *server_ip) {
   const int MAXSIZE = 1024;
-  const char *SERVER_IP = "127.0.0.1";
+  // const char *SERVER_IP = "127.0.0.1";
 
   int sock, recvBytes;
   char buf[MAXSIZE];
-  //    hostent *host;
   sockaddr_in serv_addr;
 
   if ((sock = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
@@ -349,15 +352,15 @@ int recvauth(int SERVERPORT) {
 
   bzero(&serv_addr, sizeof(serv_addr));
   serv_addr.sin_family = AF_INET;
-  serv_addr.sin_port = htons(SERVERPORT);
-  serv_addr.sin_addr.s_addr = inet_addr(SERVER_IP);
+  serv_addr.sin_port = htons(server_port);
+  serv_addr.sin_addr.s_addr = inet_addr(server_ip);
 
   if (connect(sock, (sockaddr *)&serv_addr, sizeof(sockaddr)) == -1) {
-    cout << "connect error" << endl;
+    cout << "connect " << server_ip << " error" << endl;
     exit(1);
   }
   if ((recvBytes = recv(sock, buf, MAXSIZE, 0)) == -1) {
-    cout << "recv error!" << endl;
+    cout << "kerberos_notify_port recv  error!" << endl;
     exit(1);
   }
   buf[recvBytes] = '\0';
@@ -366,7 +369,6 @@ int recvauth(int SERVERPORT) {
   else
     return 0;
   close(sock);
-  // sleep(10000);
 }
 
 int main(int argc, char **argv) {
@@ -383,7 +385,7 @@ int main(int argc, char **argv) {
         "configure file.\n");
     return 0;
   }
-  int use_kerberos = recvauth(atoi(argv[3]));
+  int use_kerberos = recvauth(atoi(argv[3]), argv[1]);
   int kerberos_auth_result;
   if (use_kerberos) {
     cout << "use kerberos" << endl;
