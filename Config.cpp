@@ -100,6 +100,7 @@ std::string Config::zookeeper_host_list;
 std::string Config::krb_listen_address;
 std::string Config::krb_server_keyfile;
 std::string Config::krb_srvname;
+std::string Config::krb_srvinstance;
 
 int Config::hash_join_bucket_num;
 int Config::hash_join_bucket_size;
@@ -183,6 +184,8 @@ void Config::initialize() {
   krb_server_keyfile = getString("krb_server_keyfile", "keyfile");
 
   krb_srvname = getString("krb_srvname", "sample");
+
+  krb_srvinstance = getString("krb_srvinstance", "sample");
 
   hash_join_bucket_num = getInt("hash_join_bucket_num", 1024 * 1024);
 

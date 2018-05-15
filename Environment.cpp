@@ -329,10 +329,12 @@ void *krbserver(void *args) {
   krb5_keytab keytab = NULL; /* Allow specification on command line */
   char *progname;
   int on = 1;
+  const char *krb_srvinstance;
 
   port = atoi(Config::krb_listen_address.c_str());
   keytab_path = Config::krb_server_keyfile.c_str();
   service = Config::krb_srvname.c_str();
+  krb_srvinstance = Config::krb_srvinstance.c_str();
 
   retval = krb5_init_context(&context);
   if (retval) {
@@ -344,8 +346,8 @@ void *krbserver(void *args) {
     exit(2);
   }
 
-  retval =
-      krb5_sname_to_principal(context, NULL, service, KRB5_NT_SRV_HST, &server);
+  retval = krb5_sname_to_principal(context, krb_srvinstance, service,
+                                   KRB5_NT_SRV_HST, &server);
   if (retval) {
     cout << "while generating service name" << endl;
 
