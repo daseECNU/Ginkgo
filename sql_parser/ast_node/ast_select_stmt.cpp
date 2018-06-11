@@ -1542,8 +1542,7 @@ RetCode AstColumn::SemanticAnalisys(SemanticContext* sem_cnxt) {
   if (rSuccess != ret) {
     LOG(ERROR) << "There are errors in ( " << relation_name_ << " , "
                << column_name_ << " )" << endl;
-    sem_cnxt->error_msg_ =
-        "column: '\e[1m" + column_name_ + "\e[0m' is invalid";
+    sem_cnxt->error_msg_ = "column: '" + column_name_ + "' is invalid";
     return ret;
   }
   sem_cnxt->is_all = false;
@@ -1734,26 +1733,8 @@ RetCode AstDistinctClause::SemanticAnalisys(SemanticContext* sem_cnxt) {
       return rDistinctInAggregationIsLessThanOne;
     } else {
       // AstColumn
-      AstDistinctList* it = distinct_list_;
-      while (NULL != it) {
-        if (it->expr_->expr_str_.find('.') == string::npos) {
-          LOG(WARNING) << " need add table before column, "
-                          "not just column in distinct aggregation!  exp: A.b";
-          return rDistinctInAggregationNeedTabelName;
-        }
-        string table_name =
-            it->expr_->expr_str_.substr(0, it->expr_->expr_str_.find('.'));
-        string column_name =
-            it->expr_->expr_str_.substr(it->expr_->expr_str_.find('.') + 1,
-                                        it->expr_->expr_str_.size() - 1);
-        if (!Environment::getInstance()
-                 ->getCatalog()
-                 ->getTable(table_name)
-                 ->isExist(it->expr_->expr_str_)) {
-          return rColumnNotExist;
-        }
-        it = it->next_;
-      }
+      ret = distinct_list_->SemanticAnalisys(sem_cnxt);
+      return ret;
     }
   }
   return rSuccess;
@@ -1768,19 +1749,21 @@ void AstDistinctClause::RecoverExprName(string& name) {
 RetCode AstDistinctClause::GetLogicalPlan(ExprNode*& logic_expr,
                                           LogicalOperator* const left_lplan,
                                           LogicalOperator* const right_lplan) {
+  RetCode ret = rFailure;
   if (select_opts_ == SELECT_DISTINCTROW) {
     // distinct on ('A','B'), don't support distinct on.
     // do nothing
+    return ret;
   } else if (select_opts_ == SELECT_DISTINCT) {
+    return ret;
   } else if (select_opts_ == AGGREGATION_DISTINCT) {
-    // (todo) finish  AGGREGATION_DISTINCT
-    //     if (distinct_list_  != NULL) {
-    //       distinct_list_->expr_
-    //         ->GetLogicalPlan(logic_expr, left_lplan, right_lplan);
-    //     }
+    if (distinct_list_ != NULL) {
+      ret = distinct_list_->expr_->GetLogicalPlan(logic_expr, left_lplan,
+                                                  right_lplan);
+    } else
+      return ret;
   }
-
-  return rSuccess;
+  return ret;
 }
 RetCode AstDistinctClause::SolveSelectAlias(
     SelectAliasSolver* const select_alias_solver) {
@@ -1844,13 +1827,13 @@ void AstSelectStmt::Print(int level) const {
   cout << setw(level * TAB_SIZE) << " "
        << "|select statement| " << endl;
   level++;
+  if (distinct_clause_ != NULL) distinct_clause_->Print(level);
   select_list_->Print(level);
   if (from_list_ != NULL) from_list_->Print(level);
   if (where_clause_ != NULL) where_clause_->Print(level);
   if (groupby_clause_ != NULL) groupby_clause_->Print(level);
   if (having_clause_ != NULL) having_clause_->Print(level);
   if (orderby_clause_ != NULL) orderby_clause_->Print(level);
-  if (distinct_clause_ != NULL) distinct_clause_->Print(level);
   if (limit_clause_ != NULL) limit_clause_->Print(level);
   if (select_into_clause_ != NULL) select_into_clause_->Print(level);
   //  cout << "------------select ast print over!------------------" << endl;
@@ -1899,7 +1882,6 @@ RetCode AstSelectStmt::SemanticAnalisys(SemanticContext* sem_cnxt) {
   if (NULL != select_list_) {
     string name = "";
     select_list_->RecoverExprName(name);
-
     ret = select_list_->SemanticAnalisys(sem_cnxt);
     if (rSuccess != ret) {
       LOG(ERROR) << "select list has error" << endl;
@@ -1909,11 +1891,9 @@ RetCode AstSelectStmt::SemanticAnalisys(SemanticContext* sem_cnxt) {
     // column
     AstNode* agg_column = NULL;
     select_list_->ReplaceAggregation(agg_column, agg_attrs_, true);
-
     if (agg_attrs_.size() > 0) {
       sem_cnxt->GetUniqueAggAttr(agg_attrs_);
     }
-
   } else {
     ELOG(rSelectClauseIsNULL, "");
     return rSelectClauseIsNULL;
@@ -2036,7 +2016,6 @@ RetCode AstSelectStmt::SemanticAnalisys(SemanticContext* sem_cnxt) {
 #ifdef PRINTCONTEXT
   sem_cnxt->PrintContext("after select");
 #endif
-
   return ret;
 }
 
@@ -2059,6 +2038,19 @@ RetCode AstSelectStmt::GetLogicalPlanOfAggeration(
   vector<ExprUnary*> aggregation_attrs;
   ExprNode* tmp_expr = NULL;
   RetCode ret = rSuccess;
+  bool agg_distinct = false;
+
+  // Check aggrate_distinct:
+  for (auto i : agg_attrs_) {
+    if (i->expr_str_.substr(i->expr_str_.find('(') + 1, 8) == "DISTINCT") {
+      agg_distinct = true;
+    }
+  }
+  if (agg_distinct) {
+    ret = GetLogicalPlanOfAggerateDistinct(logic_plan);
+    if (rSuccess != ret) return ret;
+  }
+
   for (auto it = groupby_attrs_.begin(); it != groupby_attrs_.end(); ++it) {
     ret = (*it)->GetLogicalPlan(tmp_expr, logic_plan, NULL);
     if (rSuccess != ret) {
@@ -2078,12 +2070,226 @@ RetCode AstSelectStmt::GetLogicalPlanOfAggeration(
   return rSuccess;
 }
 
+RetCode AstSelectStmt::GetLogicalPlanOfAggerateDistinct(
+    LogicalOperator*& logic_plan) {
+  vector<ExprNode*> group_by_attrs;
+  vector<ExprUnary*> aggregation_attrs;
+  set<AstNode*> proj_agg_column;
+  set<AstNode*> proj_groupby_column;
+  ExprNode* tmp_expr = NULL;
+  RetCode ret = rSuccess;
+  // if having only one agg_distinct, so change the logical plan to agg-agg
+  // while if plus one or more aggregation, then change the logical plan
+  // to agg-proj-agg
+  // this is for the bottom aggregation
+  for (auto i : agg_attrs_) {
+    if (i->expr_str_.substr(i->expr_str_.find('(') + 1, 8) == "DISTINCT") {
+      reinterpret_cast<AstExprUnary*>(i)
+          ->arg0_->GetLogicalPlan(tmp_expr, logic_plan, NULL);
+      proj_groupby_column.insert(i);
+      group_by_attrs.push_back(tmp_expr);
+      for (auto it = groupby_attrs_.begin(); it != groupby_attrs_.end(); ++it) {
+        bool exist = false;  // it's used to check duplication
+        for (auto i : group_by_attrs) {
+          if ((*it)->expr_str_ == i->alias_) {
+            exist = true;
+            break;
+          }
+        }
+        if (!exist) {
+          ret = (*it)->GetLogicalPlan(tmp_expr, logic_plan, NULL);
+          proj_groupby_column.insert(*it);
+          if (rSuccess != ret) {
+            return ret;
+          }
+          group_by_attrs.push_back(tmp_expr);
+        }
+      }
+    } else {
+      string expr_type = i->expr_str_.substr(0, i->expr_str_.find('('));
+      // this is common aggregation, it also means the aggregation operation
+      // must have two or more
+      // transfer avg() to sum() and count() in the first aggregation phase
+      if (expr_type == "AVG") {
+        AstExprUnary* sum = new AstExprUnary(i);
+        sum->expr_type_ = "SUM";
+        sum->expr_str_ = "SUM(" + sum->arg0_->expr_str_ + ")";
+        sum->GetLogicalPlan(tmp_expr, logic_plan, NULL);
+        aggregation_attrs.push_back(reinterpret_cast<ExprUnary*>(tmp_expr));
+        AstExprUnary* count = new AstExprUnary(i);
+        count->expr_type_ = "COUNT";
+        count->expr_str_ = "COUNT(" + sum->arg0_->expr_str_ + ")";
+        count->GetLogicalPlan(tmp_expr, logic_plan, NULL);
+        aggregation_attrs.push_back(reinterpret_cast<ExprUnary*>(tmp_expr));
+      } else {
+        ret = i->GetLogicalPlan(tmp_expr, logic_plan, NULL);
+        aggregation_attrs.push_back(reinterpret_cast<ExprUnary*>(tmp_expr));
+      }
+      proj_agg_column.insert(i);
+    }
+  }
+  logic_plan =
+      new LogicalAggregation(group_by_attrs, aggregation_attrs, logic_plan);
+  //    cout << "the bottom aggregation complete";
+  //  logic_plan->Print();
+
+  // handle the situation which a statement has agg_distinct plus one or
+  // more aggregation(change the logical plan proj-agg)
+  if (aggregation_attrs.size() != 0) {
+    vector<AstNode*> ast_expr;
+    vector<ExprNode*> proj_list;
+    // proj_groupby_column means the columns in group_by clause and the first
+    // aggregation
+    for (auto i : proj_groupby_column) {
+      // handle the project
+      if (i->expr_str_.substr(i->expr_str_.find('(') + 1, 8) == "DISTINCT") {
+        AstDistinctClause* dis_clause =
+            reinterpret_cast<AstExprUnary*>(i)->arg0_;
+        AstColumn* new_Column =
+            new AstColumn(dis_clause->distinct_list_->expr_);
+        ast_expr.push_back(new_Column);
+      } else {
+        // if the column is not DISTINCT, it must be the AstColumn
+        AstColumn* new_Column = new AstColumn(i);
+        new_Column->expr_str_ = new_Column->column_name_ + "_mid";
+        ast_expr.push_back(new_Column);
+        // We must change the agg_column in the upper aggregate phase to
+        // fit in the results of project because the middle project may change
+        // the column status.
+        for (auto groupby_attr : groupby_attrs_) {
+          if (reinterpret_cast<AstColumn*>(groupby_attr)->column_name_ +
+                  "_mid" ==
+              new_Column->expr_str_) {
+            delete groupby_attr;
+            groupby_attr = new AstColumn(AST_COLUMN, new_Column->relation_name_,
+                                         new_Column->expr_str_);
+            groupby_attr->expr_str_ = new_Column->expr_str_;
+            string table_name = new_Column->relation_name_;
+            reinterpret_cast<AstColumn*>(groupby_attr)->relation_name_ =
+                "NULL_MID";
+            // if statement need select this group_by column, we also needs to
+            // change the select_expr->expr_
+            AstSelectList* select_list =
+                reinterpret_cast<AstSelectList*>(select_list_);
+            while (NULL != select_list) {
+              AstSelectExpr* select_expr =
+                  reinterpret_cast<AstSelectExpr*>(select_list->args_);
+              if (select_expr->expr_->ast_node_type_ == AST_COLUMN &&
+                  reinterpret_cast<AstColumn*>(select_expr->expr_)
+                              ->column_name_ +
+                          "_mid" ==
+                      new_Column->expr_str_ &&
+                  reinterpret_cast<AstColumn*>(select_expr->expr_)
+                          ->relation_name_ == table_name) {
+                delete select_expr->expr_;
+                select_expr->expr_ = new AstColumn(groupby_attr);
+                select_expr->expr_->expr_str_ = groupby_attr->expr_str_;
+              }
+              if (NULL != select_list->next_) {
+                select_list =
+                    reinterpret_cast<AstSelectList*>(select_list->next_);
+              } else {
+                select_list = NULL;
+              }
+            }
+          }
+        }
+      }
+    }
+    // proj_agg_column means the columns in addition aggregation
+    // its type is Ast_Expr...
+    // it more likes to be the results of the aggregation
+    for (auto j : proj_agg_column) {
+      // to the project phase:
+      AstColumn* new_Column =
+          new AstColumn(reinterpret_cast<AstExprUnary*>(j)->arg0_);
+      if (reinterpret_cast<AstExprUnary*>(j)->expr_type_ == "AVG") {
+        AstColumn* sum =
+            new AstColumn(reinterpret_cast<AstExprUnary*>(j)->arg0_);
+        string column_name = sum->column_name_;
+        sum->column_name_ = "SUM(" + sum->column_name_ + ")";
+        sum->relation_name_ = "NULL_MID";
+        sum->expr_str_ = sum->column_name_;
+        AstColumn* count =
+            new AstColumn(reinterpret_cast<AstExprUnary*>(j)->arg0_);
+        count->column_name_ = "COUNT(" + count->column_name_ + ")";
+        count->relation_name_ = "NULL_MID";
+        count->expr_str_ = count->column_name_;
+        ast_expr.push_back(sum);
+        ast_expr.push_back(count);
+        // to the upper aggregate phase:
+        auto begin = agg_attrs_.find(j);
+        if (begin != agg_attrs_.end()) {
+          agg_attrs_.erase(begin);
+        }
+        AstExprUnary* Expr_sum = new AstExprUnary(AST_EXPR_UNARY, "SUM", sum);
+        Expr_sum->expr_str_ = sum->expr_str_;
+        AstExprUnary* Expr_count =
+            new AstExprUnary(AST_EXPR_UNARY, "SUM", count);
+        Expr_count->expr_str_ = count->expr_str_;
+        agg_attrs_.insert(Expr_sum);
+        agg_attrs_.insert(Expr_count);
+        AstExprCalBinary* avg =
+            new AstExprCalBinary(AST_EXPR_CAL_BINARY, "/", sum, count);
+        avg->expr_str_ = "AVG(" + column_name + ")";
+        // change 'select avg()' to 'select sum()/count()' in select_expr->expr_
+        AstSelectList* select_list =
+            reinterpret_cast<AstSelectList*>(select_list_);
+        while (NULL != select_list) {
+          AstSelectExpr* select_expr =
+              reinterpret_cast<AstSelectExpr*>(select_list->args_);
+          if (select_expr->expr_->ast_node_type_ == AST_COLUMN &&
+              (select_expr->expr_)->expr_str_ == "AVG(" + column_name + ")") {
+            delete select_expr->expr_;
+            select_expr->expr_ = avg;
+          }
+          if (NULL != select_list->next_) {
+            select_list = reinterpret_cast<AstSelectList*>(select_list->next_);
+          } else {
+            select_list = NULL;
+          }
+        }
+      } else {
+        new_Column->expr_str_ = new_Column->column_name_;
+        new_Column->relation_name_ = "NULL_MID";
+        new_Column->column_name_ = j->expr_str_;
+        ast_expr.push_back(new_Column);
+      }
+      // to the upper aggregate phase:
+      new_Column = new AstColumn(reinterpret_cast<AstExprUnary*>(j)->arg0_);
+      new_Column->expr_str_ = j->expr_str_;
+      new_Column->relation_name_ = "NULL_MID";
+      string expr_type = reinterpret_cast<AstExprUnary*>(j)->expr_type_;
+      if (expr_type == "COUNT") {
+        reinterpret_cast<AstExprUnary*>(j)->expr_type_ = "SUM";
+        reinterpret_cast<AstExprUnary*>(j)->arg0_ = new_Column;
+      } else if (expr_type != "AVG") {
+        reinterpret_cast<AstExprUnary*>(j)->arg0_ = new_Column;
+      }
+    }
+    // to create a project operator
+    for (int i = 0; i < ast_expr.size(); ++i) {
+      ret = ast_expr[i]->GetLogicalPlan(tmp_expr, logic_plan, NULL);
+      if (rSuccess != ret) {
+        return rSuccess;
+      }
+      proj_list.push_back(tmp_expr);
+    }
+    logic_plan = new LogicalProject(logic_plan, proj_list);
+    //    cout << "the middle project complete";
+    group_by_attrs.clear();
+    aggregation_attrs.clear();
+  } else {
+    group_by_attrs.clear();
+  }
+  return ret;
+}
+
 RetCode AstSelectStmt::GetLogicalPlanOfDistinct(LogicalOperator*& logic_plan) {
   AstSelectList* select_list = reinterpret_cast<AstSelectList*>(select_list_);
   vector<ExprNode*> distinct_attrs;
   // aggregation_attrs do not have anything
   vector<ExprUnary*> aggregation_attrs;
-  distinct_attrs.clear();
   while (NULL != select_list) {
     if (select_list->is_all_) {  // select * from tb;
       // put every column in tables
@@ -2132,10 +2338,12 @@ RetCode AstSelectStmt::GetLogicalPlanOfDistinct(LogicalOperator*& logic_plan) {
         }
       }
     } else if (select_expr->expr_->ast_node_type() == AST_COLUMN) {
+      // distinct a, b from tb;
+      AstColumn* column = reinterpret_cast<AstColumn*>(select_expr->expr_);
       ExprNode* column_expr = NULL;
       select_expr->expr_->GetLogicalPlan(column_expr, logic_plan, NULL);
+      column_expr->alias_ = column->column_name_;
       distinct_attrs.push_back(column_expr);
-      // distinct a, b from tb;
     } else if (select_expr->expr_->ast_node_type() == AST_EXPR_UNARY) {
       ExprNode* column_expr = NULL;
       reinterpret_cast<AstExprUnary*>(select_expr->expr_)

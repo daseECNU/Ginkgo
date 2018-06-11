@@ -156,7 +156,8 @@ RetCode AstExprUnary::SemanticAnalisys(SemanticContext* sem_cnxt) {
   // agg couldn't in where or groupby
   if (expr_type_ == "SUM" || expr_type_ == "MAX" || expr_type_ == "MIN" ||
       expr_type_ == "AVG" || expr_type_ == "COUNT" ||
-      expr_type_ == "COUNT_ALL" || expr_type_ == "TO_CHAR") {
+      expr_type_ == "COUNT_ALL" || expr_type_ == "TO_CHAR" ||
+      expr_type_ == "COUNT_DISTINCT") {
     if (SemanticContext::kWhereClause == sem_cnxt->clause_type_) {
       ELOG(rAggCouldNotInWhereClause, "");
       return rAggCouldNotInWhereClause;
@@ -214,6 +215,8 @@ void AstExprUnary::RecoverExprName(string& name) {
       expr_str_ = expr_type_ + arg_name;
     } else if (expr_str_.substr(0, 2) == "IS") {
       expr_str_ = arg_name + " " + expr_type_;
+    } else if (arg0_->ast_node_type_ == AST_DISTINCT_CLAUSE) {
+      expr_str_ = expr_type_ + "(DISTINCT " + arg_name + ")";
     } else {
       expr_str_ = expr_type_ + "(" + arg_name + ")";
     }

@@ -406,8 +406,9 @@ RetCode HdfsFileHandleImp::Truncate(const size_t newlength) {
   return rSuccess;
 #else
   if (actual_file_length != newlength) {
-    LOG(ERROR) << "Failed to truncate dirty data because the hadoop version is "
-                  "lower than 2.7!" << endl;
+    LOG(WARNING)
+        << "Failed to truncate dirty data because the hadoop version is "
+           "lower than 2.7!" << endl;
     return rHdfsDataError;
   }
   return rSuccess;
