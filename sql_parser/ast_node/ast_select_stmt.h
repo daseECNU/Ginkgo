@@ -395,6 +395,7 @@ class AstSelectStmt : public AstNode {
   RetCode PushDownCondition(PushDownConditionContext& pdccnxt);
   RetCode GetLogicalPlan(LogicalOperator*& logic_plan);
   RetCode GetLogicalPlanOfAggeration(LogicalOperator*& logic_plan);
+  RetCode GetLogicalPlanOfAggerateDistinct(LogicalOperator*& logic_plan);
   RetCode GetLogicalPlanOfProject(LogicalOperator*& logic_plan);
   RetCode GetLogicalPlanOfDistinct(LogicalOperator*& logic_plan);
   RetCode SetScanAttrList(SemanticContext* sem_cnxt);

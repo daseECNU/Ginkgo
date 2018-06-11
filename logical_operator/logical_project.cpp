@@ -70,7 +70,7 @@ LogicalProject::~LogicalProject() {
     delete child_;
     child_ = NULL;
   }
-  for (auto it = expr_list_.begin(); it != expr_list_.end() ; it++) {
+  for (auto it = expr_list_.begin(); it != expr_list_.end(); it++) {
     delete *it;
   }
 }
