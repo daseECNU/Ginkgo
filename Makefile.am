@@ -5,6 +5,7 @@ AM_CPPFLAGS=-fPIC  -DTHERON_XS\
 -I${BOOST_HOME} \
 -I${BOOST_HOME}/boost/asio \
 -I${BOOST_HOME}/boost/serialization \
+-I${CONNECT_HOME}/include/jdbc \
 -I${GTEST_HOME}/include \
 -I${CAF_HOME}/libcaf_io	\
 -I${CAF_HOME}/libcaf_core

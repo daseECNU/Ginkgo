@@ -33,7 +33,7 @@ client_listener_port = 10000
 #data="/home/imdb/data/stock/"
 #data="/home/imdb/data/stock/"
  
-data="/test/claims/"
+data="/home/zzh/data/http/"
  
 #data="/home/fish/data/test/"
 #data="/home/imdb/data/POC/"
@@ -68,14 +68,14 @@ enable_expander_adaptivity=0
 
 pipelined_exchange=1
 
-local_disk_mode=0
+local_disk_mode=1
 
 scan_batch=100
 #enable llvm codegen or not
 enable_codegen=0
 #
 ##the httpserver info
-httpserver_master_ip="219.228.147.162"
+httpserver_master_ip="219.228.147.183"
 #
 httpserver_master_port="8097"
 #
@@ -83,6 +83,6 @@ httpserver_thread_num="10"
 #
 httpserver_doc_root="/home/imdb/local/test/"
 
-mysql_port = 3306
+mysql_port = 12040
 
 mysql_password = "imdb"

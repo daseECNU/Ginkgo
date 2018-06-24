@@ -32,6 +32,7 @@
 #include "mysql/mysql_server.h"
 #include <boost/thread/thread.hpp>
 #include "httpserver/claimshttpserver.hpp"
+#include "./stmt_handler/stmt_handler.h"
 
 using caf::announce;
 using claims::BaseNode;
@@ -46,15 +47,12 @@ using claims::common::rSuccess;
 using claims::NodeAddr;
 using claims::NodeSegmentID;
 using claims::StmtExecTracker;
-
+using claims::stmt_handler::StmtHandler;
 Environment* Environment::_instance = 0;
 
-//void httpserver_run(int argc,std::string argv[]){
-//	httpserver::init(argc,argv);
-//}
-struct HttpserverInfo{
-	int hargc;
-	std::string hargv[5];
+struct HttpserverInfo {
+  int hargc;
+  std::string hargv[5];
 };
 Environment::Environment(bool ismaster) : ismaster_(ismaster) {
   _instance = this;
@@ -111,29 +109,125 @@ Environment::Environment(bool ismaster) : ismaster_(ismaster) {
 
   exchangeTracker = new ExchangeTracker();
   expander_tracker_ = ExpanderTracker::getInstance();
-  if(ismaster){
-  	  pthread_t t_cmysql,t_httpserver;
-  	  		//initializeClientListener();
-  	  const int error1 = pthread_create(&t_cmysql, NULL, InitMysqlListener, NULL);
-  	  	if (error1 != 0) {
-  	  		std::cout << "cannot create t_cmysql thread!" << strerror(errno)
-  	  				<< std::endl;
-  	  	}
-  	  //InitMysqlListener();
-  	  	struct HttpserverInfo HttpserverInof_;
-  	  const int error2 = pthread_create(&t_httpserver, NULL, HttpserverRun, NULL);
-  	  	if (error2!= 0) {
-  	  		std::cout << "cannot create t_httpserver thread!" << strerror(errno)
-  	  				<< std::endl;
-  	  	}
-  	  //boost::thread t1(httpserver_run,httpserver::hargc,httpserver::hargv);
+  if (ismaster) {
+    pthread_t t_cmysql, t_httpserver;
+    // initializeClientListener();
+    const int error1 = pthread_create(&t_cmysql, NULL, InitMysqlListener, NULL);
+    if (error1 != 0) {
+      LOG(ERROR) << "cannot create t_cmysql thread!" << strerror(errno)
+                 << std::endl;
+    }
+    struct HttpserverInfo HttpserverInof_;
+    const int error2 = pthread_create(&t_httpserver, NULL, HttpserverRun, NULL);
+    if (error2 != 0) {
+      LOG(ERROR) << "cannot create t_httpserver thread!" << strerror(errno)
+                 << std::endl;
     }
 
-
+    //    delete stmt_handler, stmt_handler1, stmt_handler2;
+  }
 
 #ifndef DEBUG_MODE
   if (ismaster) {
     initializeClientListener();
+    /*create jdbc three system tables
+     * variables, session, COLLATIONS
+     * */
+    if (catalog_->getTable("variables") == NULL) {
+      string query1 =
+          "create table if not exists variables(Variable_name "
+          "varchar(64),Valve "
+          "varchar(1024));";
+      StmtHandler* stmt_handler = new StmtHandler(query1);
+      ExecutedResult exec_r;
+      exec_r.status_ = true;
+      stmt_handler->Execute(&exec_r);
+      if (exec_r.status_ == true) {
+        ExecutedResult exec_r1, exec_r2;
+        exec_r1.status_ = true;
+        exec_r2.status_ = true;
+        string query2 =
+            "create projection on variables(Variable_name,Valve) number =1"
+            "partitioned on row_id;";
+        StmtHandler* stmt_handler1 = new StmtHandler(query2);
+        stmt_handler1->Execute(&exec_r1);
+        string query3 =
+            "insert into variables "
+            "values(\"character_set_client\",\"utf8\"),(\"character_set_"
+            "connection\",\"utf8\"),(\"character_set_results\",\"utf8\"),("
+            "\"character_set_server\",\"latin1\"),(\"init_connect\",\" "
+            "\"),(\"interactive_timeout\",\"28800\"),(\"lower_case_table_"
+            "names\","
+            "\"2\"),(\"max_allowed_packet\",\"4194304\"),(\"net_buffer_"
+            "length\","
+            "\"16384\"),(\"net_write_timeout\",\"60\"),(\"query_cache_size\","
+            "\"1048576\"),(\"query_cache_type\",\"OFF\"),(\"sql_mode\",\"NO_"
+            "ENGINE_"
+            "SUBSTITUTION\"),(\"system_time_zone\",\"CST\"),(\"time_zone\","
+            "\"SYSTEM\"),(\"tx_isolation\",\"REPEATABLE-READ\"),(\"wait_"
+            "timeout\","
+            "\"28800\");";
+        StmtHandler* stmt_handler2 = new StmtHandler(query3);
+        stmt_handler2->Execute(&exec_r2);
+        delete stmt_handler1, stmt_handler2;
+      }
+      delete stmt_handler;
+    }
+    if (catalog_->getTable("session") == NULL) {
+      string query1 = "create table if not exists session(increment int);";
+      StmtHandler* stmt_handler = new StmtHandler(query1);
+      ExecutedResult exec_r;
+      exec_r.status_ = true;
+      stmt_handler->Execute(&exec_r);
+      if (exec_r.status_ == true) {
+        ExecutedResult exec_r1, exec_r2;
+        exec_r1.status_ = true;
+        exec_r2.status_ = true;
+        string query2 =
+            "create projection on session(increment) number = 1 partitioned on "
+            "row_id;";
+        StmtHandler* stmt_handler1 = new StmtHandler(query2);
+        stmt_handler1->Execute(&exec_r1);
+        string query3 = "insert into session values(1);";
+        StmtHandler* stmt_handler2 = new StmtHandler(query3);
+        stmt_handler2->Execute(&exec_r2);
+        delete stmt_handler1, stmt_handler2;
+      }
+      delete stmt_handler;
+    }
+    if (catalog_->getTable("COLLATIONS") == NULL) {
+      string query1 =
+          "CREATE TABLE COLLATIONS ("
+          "COLLATION_NAME varchar(32),"
+          "CHARACTER_SET_NAME varchar(32),"
+          "I_d int,"
+          "D_EFAULT varchar(3),"
+          "COMPILED varchar(3),"
+          "SORTLEN int);";
+      StmtHandler* stmt_handler = new StmtHandler(query1);
+      ExecutedResult exec_r;
+      exec_r.status_ = true;
+      stmt_handler->Execute(&exec_r);
+      if (exec_r.status_ == true) {
+        ExecutedResult exec_r1, exec_r2;
+        exec_r1.status_ = true;
+        exec_r2.status_ = true;
+        string query2 =
+            "create projection on "
+            "COLLATIONS(COLLATION_NAME,CHARACTER_SET_NAME,I_d,D_EFAULT, "
+            "COMPILED,"
+            "SORTLEN) number = 1 partitioned on row_id;";
+        StmtHandler* stmt_handler1 = new StmtHandler(query2);
+        stmt_handler1->Execute(&exec_r1);
+        string query3 =
+            "insert into COLLATIONS "
+            "values(\"big5_chinese_ci\",\"big5\",1,\"Yes\",\"Yes\",1);";
+        StmtHandler* stmt_handler2 = new StmtHandler(query3);
+        stmt_handler2->Execute(&exec_r2);
+        delete stmt_handler1, stmt_handler2;
+      }
+      delete stmt_handler;
+    }
   }
 #endif
 }
@@ -194,14 +288,6 @@ void Environment::initializeStorage() {
     blockManagerMaster_ = BlockManagerMaster::getInstance();
     blockManagerMaster_->initialize();
   }
-  /*both master and slave node run the BlockManager.*/
-  //		BlockManagerId *bmid=new BlockManagerId();
-  //		string
-  // actorname="blockManagerWorkerActor_"+bmid->blockManagerId;
-  //		cout<<actorname.c_str()<<endl;
-  //		BlockManager::BlockManagerWorkerActor
-  //*blockManagerWorkerActor=new
-  // BlockManager::BlockManagerWorkerActor(endpoint,framework_storage,actorname.c_str());
 
   blockManager_ = BlockManager::getInstance();
   blockManager_->initialize();
@@ -266,20 +352,19 @@ IteratorExecutorSlave* Environment::getIteratorExecutorSlave() const {
   return iteratorExecutorSlave;
 }
 
-void *Environment::InitMysqlListener(void * null_) {
-	//claims::mysql::CMysqlServer::GetInstance()->Initialize();
-	claims::mysql::CMysqlServer::GetInstance()->Start();
+void* Environment::InitMysqlListener(void* null_) {
+  // claims::mysql::CMysqlServer::GetInstance()->Initialize();
+  claims::mysql::CMysqlServer::GetInstance()->Start();
 }
 
-void *Environment::HttpserverRun(void * null){
-	struct HttpserverInfo parg;
-	//httpserverinfo_.hargc
-	parg.hargc = 5;
-	parg.hargv[0] = "";
-	sleep(1);
-	parg.hargv[1] = Config::httpserver_master_ip;
-	parg.hargv[2] = Config::httpserver_master_port;
-	parg.hargv[3] = Config::httpserver_thread_num;
-	parg.hargv[4] = Config::httpserver_doc_root;
-	httpserver::init(parg.hargc,parg.hargv);
+void* Environment::HttpserverRun(void* null) {
+  struct HttpserverInfo parg;
+  parg.hargc = 5;
+  parg.hargv[0] = "";
+  sleep(1);
+  parg.hargv[1] = Config::httpserver_master_ip;
+  parg.hargv[2] = Config::httpserver_master_port;
+  parg.hargv[3] = Config::httpserver_thread_num;
+  parg.hargv[4] = Config::httpserver_doc_root;
+  httpserver::init(parg.hargc, parg.hargv);
 }
