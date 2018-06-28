@@ -34,9 +34,11 @@
 #include "./disk_file_handle_imp.h"
 
 #include <glog/logging.h>
+#include <sys/stat.h>
 #include <stdio.h>
 #include <fcntl.h>
 #include <string>
+#include "snappy.h"
 
 #include "./file_handle_imp.h"
 #include "../../common/rename.h"
@@ -45,6 +47,7 @@
 using std::endl;
 using std::string;
 using claims::utility::LockGuard;
+using std::cout;
 
 namespace claims {
 namespace common {
@@ -89,12 +92,20 @@ RetCode DiskFileHandleImp::Write(const void* buffer, const size_t length) {
   assert((kInOverWriting == file_status_ || kInAppending == file_status_) &&
          " files is not opened in writing mode");
   //  RefHolder holder(reference_count_);
+  struct stat s_buf;
+  string* result = new string;
+  size_t compress_length =
+      snappy::Compress(static_cast<const char*>(buffer), length, result);
+  // LOG(INFO) << "Compress length: " << compress_length << endl;
+  char head[100];
+  sprintf(head, "%d", compress_length);
 
   size_t total_write_num = 0;
-  while (total_write_num < length) {
-    ssize_t write_num =
-        write(fd_, static_cast<const char*>(buffer) + total_write_num,
-              length - total_write_num);
+  ssize_t wirte_num = write(fd_, head, sizeof(head));
+  logical_file_length_ += wirte_num;
+  while (total_write_num < compress_length) {
+    ssize_t write_num = write(fd_, result->data() + total_write_num,
+                              compress_length - total_write_num);
     if (-1 == write_num) {
       PLOG(ERROR) << "failed to write buffer(" << buffer << ") to file(" << fd_
                   << "): " << file_name_;
@@ -102,6 +113,8 @@ RetCode DiskFileHandleImp::Write(const void* buffer, const size_t length) {
     }
     total_write_num += write_num;
   }
+  logical_file_length_ += total_write_num;
+  // by Han compress to find what happened to write in hdfs 2017-4-3
   //  if (length > 100) {
   //    DLOG(INFO) << "write " << length << " length data from " << buffer
   //               << " into disk file:" << file_name_ << endl;
@@ -111,12 +124,14 @@ RetCode DiskFileHandleImp::Write(const void* buffer, const size_t length) {
   //               << " from " << buffer << " into  disk file:" << file_name_
   //               << endl;
   //  }
+  delete result;
   return rSuccess;
 }
 
 RetCode DiskFileHandleImp::Close() {
   //  LOG(INFO) << "ref: " << can_close_.get_value();
-  //  if (-1 == fd_ || 0 != reference_count_.load()  // someone are still using
+  //  if (-1 == fd_ || 0 != reference_count_.load()  // someone are still
+  //  using
   //  this
   //                                                 // file descriptor
   //      || !i_win_to_close_.try_lock()) {  // someone win the lock to close
@@ -208,8 +223,6 @@ RetCode DiskFileHandleImp::SetPosition(size_t pos) {
 
 RetCode DiskFileHandleImp::Append(const void* buffer, const size_t length) {
   int ret = rSuccess;
-  //  RefHolder holder(reference_count_);
-
   EXEC_AND_RETURN_ERROR(ret, SwitchStatus(kInAppending),
                         "failed to switch status");
   assert(fd_ >= 3);
@@ -228,8 +241,6 @@ RetCode DiskFileHandleImp::AtomicAppend(const void* buffer, const size_t length,
 
 RetCode DiskFileHandleImp::OverWrite(const void* buffer, const size_t length) {
   int ret = rSuccess;
-  //  RefHolder holder(reference_count_);
-
   EXEC_AND_RETURN_ERROR(ret, SwitchStatus(kInOverWriting),
                         "failed to switch status");
   assert(fd_ >= 3);
@@ -263,6 +274,84 @@ RetCode DiskFileHandleImp::DeleteFile() {
       file_status_ = kClosed;
       LOG(WARNING) << "The file " << file_name_ << "is deleted successfully!\n"
                    << std::endl;
+    }
+  }
+  return rSuccess;
+}
+
+RetCode DiskFileHandleImp::OverWriteNoCompress(const void* buffer,
+                                               const size_t length) {
+  int ret = rSuccess;
+  EXEC_AND_RETURN_ERROR(ret, SwitchStatus(kInOverWriting),
+                        "failed to switch status");
+  assert(fd_ >= 3);
+  assert(kInOverWriting == file_status_ &&
+         " files is not opened in overwriting mode");
+
+  return WriteNoCompress(buffer, length);
+}
+
+RetCode DiskFileHandleImp::AppendNoCompress(const void* buffer,
+                                            const size_t length) {
+  int ret = rSuccess;
+  EXEC_AND_RETURN_ERROR(ret, SwitchStatus(kInAppending),
+                        "failed to switch status");
+  assert(fd_ >= 3);
+  assert(kInAppending == file_status_ &&
+         " files is not opened in appending mode");
+  return WriteNoCompress(buffer, length);
+}
+
+RetCode DiskFileHandleImp::WriteNoCompress(const void* buffer,
+                                           const size_t length) {
+  assert(fd_ >= 3);
+  assert((kInOverWriting == file_status_ || kInAppending == file_status_) &&
+         " files is not opened in writing mode");
+  size_t total_write_num = 0;
+  while (total_write_num < length) {
+    ssize_t write_num =
+        write(fd_, static_cast<const char*>(buffer) + total_write_num,
+              length - total_write_num);
+    if (-1 == write_num) {
+      PLOG(ERROR) << "failed to write buffer(" << buffer << ") to file(" << fd_
+                  << "): " << file_name_;
+      return rWriteDiskFileFail;
+    }
+    total_write_num += write_num;
+  }
+  //  if (length > 100) {
+  //    DLOG(INFO) << "write " << length << " length data from " << buffer
+  //               << " into disk file:" << file_name_ << endl;
+  //  } else {
+  //    DLOG(INFO) << "write " << length
+  //               << " length data :" << static_cast<const char*>(buffer)
+  //               << " from " << buffer << " into  disk file:" << file_name_
+  //               << endl;
+  //  }
+  return rSuccess;
+}
+
+RetCode DiskFileHandleImp::Truncate(const size_t newlength) {
+  if (SwitchStatus(kInReading) != rSuccess) {
+    return rFailure;
+  }
+  const char* file_name = file_name_.c_str();
+  if (CanAccess(file_name_)) {
+    size_t actual_file_length = lseek(fd_, 0, SEEK_END);
+    if (actual_file_length > newlength) {
+      if (truncate(file_name, newlength) == 0) {
+        logical_file_length_ = newlength;
+        return rSuccess;
+      } else {
+        return rTruncateFileFail;
+      }
+    } else if (actual_file_length < newlength) {
+      if (truncate(file_name, 0) == 0) {
+        logical_file_length_ = 0;
+        return rTruncateReset;
+      } else {
+        return rTruncateFileFail;
+      }
     }
   }
   return rSuccess;

@@ -363,30 +363,30 @@ llvm::Value* codegen_binary_op(llvm::Value* l, llvm::Value* r,
   if (l == 0 || r == 0) return NULL;
   llvm::IRBuilder<>* builder = CodeGenerator::getInstance()->getBuilder();
   switch (node->op_type) {
-    case oper_add:
+    case oper_add_old:
       return createAdd(l, r, node->actual_type);
-    case oper_minus:
+    case oper_minus_old:
       return createMinus(l, r, node->actual_type);
-    case oper_multiply:
+    case oper_multiply_old:
       return createMultiply(l, r, node->actual_type);
-    case oper_divide:
+    case oper_divide_old:
       return createDivide(l, r, node->actual_type);
     //    case oper_mod:
     //      return createMod(l,r,node->actual_type);
 
-    case oper_less:
+    case oper_less_old:
       return createLess(l, r, node->actual_type);
-    case oper_less_equal:
+    case oper_less_equal_old:
       return createLessEqual(l, r, node->actual_type);
-    case oper_great:
+    case oper_great_old:
       return createGreat(l, r, node->actual_type);
-    case oper_great_equal:
+    case oper_great_equal_old:
       return createGreatEqual(l, r, node->actual_type);
-    case oper_equal:
+    case oper_equal_old:
       return createEqual(l, r, node->actual_type);
-    case oper_not_equal:
+    case oper_not_equal_old:
       return createNotEqual(l, r, node->actual_type);
-    case oper_and:
+    case oper_and_old:
       return builder->CreateAnd(l, r);
     default:
       printf("no supported\n");
@@ -612,7 +612,7 @@ llvm::Value* createLess(llvm::Value* l, llvm::Value* r, data_type type) {
     case t_double:
       return builder->CreateFCmpOLT(l, r, "<");
     case t_decimal: {
-      llvm::Function* ff = CreateNValueCompareFunc(oper_less);
+      llvm::Function* ff = CreateNValueCompareFunc(oper_less_old);
 
       std::vector<lv*> args;
       args.push_back(l);
@@ -620,7 +620,7 @@ llvm::Value* createLess(llvm::Value* l, llvm::Value* r, data_type type) {
       return builder->CreateCall(ff, args);
     }
     case t_date: {
-      llvm::Function* ff = CreateDateCompareFunc(oper_less);
+      llvm::Function* ff = CreateDateCompareFunc(oper_less_old);
       std::vector<lv*> args;
       args.push_back(l);
       args.push_back(r);
@@ -644,7 +644,7 @@ llvm::Value* createLessEqual(llvm::Value* l, llvm::Value* r, data_type type) {
     case t_double:
       return builder->CreateFCmpOLE(l, r, "<=");
     case t_decimal: {
-      llvm::Function* ff = CreateNValueCompareFunc(oper_less_equal);
+      llvm::Function* ff = CreateNValueCompareFunc(oper_less_equal_old);
 
       std::vector<lv*> args;
       args.push_back(l);
@@ -652,7 +652,7 @@ llvm::Value* createLessEqual(llvm::Value* l, llvm::Value* r, data_type type) {
       return builder->CreateCall(ff, args);
     }
     case t_date: {
-      llvm::Function* ff = CreateDateCompareFunc(oper_less_equal);
+      llvm::Function* ff = CreateDateCompareFunc(oper_less_equal_old);
       std::vector<lv*> args;
       args.push_back(l);
       args.push_back(r);
@@ -676,7 +676,7 @@ llvm::Value* createGreat(llvm::Value* l, llvm::Value* r, data_type type) {
     case t_double:
       return builder->CreateFCmpOGT(l, r, ">");
     case t_decimal: {
-      llvm::Function* ff = CreateNValueCompareFunc(oper_great);
+      llvm::Function* ff = CreateNValueCompareFunc(oper_great_old);
 
       std::vector<lv*> args;
       args.push_back(l);
@@ -684,7 +684,7 @@ llvm::Value* createGreat(llvm::Value* l, llvm::Value* r, data_type type) {
       return builder->CreateCall(ff, args);
     }
     case t_date: {
-      llvm::Function* ff = CreateDateCompareFunc(oper_great);
+      llvm::Function* ff = CreateDateCompareFunc(oper_great_old);
 
       std::vector<lv*> args;
       args.push_back(l);
@@ -709,7 +709,7 @@ llvm::Value* createGreatEqual(llvm::Value* l, llvm::Value* r, data_type type) {
     case t_double:
       return builder->CreateFCmpOGT(l, r, "f>=");
     case t_decimal: {
-      llvm::Function* ff = CreateNValueCompareFunc(oper_great_equal);
+      llvm::Function* ff = CreateNValueCompareFunc(oper_great_equal_old);
 
       std::vector<lv*> args;
       args.push_back(l);
@@ -717,7 +717,7 @@ llvm::Value* createGreatEqual(llvm::Value* l, llvm::Value* r, data_type type) {
       return builder->CreateCall(ff, args);
     }
     case t_date: {
-      llvm::Function* ff = CreateDateCompareFunc(oper_great_equal);
+      llvm::Function* ff = CreateDateCompareFunc(oper_great_equal_old);
 
       std::vector<lv*> args;
       args.push_back(l);
@@ -742,7 +742,7 @@ llvm::Value* createEqual(llvm::Value* l, llvm::Value* r, data_type type) {
     case t_double:
       return builder->CreateFCmpOEQ(l, r, "=");
     case t_decimal: {
-      llvm::Function* ff = CreateNValueCompareFunc(oper_equal);
+      llvm::Function* ff = CreateNValueCompareFunc(oper_equal_old);
 
       std::vector<lv*> args;
       args.push_back(l);
@@ -768,7 +768,7 @@ llvm::Value* createNotEqual(llvm::Value* l, llvm::Value* r, data_type type) {
       // What's ordered? Unordered must lead to unequal, right?
       return builder->CreateFCmpUNE(l, r, "!=");
     case t_decimal: {
-      llvm::Function* ff = CreateNValueCompareFunc(oper_equal);
+      llvm::Function* ff = CreateNValueCompareFunc(oper_equal_old);
 
       std::vector<lv*> args;
       args.push_back(l);
@@ -943,13 +943,13 @@ QNode* createEqualJoinExpression(Schema* l_s, Schema* r_s,
     r_column->return_type = return_type;
 
     QExpr_binary* AND = new QExpr_binary(l_column, r_column, return_type,
-                                         oper_equal, t_qexpr_cmp, "==");
+                                         oper_equal_old, t_qexpr_cmp, "==");
     AND->return_type = t_boolean;
     if (ret == 0) {
       ret = AND;
     } else {
-      QExpr_binary* Upper_AND =
-          new QExpr_binary(AND, ret, t_boolean, oper_and, t_qexpr_cmp, "AND");
+      QExpr_binary* Upper_AND = new QExpr_binary(
+          AND, ret, t_boolean, oper_and_old, t_qexpr_cmp, "AND");
       Upper_AND->return_type = t_boolean;
       ret = Upper_AND;
     }

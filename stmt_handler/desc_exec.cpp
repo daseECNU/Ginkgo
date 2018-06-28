@@ -22,6 +22,9 @@
  *      Author: yuyang
  *		   Email: youngfish93@hotmail.com
  *
+ *  Modified on: Aug 4, 2017
+ *       Author: zyhe
+ *	  	 Email: hzylab@gmail.com
  * Description:
  *
  */
@@ -50,17 +53,7 @@ DescExec::DescExec(AstNode* stmt) : StmtExec(stmt) {
 DescExec::~DescExec() {}
 
 RetCode DescExec::Execute(ExecutedResult* exec_result) {
-  SemanticContext sem_cnxt;
-  RetCode ret = desc_stmt_ast_->SemanticAnalisys(&sem_cnxt);
-  if (rSuccess != ret) {
-    exec_result->error_info_ =
-        "Semantic analysis error.\n" + sem_cnxt.error_msg_;
-    exec_result->status_ = false;
-    LOG(ERROR) << "semantic analysis error result= : " << ret;
-    cout << "semantic analysis error result= : " << ret << endl;
-    return ret;
-  }
-
+  RetCode ret = rSuccess;
   ostringstream ostr;
   Catalog* local_catalog = Environment::getInstance()->getCatalog();
   TableDescriptor* table = local_catalog->getTable(desc_stmt_ast_->table_name_);
@@ -152,6 +145,29 @@ RetCode DescExec::Execute(ExecutedResult* exec_result) {
     }
   }
 
+  // get projection information                --added by zyhe
+  vector<ProjectionDescriptor*>* projection_list = table->GetProjectionList();
+  for (auto projection : *projection_list) {
+    Partitioner* partitioner = projection->getPartitioner();
+    desc_stmt_ast_->projection_id_.push_back(
+        partitioner->getProejctionID().projection_off);
+    string proj_col_name = "";
+    for (auto i : projection->getColumnList()) {
+      proj_col_name +=
+          table->getAttributes()[i.column_id_.column_off].attrName + " ";
+    }
+    desc_stmt_ast_->projection_col_.push_back(proj_col_name);
+    desc_stmt_ast_->partition_num_.push_back(
+        partitioner->getNumberOfPartitions());
+    desc_stmt_ast_->partition_keys_.push_back(
+        partitioner->getPartitionKey().attrName);
+    if (partitioner->isEmpty()) {
+      desc_stmt_ast_->is_null_.push_back("FALSE");
+    } else {
+      desc_stmt_ast_->is_null_.push_back("TRUE");
+    }
+  }
+
   vector<int> max_column_size;
   max_column_size.push_back(5);  // Field
   max_column_size.push_back(4);  // Type
@@ -180,7 +196,7 @@ RetCode DescExec::Execute(ExecutedResult* exec_result) {
     if (desc_stmt_ast_->nullable_[i].size() > max_column_size[2]) {
       max_column_size[2] = desc_stmt_ast_->nullable_[i].size();
     }
-    if (desc_stmt_ast_->is_key_[i].size() > max_column_size[3]) {
+    if (desc_stmt_ast_->is_key_[i].size() > max_column_size[5]) {
       max_column_size[3] = desc_stmt_ast_->is_key_[i].size();
     }
     if (desc_stmt_ast_->default_value_[i].size() > max_column_size[4]) {
@@ -245,10 +261,109 @@ RetCode DescExec::Execute(ExecutedResult* exec_result) {
   }
   ostr << "+" << endl;
 
+  // print the information about projections of the table  --added by zyhe
+  ostr << " " << endl;
+  ostr << "the projections information:" << endl;
+
+  max_column_size.clear();
+  max_column_size.push_back(12);  // ProjectionID
+  max_column_size.push_back(17);  // Projection_Fields
+  max_column_size.push_back(17);  // Partition_key
+  max_column_size.push_back(12);  // Partition_num
+  max_column_size.push_back(8);   // Has_Data
+
+  col_header.clear();
+  col_header.push_back("ProjectionID");
+  col_header.push_back("Projection_Fields");
+  col_header.push_back("Partition_key");
+  col_header.push_back("PartitionNum");
+  col_header.push_back("Has_Data");
+
+  for (int i = 0; i < table->GetProjectionList()->size(); i++) {
+    if (desc_stmt_ast_->projection_col_[i].size() > max_column_size[1]) {
+      max_column_size[1] = desc_stmt_ast_->projection_col_[i].size();
+    }
+  }
+
+  // print header
+  for (int i = 0; i < 5; i++) {
+    ostr << "+";
+    for (int j = 0; j < (max_column_size[i] + 2); j++) {
+      ostr << "-";
+    }
+  }
+  ostr << "+" << endl;
+
+  for (int i = 0; i < 5; i++) {
+    ostr << "|";
+    ostr << " " << std::left << std::setw(max_column_size[i]) << col_header[i];
+    ostr << " ";
+  }
+  ostr << "|" << endl;
+  for (int i = 0; i < 5; i++) {
+    ostr << "+";
+    for (int j = 0; j < (max_column_size[i] + 2); j++) {
+      ostr << "-";
+    }
+  }
+  ostr << "+" << endl;
+
+  // print the description table
+  for (int i = 0; i < desc_stmt_ast_->projection_id_.size(); i++) {
+    ostr << "|"
+         << " " << std::left << std::setw(max_column_size[0])
+         << desc_stmt_ast_->projection_id_[i] << " ";
+    ostr << "|"
+         << " " << std::left << std::setw(max_column_size[1])
+         << desc_stmt_ast_->projection_col_[i] << " ";
+    ostr << "|"
+         << " " << std::left << std::setw(max_column_size[2])
+         << desc_stmt_ast_->partition_keys_[i] << " ";
+    ostr << "|"
+         << " " << std::left << std::setw(max_column_size[3])
+         << desc_stmt_ast_->partition_num_[i] << " ";
+    ostr << "|"
+         << " " << std::left << std::setw(max_column_size[4])
+         << desc_stmt_ast_->is_null_[i] << " ";
+    ostr << "|" << endl;
+  }
+
+  // print last line
+  for (int i = 0; i < 5; i++) {
+    ostr << "+";
+    for (int j = 0; j < (max_column_size[i] + 2); j++) {
+      ostr << "-";
+    }
+  }
+  ostr << "+" << endl;
+
   exec_result->info_ = ostr.str();
   exec_result->status_ = true;
   exec_result->result_ = NULL;
-}
 
+  return ret;
+}
+RetCode DescExec::GetWriteAndReadTables(
+    ExecutedResult& result,
+    vector<vector<pair<int, string>>>& stmt_to_table_list) {
+  RetCode ret = rSuccess;
+  vector<pair<int, string>> table_list;
+  pair<int, string> table_status;
+  SemanticContext sem_cnxt;
+  ret = desc_stmt_ast_->SemanticAnalisys(&sem_cnxt);
+  if (rSuccess != ret) {
+    result.error_info_ = "Semantic analysis error.\n" + sem_cnxt.error_msg_;
+    result.status_ = false;
+    LOG(ERROR) << "semantic analysis error result= : " << ret;
+    cout << "semantic analysis error result= : " << ret << endl;
+    return ret;
+  } else {
+    table_status.first = 0;
+    table_status.second = desc_stmt_ast_->table_name_;
+    table_list.push_back(table_status);
+    stmt_to_table_list.push_back(table_list);
+    return ret;
+  }
+}
 } /* namespace stmt_handler */
 } /* namespace claims */

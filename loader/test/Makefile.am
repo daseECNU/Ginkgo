@@ -6,8 +6,11 @@ AM_CPPFLAGS= -fPIC -fpermissive \
 -I${JAVA_HOME}/include \
 -I${JAVA_HOME}/include/linux \
 -I${GTEST_HOME}/include	\
--I${BOOST_HOME}
-AM_LDFLAGS=-lc -lm -lrt -lboost_serialization -lxs
+-I${BOOST_HOME}\
+-I${ZOOKEEPER_HOME}/src/c/include\
+-I${ZOOKEEPER_HOME}/src/c/generated
+
+AM_LDFLAGS=-lc -lm -lrt -lboost_serialization -lxs -DTHREAD -lzookeeper_mt
 
 if OPT_TCMALLOC
 AM_CPPFLAGS+=-fno-builtin-malloc -fno-builtin-calloc -fno-builtin-realloc -fno-builtin-free

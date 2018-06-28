@@ -52,6 +52,10 @@ class SelectExec : public StmtExec {
   virtual ~SelectExec();
   RetCode Execute(ExecutedResult* exec_result);
 
+  RetCode GetWriteAndReadTables(
+      ExecutedResult& result,
+      vector<vector<pair<int, string>>>& stmt_to_table_list);
+  RetCode SemanticAnalisys(ExecutedResult& result);
   RetCode Execute();
 
  private:
@@ -62,6 +66,7 @@ class SelectExec : public StmtExec {
  private:
   AstSelectStmt* select_ast_;
   string raw_sql_;
+  SemanticContext sem_cnxt_;
   stack<Segment*> all_segments_;
 };
 }  // namespace stmt_handler

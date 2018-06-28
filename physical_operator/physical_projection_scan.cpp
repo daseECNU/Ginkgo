@@ -35,7 +35,9 @@
 #include <errno.h>
 #include <limits.h>
 #include <stack>
-
+#include <vector>
+#include <sstream>
+#include <string>
 #include "../common/rename.h"
 #include "../storage/BlockManager.h"
 #include "../Config.h"
@@ -43,10 +45,20 @@
 #include "../storage/ChunkStorage.h"
 #include "../Executor/expander_tracker.h"
 #include "../storage/PartitionStorage.h"
+#include "../loader/table_parquet_reader.h"
+#include "../Environment.h"
+#include "../catalog/catalog.h"
+
 using claims::common::rNoPartitionIdScan;
 using claims::common::rSuccess;
 using claims::common::rCodegenFailed;
-
+using claims::catalog::TableDescriptor;
+using claims::loader::TableParquetReader;
+using claims::loader::ParqMetaInfo;
+using claims::catalog::Catalog;
+using claims::catalog::TableDescriptor;
+using claims::loader::ParquetColumnReader;
+using claims::loader::ColumnReader;
 namespace claims {
 namespace physical_operator {
 PhysicalProjectionScan::PhysicalProjectionScan(State state)
@@ -84,7 +96,77 @@ PhysicalProjectionScan::State::State(ProjectionID projection_id, Schema* schema,
  * of stage, get instance of ExpanderTracker to add this point. Different policy
  * decide if it generates a buffer.
  */
+void PhysicalProjectionScan::initParqReader(unsigned kPartitionOffset) {
+  TableDescriptor* table =
+      Catalog::getInstance()->getTable(state_.projection_id_.table_id);
+  int proj_offset = state_.projection_id_.projection_off;
+  unsigned part_key_off = state_.part_key_off_;
+  stringstream ss;
+  ParqMetaInfo meta_info;
+  ss << Config::data_dir << 'T' << state_.projection_id_.table_id << 'P'
+     << part_key_off << 'N' << kPartitionOffset << ".parq";
+  meta_info.meta_start_ = state_.meta_start_[kPartitionOffset];
+  meta_info.meta_length_ = state_.meta_len_[kPartitionOffset];
+  meta_info.file_length_ = state_.file_len_[kPartitionOffset];
+  meta_info.file_name_ = ss.str();
+  file_name_ = meta_info.file_name_;
+  TableParquetReader* tbl_parq_reader = TableParquetReader::getInstance();
+  tbl_parq_reader
+      ->meta_info_[PartitionID(state_.projection_id_, kPartitionOffset)] =
+      meta_info;
 
+  vector<int> order = state_.scan_order_;
+  // create column reader
+  std::vector<column_type>& columns = state_.schema_->columns;
+  readers_.resize(columns.size());
+  for (int i = 0; i < columns.size(); ++i) {
+    ParquetColumnReader* parq_reader = nullptr;
+    int col_id = order[i];
+    data_type type = columns[i].type;
+    unsigned fix_length = columns[i].get_length();
+    switch (columns[i].type) {
+      case t_int:
+      case t_boolean:
+        parq_reader = new ColumnReader<int>(col_id, type, fix_length);
+        break;
+      case t_float:
+        parq_reader = new ColumnReader<float>(col_id, type, fix_length);
+        break;
+      case t_double:
+        parq_reader = new ColumnReader<double>(col_id, type, fix_length);
+        break;
+      case t_string:
+        parq_reader = new ColumnReader<char*>(col_id, type, fix_length);
+        break;
+      case t_u_long:
+        parq_reader = new ColumnReader<unsigned long>(col_id, type, fix_length);
+        break;
+      case t_date:
+        parq_reader = new ColumnReader<date>(col_id, type, fix_length);
+        break;
+      case t_time:
+        parq_reader = new ColumnReader<time_duration>(col_id, type, fix_length);
+        break;
+      case t_datetime:
+        parq_reader = new ColumnReader<ptime>(col_id, type, fix_length);
+        break;
+      case t_decimal:
+        parq_reader = new ColumnReader<Decimal>(col_id, type, fix_length);
+        break;
+      case t_smallInt:
+        parq_reader = new ColumnReader<short>(col_id, type, fix_length);
+        break;
+      case t_u_smallInt:
+        parq_reader =
+            new ColumnReader<unsigned short>(col_id, type, fix_length);
+        break;
+    }
+    readers_[i] = parq_reader;
+  }
+  tbl_parq_reader->column_readers_[meta_info.file_name_] = readers_;
+  tbl_parq_reader->file_cur_[meta_info.file_name_] = 0;
+  tbl_parq_reader->file_total_[meta_info.file_name_] = state_.file_num_;
+}
 bool PhysicalProjectionScan::Open(SegmentExecStatus* const exec_status,
                                   const PartitionOffset& kPartitionOffset) {
   RETURN_IF_CANCELLED(exec_status);
@@ -93,7 +175,10 @@ bool PhysicalProjectionScan::Open(SegmentExecStatus* const exec_status,
 
   if (TryEntryIntoSerializedSection()) {
     /* this is the first expanded thread*/
-    PartitionStorage* partition_handle_;
+    if (Config::enable_parquet == 1) {
+      initParqReader(kPartitionOffset);
+    }
+    PartitionStorage* partition_handle_ = NULL;
     if (NULL ==
         (partition_handle_ = BlockManager::getInstance()->GetPartitionHandle(
              PartitionID(state_.projection_id_, kPartitionOffset)))) {
@@ -158,7 +243,7 @@ bool PhysicalProjectionScan::Next(SegmentExecStatus* const exec_status,
     input_dataset_.AtomicPut(stc->assigned_data_);
     delete stc;
     destorySelfContext();
-    kPerfInfo->report_instance_performance_in_millibytes();
+    //    kPerfInfo->report_instance_performance_in_millibytes();
     return false;
   }
 
@@ -205,6 +290,14 @@ bool PhysicalProjectionScan::Close(SegmentExecStatus* const exec_status) {
     delete partition_reader_iterator_;
     partition_reader_iterator_ = NULL;
   }
+  if (Config::enable_parquet == 1) {
+    for (auto it : readers_) delete it;
+    TableParquetReader::getInstance()->column_readers_[file_name_].clear();
+    TableParquetReader::getInstance()->has_data_[file_name_] = false;
+    TableParquetReader::getInstance()->metadata_.erase(file_name_);
+    if (TableParquetReader::getInstance()->pools_[file_name_] != NULL)
+    	TableParquetReader::getInstance()->pools_[file_name_]->purge_memory();
+  }
   DestoryAllContext();
 
   /* reset the expanded status in that open and next will be re-invoked.*/
@@ -213,7 +306,8 @@ bool PhysicalProjectionScan::Close(SegmentExecStatus* const exec_status) {
 }
 
 void PhysicalProjectionScan::Print() {
-  printf("Scan (ID=%d)\n", state_.projection_id_.table_id);
+  printf("Scan (Proj id=%d)(ID=%d)\n", state_.projection_id_.projection_off,
+         state_.projection_id_.table_id);
 }
 
 bool PhysicalProjectionScan::PassSample() const {

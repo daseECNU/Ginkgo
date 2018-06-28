@@ -52,6 +52,9 @@ class InsertExec : public StmtExec {
    * @brief the concrete operation of insert data to tables.
    */
   RetCode Execute(ExecutedResult *exec_result);
+  RetCode GetWriteAndReadTables(
+      ExecutedResult &result,
+      vector<vector<pair<int, string>>> &stmt_to_table_list);
 
  private:
   /**

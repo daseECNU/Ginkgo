@@ -35,7 +35,11 @@
 #include "../stmt_handler/create_projection_exec.h"
 #include "../stmt_handler/desc_exec.h"
 #include "../stmt_handler/drop_table_exec.h"
+#include "../stmt_handler/select_exec.h"
+#include "../stmt_handler/truncate_table_exec.h"
+#include "../stmt_handler/drop_proj_exec.h"
 #include "../stmt_handler/show_exec.h"
+#include "../stmt_handler/export_exec.h"
 #include "../utility/Timer.h"
 #include "../common/error_define.h"
 
@@ -60,6 +64,7 @@ StmtHandler::~StmtHandler() {
     sql_parser_ = NULL;
   }
 }
+
 RetCode StmtHandler::GenerateStmtExec(AstNode* stmt_ast) {
   switch (stmt_ast->ast_node_type_) {
     case AST_SELECT_STMT: {
@@ -72,14 +77,6 @@ RetCode StmtHandler::GenerateStmtExec(AstNode* stmt_ast) {
     }
     case AST_LOAD_TABLE: {
       stmt_exec_ = new LoadExec(stmt_ast);
-      break;
-    }
-    case AST_STMT_LIST: {
-      AstStmtList* stmt_list = reinterpret_cast<AstStmtList*>(stmt_ast);
-      GenerateStmtExec(stmt_list->stmt_);
-      if (NULL != stmt_list) {
-        LOG(WARNING) << "only support one sql statement!";
-      }
       break;
     }
     case AST_SHOW_STMT: {
@@ -105,8 +102,24 @@ RetCode StmtHandler::GenerateStmtExec(AstNode* stmt_ast) {
       stmt_exec_ = new DropTableExec(stmt_ast);
       break;
     }
+    case AST_DROP_PROJECTION: {
+      stmt_exec_ = new DropProjExec(stmt_ast);
+      break;
+    }
     case AST_DELETE_STMT: {
       stmt_exec_ = new DeleteStmtExec(stmt_ast);
+      break;
+    }
+    case AST_UPDATE_STMT: {
+      stmt_exec_ = new UpdateStmtExec(stmt_ast);
+      break;
+    }
+    case AST_TRUNCATE_TABLE: {
+      stmt_exec_ = new TruncateTableExec(stmt_ast);
+      break;
+    }
+    case AST_EXPORT_TABLE: {
+      stmt_exec_ = new ExportExec(stmt_ast);
       break;
     }
     default: {
@@ -116,71 +129,150 @@ RetCode StmtHandler::GenerateStmtExec(AstNode* stmt_ast) {
   }
   return rSuccess;
 }
-RetCode StmtHandler::Execute(ExecutedResult* exec_result) {
-  GETCURRENTTIME(start_time);
+
+RetCode StmtHandler::Execute(ExecutedResult& result) {
   RetCode ret = rSuccess;
-  sql_parser_ = new Parser(sql_stmt_, (exec_result->info_));
-  AstNode* raw_ast = sql_parser_->GetRawAST();
-  if (NULL == raw_ast) {
-    exec_result->error_info_ = "Parser Error\n" + exec_result->info_;
-    exec_result->status_ = false;
-    exec_result->result_ = NULL;
-    return rSQLParserErr;
-  }
-  raw_ast->Print();
-  ret = GenerateStmtExec(raw_ast);
-  if (rSuccess != ret) {
-    return ret;
-  }
-  trim(sql_stmt_);
-  to_lower(sql_stmt_);
-  // not select stmt
-  if (sql_stmt_.substr(0, 6) != string("select")) {
+  ExecutedResult* exec_result = &result;
+  if (stmt_list_->stmt_ != NULL) {
+    ret = GenerateStmtExec(stmt_list_->stmt_);
+    if (rSuccess != ret) {
+      return ret;
+    }
     ret = stmt_exec_->Execute(exec_result);
     if (rSuccess != ret) {
       return ret;
     }
-  } else {
-    // select stmt
-    StmtExecStatus* exec_status = new StmtExecStatus(sql_stmt_);
-    exec_status->RegisterToTracker();
-    stmt_exec_->set_stmt_exec_status(exec_status);
-    ret = stmt_exec_->Execute();
-    if (rSuccess != ret) {
-      exec_result->result_ = NULL;
-      exec_result->status_ = false;
-      exec_result->error_info_ = sql_stmt_ + string(" execution error!");
-      exec_status->set_exec_status(StmtExecStatus::ExecStatus::kError);
-      return ret;
-    } else {
-      if (StmtExecStatus::ExecStatus::kCancelled ==
-          exec_status->get_exec_status()) {
-        exec_result->result_ = NULL;
-        exec_result->status_ = false;
-        exec_result->error_info_ = sql_stmt_ + string(" have been cancelled!");
-        exec_status->set_exec_status(StmtExecStatus::ExecStatus::kError);
-
-      } else if (StmtExecStatus::ExecStatus::kOk ==
-                 exec_status->get_exec_status()) {
-        exec_result->result_ = exec_status->get_query_result();
-        exec_result->status_ = true;
-        exec_result->info_ = exec_status->get_exec_info();
-        exec_status->set_exec_status(StmtExecStatus::ExecStatus::kDone);
-
-      } else {
-        assert(false);
-        exec_status->set_exec_status(StmtExecStatus::ExecStatus::kError);
-      }
-    }
+    Daemon::getInstance()->addExecutedResult(result);
   }
-  double exec_time_ms = GetElapsedTime(start_time);
-  if (NULL != exec_result->result_) {
-    exec_result->result_->query_time_ = exec_time_ms / 1000.0;
+  if (stmt_list_->next_ != NULL) {
+    stmt_list_ = reinterpret_cast<AstStmtList*>(stmt_list_->next_);
   }
-  exec_result->result_time_ = exec_time_ms / 1000.0;
-  cout << "execute time: " << exec_time_ms / 1000.0 << " sec" << endl;
-  return rSuccess;
+  return ret;
 }
 
+RetCode StmtHandler::StmtParser(ExecutedResult& result) {
+  RetCode ret = rSuccess;
+  sql_parser_ = new Parser(sql_stmt_, result.info_);
+  AstNode* raw_ast = sql_parser_->GetRawAST();
+  if (NULL == raw_ast) {
+    result.error_info_ = "Parser Error\n" + result.info_;
+    result.status_ = false;
+    result.result_ = NULL;
+    Daemon::getInstance()->addExecutedResult(result);
+    return rSQLParserErr;
+  }
+  // print the raw ast if it's necessary.
+  raw_ast->Print();
+  return ret;
+}
+
+RetCode StmtHandler::StmtContentAnalysis(
+    ExecutedResult& result,
+    vector<vector<pair<int, string>>>& stmt_to_table_list) {
+  RetCode ret = rSuccess;
+  stmt_list_ = reinterpret_cast<AstStmtList*>(sql_parser_->GetRawAST());
+  if (stmt_list_->stmt_ != NULL) {
+    ret = GetTablesInfomation(stmt_list_->stmt_, result, stmt_to_table_list);
+    if (rSuccess != ret) {
+      cout << "GetTablesInfomation Wrong" << endl;
+      Daemon::getInstance()->addExecutedResult(result);
+      return ret;
+    }
+  }
+  while (stmt_list_->next_ != NULL) {
+    stmt_list_ = reinterpret_cast<AstStmtList*>(stmt_list_->next_);
+    ret = GetTablesInfomation(stmt_list_->stmt_, result, stmt_to_table_list);
+    if (rSuccess != ret) {
+      cout << "GetTablesInformation Wrong" << endl;
+      Daemon::getInstance()->addExecutedResult(result);
+      return ret;
+    }
+  }
+  stmt_list_ = reinterpret_cast<AstStmtList*>(sql_parser_->GetRawAST());
+  return ret;
+}
+
+RetCode StmtHandler::GetTablesInfomation(
+    AstNode* stmt_ast, ExecutedResult& result,
+    vector<vector<pair<int, string>>>& stmt_to_table_list) {
+  RetCode ret = rSuccess;
+  pair<int, string> table_status;
+  vector<pair<int, string>> table_list;
+  switch (stmt_ast->ast_node_type_) {
+    case AST_SELECT_STMT: {
+      stmt_exec_ = new SelectExec(stmt_ast, sql_stmt_);
+      ret = stmt_exec_->GetWriteAndReadTables(result, stmt_to_table_list);
+      break;
+    }
+    case AST_INSERT_STMT: {
+      stmt_exec_ = new InsertExec(stmt_ast);
+      ret = stmt_exec_->GetWriteAndReadTables(result, stmt_to_table_list);
+      break;
+    }
+    case AST_LOAD_TABLE: {
+      stmt_exec_ = new LoadExec(stmt_ast);
+      ret = stmt_exec_->GetWriteAndReadTables(result, stmt_to_table_list);
+      break;
+    }
+    case AST_SHOW_STMT: {
+      stmt_exec_ = new ShowExec(stmt_ast);
+      ret = stmt_exec_->GetWriteAndReadTables(result, stmt_to_table_list);
+      break;
+    }
+    case AST_DESC_STMT: {
+      stmt_exec_ = new DescExec(stmt_ast);
+      ret = stmt_exec_->GetWriteAndReadTables(result, stmt_to_table_list);
+      break;
+    }
+    case AST_CREATE_TABLE_LIST:
+    case AST_CREATE_TABLE_LIST_SEL:
+    case AST_CREATE_TABLE_SEL: {
+      stmt_exec_ = new CreateTableExec(stmt_ast);
+      ret = stmt_exec_->GetWriteAndReadTables(result, stmt_to_table_list);
+      break;
+    }
+    case AST_CREATE_PROJECTION:
+    case AST_CREATE_PROJECTION_NUM: {
+      stmt_exec_ = new CreateProjectionExec(stmt_ast);
+      ret = stmt_exec_->GetWriteAndReadTables(result, stmt_to_table_list);
+      break;
+    }
+    case AST_DROP_TABLE: {
+      stmt_exec_ = new DropTableExec(stmt_ast);
+      ret = stmt_exec_->GetWriteAndReadTables(result, stmt_to_table_list);
+      break;
+    }
+    case AST_DROP_PROJECTION: {
+      stmt_exec_ = new DropProjExec(stmt_ast);
+      ret = stmt_exec_->GetWriteAndReadTables(result, stmt_to_table_list);
+      break;
+    }
+    case AST_DELETE_STMT: {
+      stmt_exec_ = new DeleteStmtExec(stmt_ast);
+      ret = stmt_exec_->GetWriteAndReadTables(result, stmt_to_table_list);
+      break;
+    }
+    case AST_UPDATE_STMT: {
+      stmt_exec_ = new UpdateStmtExec(stmt_ast);
+      ret = stmt_exec_->GetWriteAndReadTables(result, stmt_to_table_list);
+      break;
+    }
+    case AST_TRUNCATE_TABLE: {
+      stmt_exec_ = new TruncateTableExec(stmt_ast);
+      ret = stmt_exec_->GetWriteAndReadTables(result, stmt_to_table_list);
+      break;
+    }
+    case AST_EXPORT_TABLE: {
+      stmt_exec_ = new ExportExec(stmt_ast);
+      stmt_exec_->GetWriteAndReadTables(result, stmt_to_table_list);
+      break;
+    }
+    default: {
+      LOG(ERROR) << "unknow statement type!" << std::endl;
+      return rUnknowStmtType;
+    }
+  }
+  return ret;
+}
 }  // namespace stmt_handler
 }  // namespace claims

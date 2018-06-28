@@ -1,0 +1,10 @@
+
+insert into test values(4,3);
+insert into test values(4,3);
+insert into test values(4,3);
+insert into test values(4,3);
+insert into test values(4,3);
+insert into test values(4,3);
+insert into test values(4,3);
+
+exit;

@@ -23,38 +23,44 @@
  *       Email: fzhedu@gmail.com
  */
 
-#include "./ast_select_stmt.h"
+#include "ast_select_stmt.h"
+
 #include <glog/logging.h>
+#include <sys/types.h>
 #include <algorithm>
 #include <bitset>
-#include <iostream>  // NOLINT
+#include <cassert>
+#include <cstdbool>
+#include <cstdlib>
 #include <iomanip>
-#include <string>
-#include <vector>
-#include <map>
-#include <set>
+#include <iostream>  // NOLINT
+#include <iterator>
+#include <unordered_map>
 #include <utility>
-#include "../../common/expression/expr_node.h"
+
+#include "../../catalog/attribute.h"
+#include "../../catalog/catalog.h"
+#include "../../catalog/table.h"
+#include "../../common/data_type.h"
+#include "../../common/error_define.h"
 #include "../../common/expression/expr_column.h"
 #include "../../common/expression/expr_unary.h"
 #include "../../Environment.h"
-#include "../../catalog/attribute.h"
-#include "../../catalog/table.h"
 #include "../../logical_operator/logical_aggregation.h"
-#include "../../logical_operator/logical_equal_join.h"
 #include "../../logical_operator/logical_cross_join.h"
+#include "../../logical_operator/logical_delete_filter.h"
+#include "../../logical_operator/logical_equal_join.h"
 #include "../../logical_operator/logical_filter.h"
 #include "../../logical_operator/logical_limit.h"
+#include "../../logical_operator/logical_outer_join.h"
 #include "../../logical_operator/logical_project.h"
 #include "../../logical_operator/logical_scan.h"
 #include "../../logical_operator/logical_sort.h"
 #include "../../logical_operator/logical_subquery.h"
-#include "../../logical_operator/logical_delete_filter.h"
-#include "../../logical_operator/logical_outer_join.h"
+#include "../../logical_operator/plan_context.h"
+#include "../../logical_operator/plan_partitioner.h"
+#include "ast_expr_node.h"
 
-#include "../ast_node/ast_expr_node.h"
-#include "../ast_node/ast_node.h"
-#include "../../common/error_define.h"
 using namespace claims::common;
 using claims::common::ExprColumn;
 using claims::common::ExprNodeType;
@@ -111,6 +117,17 @@ void AstSelectList::Print(int level) const {
     next_->Print(level);
   }
 }
+
+RetCode AstSelectList::SetScanAttrList(SemanticContext* sem_cnxt) {
+  if (args_ != NULL) {
+    args_->SetScanAttrList(sem_cnxt);
+  }
+  if (next_ != NULL) {
+    next_->SetScanAttrList(sem_cnxt);
+    return rSuccess;
+  }
+}
+
 RetCode AstSelectList::SemanticAnalisys(SemanticContext* sem_cnxt) {
   RetCode ret = rSuccess;
   if (NULL != args_) {
@@ -175,6 +192,14 @@ void AstSelectExpr::Print(int level) const {
   cout << setw(level * TAB_SIZE) << " "
        << "expr alias: " << expr_alias_ << endl;
 }
+
+RetCode AstSelectExpr::SetScanAttrList(SemanticContext* sem_cnxt) {
+  if (expr_ != NULL) {
+    expr_->SetScanAttrList(sem_cnxt);
+  }
+  return rSuccess;
+}
+
 // there is no need to eliminate alias conflict in top select, but in sub query,
 // the alias conflict will be checked by Ast.
 RetCode AstSelectExpr::SemanticAnalisys(SemanticContext* sem_cnxt) {
@@ -260,6 +285,24 @@ void AstFromList::Print(int level) const {
     --level;
     next_->Print(level);
   }
+}
+
+RetCode AstFromList::SetScanAttrList(SemanticContext* sem_cnxt) {
+  for (auto it = equal_join_condition_.begin();
+       it != equal_join_condition_.end(); ++it) {
+    (*it)->SetScanAttrList(sem_cnxt);
+  }
+  for (auto it = normal_condition_.begin(); it != normal_condition_.end();
+       ++it) {
+    (*it)->SetScanAttrList(sem_cnxt);
+  }
+  if (args_ != NULL) {
+    args_->SetScanAttrList(sem_cnxt);
+  }
+  if (next_ != NULL) {
+    next_->SetScanAttrList(sem_cnxt);
+  }
+  return rSuccess;
 }
 RetCode AstFromList::SemanticAnalisys(SemanticContext* sem_cnxt) {
   sem_cnxt->clause_type_ = SemanticContext::kFromClause;
@@ -402,19 +445,43 @@ void AstTable::Print(int level) const {
   cout << setw(level * TAB_SIZE) << " "
        << "table_alias: " << table_alias_ << endl;
 }
+
+RetCode AstTable::SetScanAttrList(SemanticContext* sem_cnxt) {
+  for (auto it = equal_join_condition_.begin();
+       it != equal_join_condition_.end(); ++it) {
+    (*it)->SetScanAttrList(sem_cnxt);
+  }
+  for (auto it = normal_condition_.begin(); it != normal_condition_.end();
+       ++it) {
+    (*it)->SetScanAttrList(sem_cnxt);
+  }
+  // if sql is not  select *
+  if (sem_cnxt->is_all != true) {
+    is_all_ = false;
+    if (sem_cnxt->table_to_column.find(table_name_) !=
+        sem_cnxt->table_to_column.end()) {
+      columns_ = sem_cnxt->table_to_column[table_name_];
+      return rSuccess;
+    } else {
+      return rTableNotExisted;
+    }
+  } else {
+    is_all_ = true;
+  }
+}
 RetCode AstTable::SemanticAnalisys(SemanticContext* sem_cnxt) {
   RetCode ret = rSuccess;
   TableDescriptor* tbl =
       Environment::getInstance()->getCatalog()->getTable(table_name_);
   if (NULL == tbl) {
     LOG(ERROR) << "table: " << table_name_ << " dosen't exist!" << endl;
-    sem_cnxt->error_msg_ =
-        "table: '\e[1m" + table_name_ + "\e[0m' dosen't exist ";
+    sem_cnxt->error_msg_ = "table: '" + table_name_ + "' doesn't exist ";
     return rTableNotExisted;
   }
   if (table_alias_ == "NULL") {
     table_alias_ = table_name_;
   }
+  sem_cnxt->AddOriTable(table_name_);
   sem_cnxt->AddTable(table_alias_);
 
   std::vector<Attribute> attrs = tbl->getAttributes();
@@ -442,35 +509,38 @@ RetCode AstTable::GetLogicalPlan(LogicalOperator*& logic_plan) {
           ->getCatalog()
           ->getTable(table_name_)
           ->HasDeletedTuples()) {
-    LogicalOperator* base_table = new LogicalScan(Environment::getInstance()
-                                                      ->getCatalog()
-                                                      ->getTable(table_name_)
-                                                      ->getProjectoin(0),
-                                                  table_alias_);
+    LogicalOperator* base_table =
+        new LogicalScan(table_alias_, columns_, table_name_, is_all_);
+
     Attribute filter_base =
         base_table->GetPlanContext().plan_partitioner_.get_partition_key();
-    LogicalOperator* del_table =
-        new LogicalScan(Environment::getInstance()
-                            ->getCatalog()
-                            ->getTable(table_name_ + "_DEL")
-                            ->getProjectoin(0),
-                        table_alias_ + "_DEL");
+    TableDescriptor* del_table_desc =
+        Catalog::getInstance()->getTable(table_name_ + "_DEL");
+    auto del_attr = del_table_desc->getAttributes();
+    set<string> del_columns;
+    for (int i = 0; i < del_table_desc->getNumberOfAttribute(); i++) {
+      del_columns.insert(
+          del_attr[i].attrName.substr(del_attr[i].attrName.find('.') + 1));
+    }
+    LogicalOperator* del_table = new LogicalScan(
+        table_alias_ + "_DEL", del_columns, table_name_ + "_DEL", is_all_);
     Attribute filter_del =
         del_table->GetPlanContext().plan_partitioner_.get_partition_key();
 
     assert(filter_base.attrName != "NULL");
     assert(filter_del.attrName != "NULL");
     vector<LogicalDeleteFilter::FilterPair> filter_pair;
+    Attribute row_id_del = del_table->GetPlanContext().attribute_list_[1];
+    Attribute row_id_base = base_table->GetPlanContext().attribute_list_[0];
+
     filter_pair.push_back(
-        LogicalDeleteFilter::FilterPair(filter_del, filter_base));
+        LogicalDeleteFilter::FilterPair(row_id_del, row_id_base));
+    //    filter_pair.push_back(
+    //        LogicalDeleteFilter::FilterPair(filter_del, filter_base));
     logic_plan = new LogicalDeleteFilter(filter_pair, del_table, base_table);
 
   } else {
-    logic_plan = new LogicalScan(Environment::getInstance()
-                                     ->getCatalog()
-                                     ->getTable(table_name_)
-                                     ->getProjectoin(0),
-                                 table_alias_);
+    logic_plan = new LogicalScan(table_alias_, columns_, table_name_, is_all_);
   }
   if (equal_join_condition_.size() > 0) {
     LOG(ERROR) << "equal join condition shouldn't occur in a single table!"
@@ -528,6 +598,22 @@ void AstSubquery::Print(int level) const {
     subquery_->Print(level);
   }
 }
+
+RetCode AstSubquery::SetScanAttrList(SemanticContext* sem_cnxt) {
+  for (auto it = equal_join_condition_.begin();
+       it != equal_join_condition_.end(); ++it) {
+    (*it)->SetScanAttrList(sem_cnxt);
+  }
+  for (auto it = normal_condition_.begin(); it != normal_condition_.end();
+       ++it) {
+    (*it)->SetScanAttrList(sem_cnxt);
+  }
+  if (subquery_ != NULL) {
+    subquery_->SetScanAttrList(sem_cnxt);
+  }
+  return rSuccess;
+}
+
 RetCode AstSubquery::SemanticAnalisys(SemanticContext* sem_cnxt) {
   SemanticContext sub_sem_cnxt;
   //  // subquery_alias_ == existed_table?
@@ -543,6 +629,10 @@ RetCode AstSubquery::SemanticAnalisys(SemanticContext* sem_cnxt) {
 
   // subquery_ is OK?
   RetCode ret = subquery_->SemanticAnalisys(&sub_sem_cnxt);
+  vector<string> ori_tables_ = sub_sem_cnxt.GetOriTables();
+  for (auto i : ori_tables_) {
+    sem_cnxt->AddOriTable(i);
+  }
   if (rSuccess != ret) {
     return ret;
   }
@@ -610,6 +700,14 @@ AstJoinCondition::AstJoinCondition(AstNodeType ast_node_type,
       condition_(condition) {}
 
 AstJoinCondition::~AstJoinCondition() { delete condition_; }
+
+RetCode AstJoinCondition::SetScanAttrList(SemanticContext* sem_cnxt) {
+  if (condition_ != NULL) {
+    condition_->SetScanAttrList(sem_cnxt);
+  }
+  return rSuccess;
+}
+
 void AstJoinCondition::Print(int level) const {
   cout << setw(level * TAB_SIZE) << " "
        << "|join condition| " << join_condition_type_ << endl;
@@ -620,6 +718,7 @@ void AstJoinCondition::Print(int level) const {
          << "null" << endl;
   }
 }
+
 RetCode AstJoinCondition::SemanticAnalisys(SemanticContext* sem_cnxt) {
   if (NULL != condition_) {
     return condition_->SemanticAnalisys(sem_cnxt);
@@ -670,6 +769,20 @@ AstJoin::~AstJoin() {
   delete left_table_;
   delete right_table_;
   delete join_condition_;
+}
+RetCode AstJoin::SetScanAttrList(SemanticContext* sem_cnxt) {
+  for (auto it = equal_join_condition_.begin();
+       it != equal_join_condition_.end(); ++it) {
+    (*it)->SetScanAttrList(sem_cnxt);
+  }
+  for (auto it = normal_condition_.begin(); it != normal_condition_.end();
+       ++it) {
+    (*it)->SetScanAttrList(sem_cnxt);
+  }
+  if (left_table_ != NULL) left_table_->SetScanAttrList(sem_cnxt);
+  if (right_table_ != NULL) right_table_->SetScanAttrList(sem_cnxt);
+  if (join_condition_ != NULL) join_condition_->SetScanAttrList(sem_cnxt);
+  return rSuccess;
 }
 
 void AstJoin::Print(int level) const {
@@ -731,6 +844,10 @@ RetCode AstJoin::SemanticAnalisys(SemanticContext* sem_cnxt) {
     }
   }
   ret = sem_cnxt->AddTable(join_sem_cnxt.get_tables());
+  vector<string> table_set = join_sem_cnxt.GetOriTables();
+  for (auto i : table_set) {
+    ret = sem_cnxt->AddOriTable(i);
+  }
   ret = sem_cnxt->AddTableColumn(join_sem_cnxt.get_column_to_table());
   //  join_sem_cnxt.~SemanticContext();
   return ret;
@@ -880,6 +997,11 @@ AstWhereClause::AstWhereClause(AstNodeType ast_node_type, AstNode* expr)
 
 AstWhereClause::~AstWhereClause() { delete expr_; }
 
+RetCode AstWhereClause::SetScanAttrList(SemanticContext* sem_cnxt) {
+  if (expr_ != NULL) expr_->SetScanAttrList(sem_cnxt);
+  return rSuccess;
+}
+
 void AstWhereClause::Print(int level) const {
   cout << setw(level * TAB_SIZE) << " "
        << "|where clause| " << endl;
@@ -908,6 +1030,16 @@ AstGroupByList::AstGroupByList(AstNodeType ast_node_type, AstNode* expr,
 AstGroupByList::~AstGroupByList() {
   delete expr_;
   delete next_;
+}
+
+RetCode AstGroupByList::SetScanAttrList(SemanticContext* sem_cnxt) {
+  if (expr_ != NULL) {
+    expr_->SetScanAttrList(sem_cnxt);
+  }
+  if (next_ != NULL) {
+    next_->SetScanAttrList(sem_cnxt);
+  }
+  return rSuccess;
 }
 
 void AstGroupByList::Print(int level) const {
@@ -989,6 +1121,10 @@ AstGroupByClause::AstGroupByClause(AstNodeType ast_node_type,
 
 AstGroupByClause::~AstGroupByClause() { delete groupby_list_; }
 
+RetCode AstGroupByClause::SetScanAttrList(SemanticContext* sem_cnxt) {
+  groupby_list_->SetScanAttrList(sem_cnxt);
+  return rSuccess;
+}
 void AstGroupByClause::Print(int level) const {
   cout << setw(level * TAB_SIZE) << " "
        << "|groupby clause| "
@@ -1037,6 +1173,11 @@ AstOrderByList::~AstOrderByList() {
   delete next_;
 }
 
+RetCode AstOrderByList::SetScanAttrList(SemanticContext* sem_cnxt) {
+  if (expr_ != NULL) expr_->SetScanAttrList(sem_cnxt);
+  if (next_ != NULL) next_->SetScanAttrList(sem_cnxt);
+  return rSuccess;
+}
 void AstOrderByList::Print(int level) const {
   cout << setw(level * TAB_SIZE) << " "
        << "|orderby list| " << endl;
@@ -1108,6 +1249,11 @@ AstOrderByClause::AstOrderByClause(AstNodeType ast_node_type,
 
 AstOrderByClause::~AstOrderByClause() { delete orderby_list_; }
 
+RetCode AstOrderByClause::SetScanAttrList(SemanticContext* sem_cnxt) {
+  if (orderby_list_ != NULL) orderby_list_->SetScanAttrList(sem_cnxt);
+  return rSuccess;
+}
+
 void AstOrderByClause::Print(int level) const {
   cout << setw(level * TAB_SIZE) << " "
        << "|orderby clause| " << endl;
@@ -1123,10 +1269,7 @@ RetCode AstOrderByClause::SemanticAnalisys(SemanticContext* sem_cnxt) {
     if (rSuccess != ret) {
       return ret;
     }
-    sem_cnxt->clause_type_ = SemanticContext::kNone;
-    return rSuccess;
   }
-  return rSuccess;
 }
 void AstOrderByClause::RecoverExprName(string& name) {
   if (NULL != orderby_list_) {
@@ -1166,6 +1309,10 @@ AstHavingClause::AstHavingClause(AstNodeType ast_node_type, AstNode* expr)
 
 AstHavingClause::~AstHavingClause() { delete expr_; }
 
+RetCode AstHavingClause::SetScanAttrList(SemanticContext* sem_cnxt) {
+  if (expr_ != NULL) expr_->SetScanAttrList(sem_cnxt);
+  return rSuccess;
+}
 void AstHavingClause::Print(int level) const {
   cout << setw(level * TAB_SIZE) << " "
        << "|having clause| " << endl;
@@ -1223,6 +1370,11 @@ AstLimitClause::~AstLimitClause() {
   delete row_count_;
 }
 
+RetCode AstLimitClause::SetScanAttrList(SemanticContext* sem_cnxt) {
+  if (offset_ != NULL) offset_->SetScanAttrList(sem_cnxt);
+  if (row_count_ != NULL) row_count_->SetScanAttrList(sem_cnxt);
+  return rSuccess;
+}
 void AstLimitClause::Print(int level) const {
   cout << setw(level * TAB_SIZE) << " "
        << "|limit clause| " << endl;
@@ -1273,6 +1425,40 @@ RetCode AstLimitClause::GetLogicalPlan(LogicalOperator*& logical_plan) {
   logical_plan = new LogicalLimit(logical_plan, row_count, offset);
   return rSuccess;
 }
+
+AstSelectIntoClause::AstSelectIntoClause(AstNodeType ast_node_type,
+                                         AstNode* table, string partition_key,
+                                         int partition_number)
+    : AstNode(ast_node_type),
+      table_(table),
+      partition_key_(partition_key),
+      partition_number_(partition_number) {}
+AstSelectIntoClause::~AstSelectIntoClause() { delete table_; }
+void AstSelectIntoClause::Print(int level = 0) const {
+  cout << setw(level * TAB_SIZE) << " "
+       << "|into clause| " << endl;
+  level++;
+  cout << setw(level * TAB_SIZE) << " "
+       << " into table: " << endl;
+  if (table_ != NULL) table_->Print(level + 1);
+  cout << setw((level + 4) * TAB_SIZE) << " "
+       << "|partition info| " << endl;
+  cout << setw((level + 4) * TAB_SIZE) << " "
+       << " partitioned on " << partition_key_ << endl
+       << setw((level + 4) * TAB_SIZE) << " "
+       << " partition number = " << partition_number_ << endl;
+}
+RetCode AstSelectIntoClause::SemanticAnalisys(SemanticContext* sem_cnxt) {
+  RetCode ret = rSuccess;
+  TableDescriptor* table = NULL;
+  table = Environment::getInstance()->getCatalog()->getTable(
+      reinterpret_cast<AstTable*>(table_)->table_name_);
+  if (table != NULL) {
+    ret = rTableAlreadyExist;
+  }
+  return ret;
+}
+
 AstColumn::AstColumn(AstNodeType ast_node_type, std::string relation_name,
                      std::string column_name)
     : AstNode(ast_node_type),
@@ -1311,6 +1497,10 @@ AstColumn::AstColumn(AstColumn* node)
 }
 AstColumn::~AstColumn() { delete next_; }
 
+RetCode AstColumn::SetScanAttrList(SemanticContext* sem_cnxt) {
+  //  next_->SetScanAttrList(sem_cnxt);
+  return rSuccess;
+}
 void AstColumn::Print(int level) const {
   cout << setw(level * TAB_SIZE) << " "
        << "|column| " << expr_str_ << endl;
@@ -1328,6 +1518,7 @@ RetCode AstColumn::SemanticAnalisys(SemanticContext* sem_cnxt) {
   RetCode ret = rSuccess;
   if (AST_COLUMN_ALL_ALL == ast_node_type_) {
     if (SemanticContext::kSelectClause == sem_cnxt->clause_type_) {
+      sem_cnxt->is_all = true;
       return rSuccess;
     } else {
       return rColumnAllShouldNotInOtherClause;
@@ -1342,16 +1533,20 @@ RetCode AstColumn::SemanticAnalisys(SemanticContext* sem_cnxt) {
     } else {
       return rColumnAllShouldNotInOtherClause;
     }
+    // insert * means all column in relation
+    sem_cnxt->is_all = false;
+    sem_cnxt->table_to_column[relation_name_].insert("*");
     return rSuccess;
   }
   ret = sem_cnxt->IsColumnExist(relation_name_, column_name_);
   if (rSuccess != ret) {
     LOG(ERROR) << "There are errors in ( " << relation_name_ << " , "
                << column_name_ << " )" << endl;
-    sem_cnxt->error_msg_ =
-        "column: '\e[1m" + column_name_ + "\e[0m' is invalid";
+    sem_cnxt->error_msg_ = "column: '" + column_name_ + "' is invalid";
     return ret;
   }
+  sem_cnxt->is_all = false;
+  sem_cnxt->table_to_column[relation_name_].insert(column_name_);
   if (NULL != next_) {
     return next_->SemanticAnalisys(sem_cnxt);
   }
@@ -1446,13 +1641,149 @@ RetCode AstColumn::SolveSelectAlias(
 }
 AstNode* AstColumn::AstNodeCopy() { return new AstColumn(this); }
 
-AstSelectStmt::AstSelectStmt(AstNodeType ast_node_type, int select_opts,
-                             AstNode* select_list, AstNode* from_list,
-                             AstNode* where_clause, AstNode* groupby_clause,
-                             AstNode* having_clause, AstNode* orderby_clause,
-                             AstNode* limit_clause, AstNode* select_into_clause)
+AstDistinctList::AstDistinctList(AstNodeType ast_node_type, AstNode* expr,
+                                 AstNode* next)
+    : AstNode(ast_node_type), expr_(expr), next_(next) {}
+
+AstDistinctList::~AstDistinctList() {
+  delete expr_;
+  delete next_;
+}
+
+void AstDistinctList::Print(int level = 0) const {
+  cout << setw(level * TAB_SIZE) << " "
+       << "|distinct list| " << endl;
+  if (expr_ != NULL) expr_->Print(level + 1);
+  if (next_ != NULL) {
+    next_->Print(level);
+  }
+}
+RetCode AstDistinctList::SemanticAnalisys(SemanticContext* sem_cnxt) {
+  RetCode ret = rSuccess;
+  if (NULL != expr_) {
+    ret = expr_->SemanticAnalisys(sem_cnxt);
+    if (rSuccess != ret) {
+      return ret;
+    }
+  }
+  if (NULL != next_) {
+    ret = next_->SemanticAnalisys(sem_cnxt);
+    if (rSuccess != ret) {
+      return ret;
+    }
+  }
+  return rSuccess;
+}
+
+void AstDistinctList::RecoverExprName(string& name) {
+  if (NULL != expr_) {
+    expr_->RecoverExprName(name);
+  }
+  if (NULL != next_) {
+    next_->RecoverExprName(name);
+  }
+}
+
+RetCode AstDistinctList::SolveSelectAlias(
+    SelectAliasSolver* const select_alias_solver) {
+  if (NULL != expr_) {
+    expr_->SolveSelectAlias(select_alias_solver);
+    select_alias_solver->SetNewNode(expr_);
+    select_alias_solver->DeleteOldNode();
+  }
+  if (NULL != next_) {
+    next_->SolveSelectAlias(select_alias_solver);
+    select_alias_solver->SetNewNode(next_);
+    select_alias_solver->DeleteOldNode();
+  }
+  return rSuccess;
+}
+
+RetCode AstDistinctList::SetScanAttrList(SemanticContext* sem_cnxt) {
+  if (expr_ != NULL) expr_->SetScanAttrList(sem_cnxt);
+  if (next_ != NULL) next_->SetScanAttrList(sem_cnxt);
+  return rSuccess;
+}
+
+AstDistinctClause::AstDistinctClause(AstNodeType ast_node_type,
+                                     AstNode* distinct_list, int select_opts)
     : AstNode(ast_node_type),
-      select_opts_((SelectOpts)select_opts),
+      distinct_list_(reinterpret_cast<AstDistinctList*>(distinct_list)),
+      select_opts_(select_opts) {}
+
+AstDistinctClause::~AstDistinctClause() { delete distinct_list_; }
+
+void AstDistinctClause::Print(int level) const {
+  cout << setw(level * TAB_SIZE) << " "
+       << "|distinct clause| " << endl;
+  if (distinct_list_ != NULL) {
+    distinct_list_->Print(level + 1);
+  }
+}
+
+RetCode AstDistinctClause::SemanticAnalisys(SemanticContext* sem_cnxt) {
+  RetCode ret = rSuccess;
+  // Situation COUNT( DISTINCT A,B) is wrong.
+  if (GetSelectOpt() == 3 && distinct_list_ != NULL &&
+      distinct_list_->next_ != NULL) {
+    return rDistinctInAggregationIsMoreThanOne;
+  }
+  if (sem_cnxt->clause_type_ == SemanticContext::kAggregationClause) {
+    if (distinct_list_ == NULL) {
+      return rDistinctInAggregationIsLessThanOne;
+    } else {
+      // AstColumn
+      ret = distinct_list_->SemanticAnalisys(sem_cnxt);
+      return ret;
+    }
+  }
+  return rSuccess;
+}
+
+void AstDistinctClause::RecoverExprName(string& name) {
+  if (NULL != distinct_list_) {
+    distinct_list_->RecoverExprName(name);
+  }
+}
+
+RetCode AstDistinctClause::GetLogicalPlan(ExprNode*& logic_expr,
+                                          LogicalOperator* const left_lplan,
+                                          LogicalOperator* const right_lplan) {
+  RetCode ret = rFailure;
+  if (select_opts_ == SELECT_DISTINCTROW) {
+    // distinct on ('A','B'), don't support distinct on.
+    // do nothing
+    return ret;
+  } else if (select_opts_ == SELECT_DISTINCT) {
+    return ret;
+  } else if (select_opts_ == AGGREGATION_DISTINCT) {
+    if (distinct_list_ != NULL) {
+      ret = distinct_list_->expr_->GetLogicalPlan(logic_expr, left_lplan,
+                                                  right_lplan);
+    } else
+      return ret;
+  }
+  return ret;
+}
+RetCode AstDistinctClause::SolveSelectAlias(
+    SelectAliasSolver* const select_alias_solver) {
+  if (NULL != distinct_list_) {
+    distinct_list_->SolveSelectAlias(select_alias_solver);
+  }
+  return rSuccess;
+}
+RetCode AstDistinctClause::SetScanAttrList(SemanticContext* sem_cnxt) {
+  if (NULL != distinct_list_) distinct_list_->SetScanAttrList(sem_cnxt);
+  return rSuccess;
+}
+AstSelectStmt::AstSelectStmt(AstNodeType ast_node_type,
+                             AstNode* distinct_clause, AstNode* select_list,
+                             AstNode* from_list, AstNode* where_clause,
+                             AstNode* groupby_clause, AstNode* having_clause,
+                             AstNode* orderby_clause, AstNode* limit_clause,
+                             AstNode* select_into_clause)
+    : AstNode(ast_node_type),
+      distinct_clause_(distinct_clause),
       select_list_(select_list),
       from_list_(from_list),
       where_clause_(where_clause),
@@ -1463,6 +1794,7 @@ AstSelectStmt::AstSelectStmt(AstNodeType ast_node_type, int select_opts,
       select_into_clause_(select_into_clause),
       have_aggeragion_(false) {
   groupby_attrs_.clear();
+  distinct_attrs_.clear();
   agg_attrs_.clear();
 }
 
@@ -1473,14 +1805,29 @@ AstSelectStmt::~AstSelectStmt() {
   delete groupby_clause_;
   delete having_clause_;
   delete orderby_clause_;
+  delete distinct_clause_;
   delete limit_clause_;
   delete select_into_clause_;
 }
 
+RetCode AstSelectStmt::SetScanAttrList(SemanticContext* sem_cnxt) {
+  select_list_->SetScanAttrList(sem_cnxt);
+  if (from_list_ != NULL) from_list_->SetScanAttrList(sem_cnxt);
+  if (where_clause_ != NULL) where_clause_->SetScanAttrList(sem_cnxt);
+  if (groupby_clause_ != NULL) groupby_clause_->SetScanAttrList(sem_cnxt);
+  if (having_clause_ != NULL) having_clause_->SetScanAttrList(sem_cnxt);
+  if (orderby_clause_ != NULL) orderby_clause_->SetScanAttrList(sem_cnxt);
+  if (distinct_clause_ != NULL) distinct_clause_->SetScanAttrList(sem_cnxt);
+  if (limit_clause_ != NULL) limit_clause_->SetScanAttrList(sem_cnxt);
+  if (select_into_clause_ != NULL)
+    select_into_clause_->SetScanAttrList(sem_cnxt);
+  return rSuccess;
+}
 void AstSelectStmt::Print(int level) const {
   cout << setw(level * TAB_SIZE) << " "
        << "|select statement| " << endl;
   level++;
+  if (distinct_clause_ != NULL) distinct_clause_->Print(level);
   select_list_->Print(level);
   if (from_list_ != NULL) from_list_->Print(level);
   if (where_clause_ != NULL) where_clause_->Print(level);
@@ -1494,7 +1841,7 @@ void AstSelectStmt::Print(int level) const {
 /**
  *  NOTE: the physical execution may be divide into 2 step_
  *  from-> where-> groupby-> select_aggregation->select_expression->
- *  having->orderby-> limit
+ *  having->distinct->orderby-> limit
  */
 
 RetCode AstSelectStmt::SemanticAnalisys(SemanticContext* sem_cnxt) {
@@ -1525,6 +1872,7 @@ RetCode AstSelectStmt::SemanticAnalisys(SemanticContext* sem_cnxt) {
       return ret;
     }
   }
+
 #ifdef PRINTCONTEXT
   sem_cnxt->PrintContext("after scan");
 #endif
@@ -1534,7 +1882,6 @@ RetCode AstSelectStmt::SemanticAnalisys(SemanticContext* sem_cnxt) {
   if (NULL != select_list_) {
     string name = "";
     select_list_->RecoverExprName(name);
-
     ret = select_list_->SemanticAnalisys(sem_cnxt);
     if (rSuccess != ret) {
       LOG(ERROR) << "select list has error" << endl;
@@ -1544,11 +1891,9 @@ RetCode AstSelectStmt::SemanticAnalisys(SemanticContext* sem_cnxt) {
     // column
     AstNode* agg_column = NULL;
     select_list_->ReplaceAggregation(agg_column, agg_attrs_, true);
-
     if (agg_attrs_.size() > 0) {
       sem_cnxt->GetUniqueAggAttr(agg_attrs_);
     }
-
   } else {
     ELOG(rSelectClauseIsNULL, "");
     return rSelectClauseIsNULL;
@@ -1606,6 +1951,25 @@ RetCode AstSelectStmt::SemanticAnalisys(SemanticContext* sem_cnxt) {
       return ret;
     }
   }
+  // if select_opt == ALL, do nothing
+  // （todo） get lists from select if we get distinct
+  if (NULL != distinct_clause_ &&
+      (reinterpret_cast<AstDistinctClause*>(distinct_clause_)->GetSelectOpt() !=
+       0)) {
+    RetCode ret = rSuccess;
+    SelectAliasSolver* select_alias_solver =
+        new SelectAliasSolver(sem_cnxt->select_expr_);
+    distinct_clause_->SolveSelectAlias(select_alias_solver);
+
+    string name = "";
+    distinct_clause_->RecoverExprName(name);
+    ret = distinct_clause_->SemanticAnalisys(sem_cnxt);
+    if (rSuccess != ret) {
+      LOG(ERROR) << "distinct clause has error" << endl;
+      return ret;
+    }
+  }
+
   if (NULL != orderby_clause_) {
     RetCode ret = rSuccess;
     SelectAliasSolver* select_alias_solver =
@@ -1644,12 +2008,14 @@ RetCode AstSelectStmt::SemanticAnalisys(SemanticContext* sem_cnxt) {
       return rAggSelectExprHaveOtherColumn;
     }
   }
+  if (select_into_clause_) {
+    ret = select_into_clause_->SemanticAnalisys(sem_cnxt);
+  }
   // for select clause rebuild table column
   sem_cnxt->RebuildTableColumn();
 #ifdef PRINTCONTEXT
   sem_cnxt->PrintContext("after select");
 #endif
-
   return ret;
 }
 
@@ -1662,6 +2028,7 @@ RetCode AstSelectStmt::PushDownCondition(PushDownConditionContext& pdccnxt) {
   from_list_->PushDownCondition(pdccnxt);
 
   //  from_list_->Print();
+
   return rSuccess;
 }
 // should support expression in aggregation
@@ -1671,6 +2038,19 @@ RetCode AstSelectStmt::GetLogicalPlanOfAggeration(
   vector<ExprUnary*> aggregation_attrs;
   ExprNode* tmp_expr = NULL;
   RetCode ret = rSuccess;
+  bool agg_distinct = false;
+
+  // Check aggrate_distinct:
+  for (auto i : agg_attrs_) {
+    if (i->expr_str_.substr(i->expr_str_.find('(') + 1, 8) == "DISTINCT") {
+      agg_distinct = true;
+    }
+  }
+  if (agg_distinct) {
+    ret = GetLogicalPlanOfAggerateDistinct(logic_plan);
+    if (rSuccess != ret) return ret;
+  }
+
   for (auto it = groupby_attrs_.begin(); it != groupby_attrs_.end(); ++it) {
     ret = (*it)->GetLogicalPlan(tmp_expr, logic_plan, NULL);
     if (rSuccess != ret) {
@@ -1690,8 +2070,304 @@ RetCode AstSelectStmt::GetLogicalPlanOfAggeration(
   return rSuccess;
 }
 
+RetCode AstSelectStmt::GetLogicalPlanOfAggerateDistinct(
+    LogicalOperator*& logic_plan) {
+  vector<ExprNode*> group_by_attrs;
+  vector<ExprUnary*> aggregation_attrs;
+  set<AstNode*> proj_agg_column;
+  set<AstNode*> proj_groupby_column;
+  ExprNode* tmp_expr = NULL;
+  RetCode ret = rSuccess;
+  // if having only one agg_distinct, so change the logical plan to agg-agg
+  // while if plus one or more aggregation, then change the logical plan
+  // to agg-proj-agg
+  // this is for the bottom aggregation
+  for (auto i : agg_attrs_) {
+    if (i->expr_str_.substr(i->expr_str_.find('(') + 1, 8) == "DISTINCT") {
+      reinterpret_cast<AstExprUnary*>(i)
+          ->arg0_->GetLogicalPlan(tmp_expr, logic_plan, NULL);
+      proj_groupby_column.insert(i);
+      group_by_attrs.push_back(tmp_expr);
+      for (auto it = groupby_attrs_.begin(); it != groupby_attrs_.end(); ++it) {
+        bool exist = false;  // it's used to check duplication
+        for (auto i : group_by_attrs) {
+          if ((*it)->expr_str_ == i->alias_) {
+            exist = true;
+            break;
+          }
+        }
+        if (!exist) {
+          ret = (*it)->GetLogicalPlan(tmp_expr, logic_plan, NULL);
+          proj_groupby_column.insert(*it);
+          if (rSuccess != ret) {
+            return ret;
+          }
+          group_by_attrs.push_back(tmp_expr);
+        }
+      }
+    } else {
+      string expr_type = i->expr_str_.substr(0, i->expr_str_.find('('));
+      // this is common aggregation, it also means the aggregation operation
+      // must have two or more
+      // transfer avg() to sum() and count() in the first aggregation phase
+      if (expr_type == "AVG") {
+        AstExprUnary* sum = new AstExprUnary(i);
+        sum->expr_type_ = "SUM";
+        sum->expr_str_ = "SUM(" + sum->arg0_->expr_str_ + ")";
+        sum->GetLogicalPlan(tmp_expr, logic_plan, NULL);
+        aggregation_attrs.push_back(reinterpret_cast<ExprUnary*>(tmp_expr));
+        AstExprUnary* count = new AstExprUnary(i);
+        count->expr_type_ = "COUNT";
+        count->expr_str_ = "COUNT(" + sum->arg0_->expr_str_ + ")";
+        count->GetLogicalPlan(tmp_expr, logic_plan, NULL);
+        aggregation_attrs.push_back(reinterpret_cast<ExprUnary*>(tmp_expr));
+      } else {
+        ret = i->GetLogicalPlan(tmp_expr, logic_plan, NULL);
+        aggregation_attrs.push_back(reinterpret_cast<ExprUnary*>(tmp_expr));
+      }
+      proj_agg_column.insert(i);
+    }
+  }
+  logic_plan =
+      new LogicalAggregation(group_by_attrs, aggregation_attrs, logic_plan);
+  //    cout << "the bottom aggregation complete";
+  //  logic_plan->Print();
+
+  // handle the situation which a statement has agg_distinct plus one or
+  // more aggregation(change the logical plan proj-agg)
+  if (aggregation_attrs.size() != 0) {
+    vector<AstNode*> ast_expr;
+    vector<ExprNode*> proj_list;
+    // proj_groupby_column means the columns in group_by clause and the first
+    // aggregation
+    for (auto i : proj_groupby_column) {
+      // handle the project
+      if (i->expr_str_.substr(i->expr_str_.find('(') + 1, 8) == "DISTINCT") {
+        AstDistinctClause* dis_clause =
+            reinterpret_cast<AstExprUnary*>(i)->arg0_;
+        AstColumn* new_Column =
+            new AstColumn(dis_clause->distinct_list_->expr_);
+        ast_expr.push_back(new_Column);
+      } else {
+        // if the column is not DISTINCT, it must be the AstColumn
+        AstColumn* new_Column = new AstColumn(i);
+        new_Column->expr_str_ = new_Column->column_name_ + "_mid";
+        ast_expr.push_back(new_Column);
+        // We must change the agg_column in the upper aggregate phase to
+        // fit in the results of project because the middle project may change
+        // the column status.
+        for (auto groupby_attr : groupby_attrs_) {
+          if (reinterpret_cast<AstColumn*>(groupby_attr)->column_name_ +
+                  "_mid" ==
+              new_Column->expr_str_) {
+            delete groupby_attr;
+            groupby_attr = new AstColumn(AST_COLUMN, new_Column->relation_name_,
+                                         new_Column->expr_str_);
+            groupby_attr->expr_str_ = new_Column->expr_str_;
+            string table_name = new_Column->relation_name_;
+            reinterpret_cast<AstColumn*>(groupby_attr)->relation_name_ =
+                "NULL_MID";
+            // if statement need select this group_by column, we also needs to
+            // change the select_expr->expr_
+            AstSelectList* select_list =
+                reinterpret_cast<AstSelectList*>(select_list_);
+            while (NULL != select_list) {
+              AstSelectExpr* select_expr =
+                  reinterpret_cast<AstSelectExpr*>(select_list->args_);
+              if (select_expr->expr_->ast_node_type_ == AST_COLUMN &&
+                  reinterpret_cast<AstColumn*>(select_expr->expr_)
+                              ->column_name_ +
+                          "_mid" ==
+                      new_Column->expr_str_ &&
+                  reinterpret_cast<AstColumn*>(select_expr->expr_)
+                          ->relation_name_ == table_name) {
+                delete select_expr->expr_;
+                select_expr->expr_ = new AstColumn(groupby_attr);
+                select_expr->expr_->expr_str_ = groupby_attr->expr_str_;
+              }
+              if (NULL != select_list->next_) {
+                select_list =
+                    reinterpret_cast<AstSelectList*>(select_list->next_);
+              } else {
+                select_list = NULL;
+              }
+            }
+          }
+        }
+      }
+    }
+    // proj_agg_column means the columns in addition aggregation
+    // its type is Ast_Expr...
+    // it more likes to be the results of the aggregation
+    for (auto j : proj_agg_column) {
+      // to the project phase:
+      AstColumn* new_Column =
+          new AstColumn(reinterpret_cast<AstExprUnary*>(j)->arg0_);
+      if (reinterpret_cast<AstExprUnary*>(j)->expr_type_ == "AVG") {
+        AstColumn* sum =
+            new AstColumn(reinterpret_cast<AstExprUnary*>(j)->arg0_);
+        string column_name = sum->column_name_;
+        sum->column_name_ = "SUM(" + sum->column_name_ + ")";
+        sum->relation_name_ = "NULL_MID";
+        sum->expr_str_ = sum->column_name_;
+        AstColumn* count =
+            new AstColumn(reinterpret_cast<AstExprUnary*>(j)->arg0_);
+        count->column_name_ = "COUNT(" + count->column_name_ + ")";
+        count->relation_name_ = "NULL_MID";
+        count->expr_str_ = count->column_name_;
+        ast_expr.push_back(sum);
+        ast_expr.push_back(count);
+        // to the upper aggregate phase:
+        auto begin = agg_attrs_.find(j);
+        if (begin != agg_attrs_.end()) {
+          agg_attrs_.erase(begin);
+        }
+        AstExprUnary* Expr_sum = new AstExprUnary(AST_EXPR_UNARY, "SUM", sum);
+        Expr_sum->expr_str_ = sum->expr_str_;
+        AstExprUnary* Expr_count =
+            new AstExprUnary(AST_EXPR_UNARY, "SUM", count);
+        Expr_count->expr_str_ = count->expr_str_;
+        agg_attrs_.insert(Expr_sum);
+        agg_attrs_.insert(Expr_count);
+        AstExprCalBinary* avg =
+            new AstExprCalBinary(AST_EXPR_CAL_BINARY, "/", sum, count);
+        avg->expr_str_ = "AVG(" + column_name + ")";
+        // change 'select avg()' to 'select sum()/count()' in select_expr->expr_
+        AstSelectList* select_list =
+            reinterpret_cast<AstSelectList*>(select_list_);
+        while (NULL != select_list) {
+          AstSelectExpr* select_expr =
+              reinterpret_cast<AstSelectExpr*>(select_list->args_);
+          if (select_expr->expr_->ast_node_type_ == AST_COLUMN &&
+              (select_expr->expr_)->expr_str_ == "AVG(" + column_name + ")") {
+            delete select_expr->expr_;
+            select_expr->expr_ = avg;
+          }
+          if (NULL != select_list->next_) {
+            select_list = reinterpret_cast<AstSelectList*>(select_list->next_);
+          } else {
+            select_list = NULL;
+          }
+        }
+      } else {
+        new_Column->expr_str_ = new_Column->column_name_;
+        new_Column->relation_name_ = "NULL_MID";
+        new_Column->column_name_ = j->expr_str_;
+        ast_expr.push_back(new_Column);
+      }
+      // to the upper aggregate phase:
+      new_Column = new AstColumn(reinterpret_cast<AstExprUnary*>(j)->arg0_);
+      new_Column->expr_str_ = j->expr_str_;
+      new_Column->relation_name_ = "NULL_MID";
+      string expr_type = reinterpret_cast<AstExprUnary*>(j)->expr_type_;
+      if (expr_type == "COUNT") {
+        reinterpret_cast<AstExprUnary*>(j)->expr_type_ = "SUM";
+        reinterpret_cast<AstExprUnary*>(j)->arg0_ = new_Column;
+      } else if (expr_type != "AVG") {
+        reinterpret_cast<AstExprUnary*>(j)->arg0_ = new_Column;
+      }
+    }
+    // to create a project operator
+    for (int i = 0; i < ast_expr.size(); ++i) {
+      ret = ast_expr[i]->GetLogicalPlan(tmp_expr, logic_plan, NULL);
+      if (rSuccess != ret) {
+        return rSuccess;
+      }
+      proj_list.push_back(tmp_expr);
+    }
+    logic_plan = new LogicalProject(logic_plan, proj_list);
+    //    cout << "the middle project complete";
+    group_by_attrs.clear();
+    aggregation_attrs.clear();
+  } else {
+    group_by_attrs.clear();
+  }
+  return ret;
+}
+
+RetCode AstSelectStmt::GetLogicalPlanOfDistinct(LogicalOperator*& logic_plan) {
+  AstSelectList* select_list = reinterpret_cast<AstSelectList*>(select_list_);
+  vector<ExprNode*> distinct_attrs;
+  // aggregation_attrs do not have anything
+  vector<ExprUnary*> aggregation_attrs;
+  while (NULL != select_list) {
+    if (select_list->is_all_) {  // select * from tb;
+      // put every column in tables
+      AstFromList* from_list = reinterpret_cast<AstFromList*>(from_list_);
+      while (NULL != from_list) {
+        AstTable* table = reinterpret_cast<AstTable*>(from_list->args_);
+        vector<Attribute> attrs = Environment::getInstance()
+                                      ->getCatalog()
+                                      ->getTable(table->table_name_)
+                                      ->getAttributes();
+        for (auto it = attrs.begin(); it != attrs.end(); it++) {
+          if (it->attrName.substr(it->attrName.find('.') + 1) != "row_id") {
+            auto column = new AstColumn(
+                AST_COLUMN, table->table_name_,
+                it->attrName.substr(it->attrName.find('.') + 1), it->attrName);
+            ExprNode* column_expr = NULL;
+            column->GetLogicalPlan(column_expr, logic_plan, NULL);
+            distinct_attrs.push_back(column_expr);
+          }
+        }
+        if (NULL != from_list->next_) {
+          from_list = reinterpret_cast<AstFromList*>(from_list->next_);
+        } else {
+          from_list = NULL;
+        }
+      }
+    }
+    // select A.* from tb;
+    AstSelectExpr* select_expr =
+        reinterpret_cast<AstSelectExpr*>(select_list->args_);
+    if (select_expr->expr_->ast_node_type() == AST_COLUMN_ALL) {
+      AstColumn* column = reinterpret_cast<AstColumn*>(select_expr->expr_);
+      vector<Attribute> attrs = Environment::getInstance()
+                                    ->getCatalog()
+                                    ->getTable(column->relation_name_)
+                                    ->getAttributes();
+      auto relation_name = column->relation_name_;
+      for (auto it = attrs.begin(); it != attrs.end(); ++it) {
+        if (it->attrName.substr(it->attrName.find('.') + 1) != "row_id") {
+          auto column = new AstColumn(
+              AST_COLUMN, relation_name,
+              it->attrName.substr(it->attrName.find('.') + 1), it->attrName);
+          ExprNode* column_expr = NULL;
+          column->GetLogicalPlan(column_expr, logic_plan, NULL);
+          distinct_attrs.push_back(column_expr);
+        }
+      }
+    } else if (select_expr->expr_->ast_node_type() == AST_COLUMN) {
+      // distinct a, b from tb;
+      AstColumn* column = reinterpret_cast<AstColumn*>(select_expr->expr_);
+      ExprNode* column_expr = NULL;
+      select_expr->expr_->GetLogicalPlan(column_expr, logic_plan, NULL);
+      column_expr->alias_ = column->column_name_;
+      distinct_attrs.push_back(column_expr);
+    } else if (select_expr->expr_->ast_node_type() == AST_EXPR_UNARY) {
+      ExprNode* column_expr = NULL;
+      reinterpret_cast<AstExprUnary*>(select_expr->expr_)
+          ->arg0_->GetLogicalPlan(column_expr, logic_plan, NULL);
+      distinct_attrs.push_back(column_expr);
+    }
+    if (NULL != select_list->next_) {
+      select_list = reinterpret_cast<AstSelectList*>(select_list->next_);
+    } else {
+      select_list = NULL;
+    }
+  }
+
+  if (groupby_attrs_.size() == 0 && agg_attrs_.size() > 0) {
+  } else {
+    logic_plan =
+        new LogicalAggregation(distinct_attrs, aggregation_attrs, logic_plan);
+  }
+  return rSuccess;
+}
+
 RetCode AstSelectStmt::GetLogicalPlanOfProject(LogicalOperator*& logic_plan) {
   AstSelectList* select_list = reinterpret_cast<AstSelectList*>(select_list_);
+  AstFromList* from_list = reinterpret_cast<AstFromList*>(from_list_);
   vector<ExprNode*> expr_list;
   vector<AstNode*> ast_expr;
   ExprNode* tmp_expr = NULL;
@@ -1710,15 +2386,41 @@ RetCode AstSelectStmt::GetLogicalPlanOfProject(LogicalOperator*& logic_plan) {
       } break;
       case AST_COLUMN_ALL: {
         AstColumn* column = reinterpret_cast<AstColumn*>(select_expr->expr_);
-        vector<Attribute> attrs = Environment::getInstance()
-                                      ->getCatalog()
-                                      ->getTable(column->relation_name_)
-                                      ->getAttributes();
-        for (auto it = attrs.begin(); it != attrs.end(); ++it) {
-          ast_expr.push_back(new AstColumn(
-              AST_COLUMN, column->relation_name_,
-              it->attrName.substr(it->attrName.find('.') + 1), it->attrName));
+        vector<Attribute> attrs;
+        if (Environment::getInstance()->getCatalog()->getTable(
+                column->relation_name_) != NULL) {
+          attrs = Environment::getInstance()
+                      ->getCatalog()
+                      ->getTable(column->relation_name_)
+                      ->getAttributes();
+          for (auto it = attrs.begin(); it != attrs.end(); ++it) {
+            ast_expr.push_back(new AstColumn(
+                AST_COLUMN, column->relation_name_,
+                it->attrName.substr(it->attrName.find('.') + 1), it->attrName));
+          }
+        } else {
+          // solve alias problem like select A.* from test_a as A;
+          while (from_list) {
+            AstTable* table = reinterpret_cast<AstTable*>(from_list->args_);
+            if (table->table_alias_ != "NULL" &&
+                table->table_alias_ == column->relation_name_) {
+              attrs = Environment::getInstance()
+                          ->getCatalog()
+                          ->getTable(table->table_name_)
+                          ->getAttributes();
+              for (auto it = attrs.begin(); it != attrs.end(); ++it) {
+                ast_expr.push_back(new AstColumn(
+                    AST_COLUMN, column->relation_name_,
+                    it->attrName.substr(it->attrName.find('.') + 1),
+                    column->relation_name_ +
+                        it->attrName.substr(it->attrName.find('.'))));
+              }
+              break;
+            }
+            from_list = from_list->next_;
+          }
         }
+
       } break;
       default: { ast_expr.push_back(select_expr->expr_); }
     }
@@ -1761,6 +2463,12 @@ RetCode AstSelectStmt::GetLogicalPlan(LogicalOperator*& logic_plan) {
       return ret;
     }
   }
+  if (NULL != distinct_clause_) {
+    ret = GetLogicalPlanOfDistinct(logic_plan);
+    if (rSuccess != ret) {
+      return ret;
+    }
+  }
   if (NULL != orderby_clause_) {
     ret = orderby_clause_->GetLogicalPlan(logic_plan);
     if (rSuccess != ret) {
@@ -1773,6 +2481,7 @@ RetCode AstSelectStmt::GetLogicalPlan(LogicalOperator*& logic_plan) {
       return ret;
     }
   }
+
   // it's optimal to add limit operator before select operator, but because it's
   // necessary add limit physical operator below LogicalQueryPlanRoot, so
   // underlying limit should at the top of plan

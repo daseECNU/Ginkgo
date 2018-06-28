@@ -20,7 +20,7 @@
  *
  *  Created on: Oct 22, 2015
  *      Author: yukai
- *		   Email: yukai2014@gmail.com
+ *       Email: yukai2014@gmail.com
  *
  * Description: class for injecting data from files or string
  *
@@ -31,12 +31,16 @@
 #include <list>
 #include <vector>
 #include <string>
+#include <map>
+#include <set>
+#include <utility>
 
 #include "../common/error_define.h"
 #include "../common/hash.h"
 #include "../catalog/table.h"
 #include "./validity.h"
 #include "../common/file_handle/file_handle_imp.h"
+#include "hdfs_loader.h"
 
 using claims::common::FileOpenFlag;
 using claims::catalog::TableDescriptor;
@@ -97,7 +101,14 @@ class DataInjector {
    * @return rSuccess if success or other on error
    */
   RetCode InsertFromString(const string tuples, ExecutedResult* result);
-
+  /**
+   * @brief Method description: insert tuples into table by multithread
+   * @param tuples: the the vectordata to insert into tables, which may be a line or
+   * multiple lines
+   * @return rSuccess if success or other on error
+   */
+  RetCode InsertFromStringMultithread(const vector<string>&tuples,
+                              ExecutedResult* result);
  private:
   RetCode LoadFromFileSingleThread(vector<string> input_file_names,
                                    FileOpenFlag open_flag,
@@ -157,17 +168,14 @@ class DataInjector {
                            string data_source, uint64_t row_id_in_raw_data,
                            ExecutedResult* result);
 
-  string GenerateDataValidityInfo(const Validity& vali, TableDescriptor* table,
-                                  int line, const string& file);
-  void AnnounceIAmLoading();
-
   static void* HandleTuple(void* ptr);
 
   RetCode SetTableState(FileOpenFlag open_flag, ExecutedResult* result);
-  RetCode CheckFiles(vector<string> input_file_names, ExecutedResult* result);
+
   RetCode PrepareEverythingForLoading(vector<string> input_file_names,
                                       FileOpenFlag open_flag,
-                                      ExecutedResult* result);
+                                      ExecutedResult* result,
+                                      HdfsLoader* hdfsloader_);
 
   RetCode FinishJobAfterLoading(FileOpenFlag open_flag);
   RetCode PrepareLocalPJBuffer(vector<vector<BlockStreamBase*>>& pj_buffer);
@@ -175,8 +183,19 @@ class DataInjector {
   RetCode DestroyLocalPJBuffer(vector<vector<BlockStreamBase*>>& pj_buffer);
 
  public:
+  static RetCode CheckFiles(vector<string> input_file_names,
+                            ExecutedResult* result, HdfsLoader* hdfsloader_);
+  static string GenerateDataValidityInfo(const Validity& vali,
+                                         TableDescriptor* table, int line,
+                                         const string& file);
+  static void AnnounceIAmLoading();
   static istream& GetTupleTerminatedBy(ifstream& ifs, string& res,
                                        const string& terminator);
+  static bool GetTupleTerminatedByFromHdfs(void*& buffer,
+                                           HdfsLoader* hdfsloader_,
+                                           string& file_name, string& res,
+                                           const string& terminator, int& pos,
+                                           int& read_num, const int& length);
 
  private:
   TableDescriptor* table_;
@@ -214,6 +233,8 @@ class DataInjector {
   int all_tuple_read_ = 0;
   RetCode multi_thread_status_ = rSuccess;
   ExecutedResult* result_;
+  HdfsLoader* hdfsloader_;
+
   /******************debug********************/
  public:
   static uint64_t total_get_substr_time_;

@@ -41,12 +41,14 @@
 #include "../sql_parser/ast_node/ast_select_stmt.h"
 #include "../stmt_handler/select_exec.h"
 #include "../common/error_define.h"
+#include "../loader/data_injector_for_parq.h"
 using claims::loader::DataInjector;
 using std::endl;
 using std::string;
 using std::vector;
 using std::cout;
 using claims::catalog::TableDescriptor;
+using claims::loader::DataInjectorForParq;
 using claims::common::rSuccess;
 using claims::common::rNoProjection;
 using claims::common::rCreateProjectionOnDelTableFailed;
@@ -66,17 +68,12 @@ RetCode DeleteStmtExec::Execute(ExecutedResult* exec_result) {
       dynamic_cast<AstTable*>(
           dynamic_cast<AstFromList*>(delete_stmt_ast_->from_list_)->args_)
           ->table_name_;
+  string table_alias_name =
+      dynamic_cast<AstTable*>(
+          dynamic_cast<AstFromList*>(delete_stmt_ast_->from_list_)->args_)
+          ->table_alias_;
   TableDescriptor* new_table =
       Environment::getInstance()->getCatalog()->getTable(table_base_name);
-
-  SemanticContext sem_cnxt;
-  ret = delete_stmt_ast_->SemanticAnalisys(&sem_cnxt);
-  if (rSuccess != ret) {
-    exec_result->SetError("Semantic analysis error.\n" + sem_cnxt.error_msg_);
-    LOG(ERROR) << "semantic analysis error result= : " << ret;
-    cout << "semantic analysis error result= : " << ret << endl;
-    return ret;
-  }
 
   /**
    * step1 : create new sql query including row_id, for example:
@@ -85,14 +82,17 @@ RetCode DeleteStmtExec::Execute(ExecutedResult* exec_result) {
    * SELECT row_id FROM tbA WHERE colA = 10;
    */
   AstNode* appended_query_sel_stmt;
-  ret = GenerateSelectStmt(table_base_name, appended_query_sel_stmt);
+  ret = GenerateSelectStmt(table_base_name, table_alias_name,
+                           appended_query_sel_stmt);
   if (rSuccess == ret) {
     appended_query_sel_stmt->Print();
     // ExecutedResult* appended_result = new ExecutedResult();
     SelectExec* appended_query_exec = new SelectExec(appended_query_sel_stmt);
+    appended_query_exec->SemanticAnalisys(*exec_result);
     ret = appended_query_exec->Execute(exec_result);
     if (ret != rSuccess) {
       WLOG(ret, "failed to find the delete tuples from the table ");
+      delete appended_query_exec;
       return ret;
     }
     ostringstream ostr;
@@ -119,6 +119,7 @@ RetCode DeleteStmtExec::Execute(ExecutedResult* exec_result) {
     //  }
     delete exec_result->result_;
     exec_result->result_ = NULL;
+    delete appended_query_exec;
     return ret;
   } else if (rCreateProjectionOnDelTableFailed == ret) {
     WLOG(ret,
@@ -129,6 +130,7 @@ RetCode DeleteStmtExec::Execute(ExecutedResult* exec_result) {
 }
 
 RetCode DeleteStmtExec::GenerateSelectStmt(const string table_name,
+                                           const string table_alias,
                                            AstNode*& appended_query_sel_stmt) {
   RetCode ret = rSuccess;
   vector<string> column_names;
@@ -152,10 +154,16 @@ RetCode DeleteStmtExec::GenerateSelectStmt(const string table_name,
   AstNode* appended_query_sel_list_last = NULL;
   vector<string>::reverse_iterator r_iter = column_names.rbegin();
   // -1 means the column row_id of the base table do not need to be selected
+  // consider alias
+  string tab_name;
+  if (table_alias != "NULL")
+    tab_name = table_alias;
+  else
+    tab_name = table_name;
   for (; r_iter != column_names.rend() - 1; r_iter++) {
     if ("row_id_DEL" != *r_iter) {
       AstNode* appended_query_col =
-          new AstColumn(AST_COLUMN, table_name, *r_iter, NULL);
+          new AstColumn(AST_COLUMN, tab_name, *r_iter, NULL);
       AstNode* appended_query_sel_expr =
           new AstSelectExpr(AST_SELECT_EXPR, "", appended_query_col);
       appended_query_sel_list =
@@ -166,7 +174,7 @@ RetCode DeleteStmtExec::GenerateSelectStmt(const string table_name,
       column_name = *r_iter;
       column_name = column_name.substr(0, column_name.size() - 4);
       AstNode* appended_query_col =
-          new AstColumn(AST_COLUMN, table_name, column_name, NULL);
+          new AstColumn(AST_COLUMN, tab_name, column_name, NULL);
       AstNode* appended_query_sel_expr =
           new AstSelectExpr(AST_SELECT_EXPR, "", appended_query_col);
       appended_query_sel_list =
@@ -229,47 +237,92 @@ void DeleteStmtExec::InsertDeletedDataIntoTableDEL(
   BlockStreamBase* block = NULL;
   BlockStreamBase::BlockStreamTraverseIterator* tuple_it = NULL;
 
-  cout << "insert del table name : " << table_del_name.c_str();
+  cout << "insert del table name : " << table_del_name.c_str() << "!!!" << endl;
+  LOG(INFO) << "insert del table name : " << table_del_name.c_str() << "!!!"
+            << endl;
   TableDescriptor* table_del =
       Environment::getInstance()->getCatalog()->getTable(table_del_name);
   if (NULL == table_del) {
-    LOG(ERROR) << "The table DEL " + table_del_name +
+    LOG(ERROR) << "The table " + table_del_name +
                       " is not existed during delete data." << std::endl;
     return;
   }
   /**
    *    Prepare the data which will be insert into TABLE_DEL.
    */
+  vector<string> sel_result;
   ostringstream ostr;
+  unsigned int row_count = 0;
   while (block = it.nextBlock()) {
     tuple_it = block->createIterator();
     void* tuple;
     while (tuple = tuple_it->nextTuple()) {
       for (unsigned i = 0; i < exec_result->result_->column_header_list_.size();
            i++) {
-        // check whether the row has been deleted or not.
-        if (true) {
-          ostr << exec_result->result_->schema_->getcolumn(i)
-                      .operate->toString(exec_result->result_->schema_
-                                             ->getColumnAddess(i, tuple))
-                      .c_str();
-          ostr << "|";
-        } else {
-          continue;
-        }
+        //         check whether the row has been deleted or not.
+        ostr << exec_result->result_->schema_->getcolumn(i)
+                    .operate->toString(exec_result->result_->schema_
+                                           ->getColumnAddess(i, tuple))
+                    .c_str();
+        ostr << "|";
       }
       ostr << "\n";
+      ++row_count;
+      if (row_count == 1000000) {
+        sel_result.push_back(ostr.str());
+        row_count = 0;
+        ostr.str("");
+      }
     }
     delete tuple_it;
   }
+  if (row_count > 0) sel_result.push_back(ostr.str());
 
-  DataInjector* injector = new DataInjector(table_del);
-  injector->InsertFromString(ostr.str(), exec_result);
-  //  HdfsLoader* Hl = new HdfsLoader(tabledel);
-  //  string tmp = ostr.str();
-  //  Hl->append(ostr.str());
-  //  cout << tmp << endl;
-  Environment::getInstance()->getCatalog()->saveCatalog();
+  RetCode ret = rSuccess;
+  if (Config::enable_parquet) {
+    DataInjectorForParq* injector = new DataInjectorForParq(table_del);
+    if (sel_result.size() > 0) {
+      ret = injector->InsertFromStringMultithread(sel_result, exec_result);
+    }
+    DELETE_PTR(injector);
+  } else {
+    DataInjector* injector = new DataInjector(table_del);
+    if (sel_result.size() > 0) {
+      ret = injector->InsertFromStringMultithread(sel_result, exec_result);
+    }
+    DELETE_PTR(injector);
+
+    if (rSuccess != ret) {
+      LOG(ERROR) << "The table DEL " + table_del_name +
+                        " insert operation failed." << std::endl;
+    }
+    DELETE_PTR(injector);
+  }
+}
+
+RetCode DeleteStmtExec::GetWriteAndReadTables(
+    ExecutedResult& result,
+    vector<vector<pair<int, string>>>& stmt_to_table_list) {
+  RetCode ret = rSuccess;
+  vector<pair<int, string>> table_list;
+  pair<int, string> table_status;
+  SemanticContext sem_cnxt;
+  ret = delete_stmt_ast_->SemanticAnalisys(&sem_cnxt);
+  if (rSuccess != ret) {
+    result.SetError("Semantic analysis error.\n" + sem_cnxt.error_msg_);
+    LOG(ERROR) << "semantic analysis error result= : " << ret;
+    cout << "semantic analysis error result= : " << ret << endl;
+    return ret;
+  } else {
+    vector<string> ori_tables = sem_cnxt.GetOriTables();
+    for (auto str : ori_tables) {
+      table_status.first = 1;
+      table_status.second = str;
+    }
+    table_list.push_back(table_status);
+    stmt_to_table_list.push_back(table_list);
+    return ret;
+  }
 }
 
 } /* namespace stmt_handler */

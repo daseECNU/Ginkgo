@@ -31,11 +31,12 @@ class ExprColumn : public ExprNode {
   ExprColumn() {}
   ~ExprColumn() {}
   void* ExprEvaluate(ExprEvalCnxt& eecnxt);
-
+  bool isNullValue(ExprEvalCnxt& eecnxt);
   void InitExprAtLogicalPlan(LogicInitCnxt& licnxt);
 
   void InitExprAtPhysicalPlan();
   ExprNode* ExprCopy();
+  void GetUniqueAttr(set<string>& attrs);
 
  private:
   friend class boost::serialization::access;

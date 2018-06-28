@@ -56,7 +56,8 @@ class SingleFileConnector {
 
  public:
   SingleFileConnector(FilePlatform platform, string file_name,
-                      FileOpenFlag open_flag);
+                      FileOpenFlag open_flag,
+					  bool zk_flag = false);
   ~SingleFileConnector() {
     Close();
     DELETE_PTR(imp_);
@@ -123,7 +124,7 @@ class SingleFileConnector {
   common::FilePlatform platform_;
   common::FileHandleImp* imp_;
   common::FileOpenFlag open_flag_ = static_cast<common::FileOpenFlag>(-1);
-
+  bool zk_flag_;
   Lock write_lock_;  // when open with read mode, the lock become read_lock
 
   atomic<int> ref_;

@@ -75,6 +75,9 @@ class Config {
   static bool pipelined_exchange;
   static int client_listener_port;
   static bool enable_codegen;
+  static bool enable_parquet;
+  static bool enable_prune_column;
+  static bool enable_kerberos;
   static std::string catalog_file;
   static int thread_pool_init_thread_num;
   static int memory_utilization;
@@ -83,9 +86,20 @@ class Config {
   static std::string httpserver_thread_num;
   static std::string httpserver_doc_root;
   static int mysql_port;
+  // not used now
   static std::string mysql_password;
-
+  static std::string zk_znode_name;
   static int load_thread_num;
+  static std::string zookeeper_host_list;
+  static int hash_join_bucket_size;
+  static int hash_join_bucket_num;
+  static int expander_buffer_size;
+  static std::string krb_listen_address;
+  static std::string krb_server_keyfile;
+  static std::string krb_srvname;
+  static std::string krb_srvinstance;
+
+  static int kerberos_notify_port;
 
  private:
   static Config* instance_;

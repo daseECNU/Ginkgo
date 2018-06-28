@@ -8,13 +8,21 @@ AM_CPPFLAGS=-fPIC  -DTHERON_XS\
 -I${CONNECT_HOME}/include/jdbc \
 -I${GTEST_HOME}/include \
 -I${CAF_HOME}/libcaf_io	\
--I${CAF_HOME}/libcaf_core
-#-L/usr/local/lib \
-#-I/usr/local/include
-AM_LDFLAGS=  -lc -lm -lrt -lcaf_core -lcaf_io -lpthread -lboost_serialization -lboost_date_time -lboost_system -lmysqlcppconn \
-	-lconfig++ -lxs -lnuma -lreadline -lhistory -lz -ltinfo -Wl,--no-as-needed -ldl -rdynamic -lglog -lboost_thread-mt -pthread 
-	
+-I${CAF_HOME}/libcaf_core\
+-I${ZOOKEEPER_HOME}/src/c/include \
+-I${ZOOKEEPER_HOME}/src/c/generated \
+-I${KERBEROS_HOME}/src/include \
+-I${KERBEROS_HOME}/src/lib/krb5/os
 
+#-L/usr/local/lib \
+#-L/usr/local/lib \-lprofiler
+#-I/usr/local/include
+
+AM_LDFLAGS=  -lc -lm -lrt -lcaf_core -lcaf_io -lpthread -lboost_serialization -lboost_date_time -lboost_system -lmysqlcppconn \
+	-lconfig++ -lxs -lnuma -lreadline -lhistory -lz -ltinfo -Wl,--no-as-needed -ldl -rdynamic -lglog  -lsnappy \
+	 -lthrift -DTHREAD -lzookeeper_mt -lboost_thread-mt
+
+	
 if OPT_TCMALLOC
 AM_CPPFLAGS+=-fno-builtin-malloc -fno-builtin-calloc -fno-builtin-realloc -fno-builtin-free
 AM_LDFLAGS+=-ltcmalloc 
@@ -68,10 +76,11 @@ LDADD =  \
 	${BOOST_HOME}/stage/lib/libboost_serialization.a \
 	${BOOST_HOME}/stage/lib/libboost_serialization.so \
 	${BOOST_HOME}/stage/lib/libboost_system.so \
-	${HADOOP_HOME}/lib/native/libhdfs.so\
+	${HADOOP_HOME}/lib/native/libhdfs.a\
 	${JAVA_HOME}/jre/lib/amd64/server/libjvm.so\
 	${GTEST_HOME}/libgtest.a \
 	${GLOG_HOME}/.libs/libglog.so.0 \
+    ${KERBEROS_HOME}/src/lib/libkrb5.so\
 	-lLLVMJIT -lLLVMX86Disassembler -lLLVMX86AsmParser -lLLVMX86CodeGen -lLLVMSelectionDAG -lLLVMAsmPrinter \
 	-lLLVMMCParser -lLLVMCodeGen -lLLVMScalarOpts -lLLVMInstCombine -lLLVMTransformUtils -lLLVMipa -lLLVMAnalysis \
 	-lLLVMX86Desc -lLLVMX86Info -lLLVMX86AsmPrinter -lLLVMX86Utils -lLLVMMCJIT -lLLVMTarget -lLLVMRuntimeDyld \

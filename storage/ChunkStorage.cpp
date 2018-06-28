@@ -36,7 +36,7 @@
 #include "../Config.h"
 #include "../common/error_define.h"
 #include "../common/error_no.h"
-
+#include "../loader/table_parquet_reader.h"
 using claims::common::CStrError;
 using claims::common::rUnkownStroageLevel;
 using claims::common::rFailOpenFileInDiskChunkReaderIterator;
@@ -44,6 +44,7 @@ using claims::common::rFailReadOneBlockInDiskChunkReaderIterator;
 using claims::common::rFailOpenHDFSFileInStorage;
 using claims::common::rFailSetStartOffsetInStorage;
 using claims::common::HdfsConnector;
+using claims::loader::TableParquetReader;
 bool ChunkReaderIterator::NextBlock() {
   lock_.acquire();
   if (this->cur_block_ >= this->number_of_blocks_) {
@@ -73,9 +74,8 @@ ChunkStorage::~ChunkStorage() {
  * file is chunk.
  */
 ChunkReaderIterator* ChunkStorage::CreateChunkReaderIterator() {
-  ChunkReaderIterator* ret;
-
   lock_.acquire();
+  ChunkReaderIterator* ret;
   HdfsInMemoryChunk chunk_info;
   if (current_storage_level_ == MEMORY &&
       !BlockManager::getInstance()->getMemoryChunkStore()->GetChunk(
@@ -107,12 +107,17 @@ ChunkReaderIterator* ChunkStorage::CreateChunkReaderIterator() {
                 chunk_id_, chunk_info.hook)) {
           /* there is enough memory storage space, so the storage level can be
            * shifted.*/
-          if (Config::local_disk_mode) {
-            chunk_info.length = BlockManager::getInstance()->LoadFromDisk(
+          if (Config::enable_parquet) {
+            chunk_info.length = TableParquetReader::getInstance()->LoadFromParq(
                 chunk_id_, chunk_info.hook, chunk_info.length);
           } else {
-            chunk_info.length = BlockManager::getInstance()->LoadFromHdfs(
-                chunk_id_, chunk_info.hook, chunk_info.length);
+            if (Config::local_disk_mode) {
+              chunk_info.length = BlockManager::getInstance()->LoadFromDisk(
+                  chunk_id_, chunk_info.hook, chunk_info.length);
+            } else {
+              chunk_info.length = BlockManager::getInstance()->LoadFromHdfs(
+                  chunk_id_, chunk_info.hook, chunk_info.length);
+            }
           }
           if (chunk_info.length <= 0) {
             /**

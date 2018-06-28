@@ -489,8 +489,8 @@ RetCode OperateUSmallInt::CheckSet(string& str) const {
 
 /*
 bool OperateDecimal::CheckStr(string str) const {
-	
-	return true;
+
+        return true;
 }
 */
 
@@ -502,7 +502,8 @@ RetCode OperateDecimal::CheckSet(string& str) const {
     ELOG(ret, str);
     return ret;
   }
-  // it is checked in StrtoDecimal in class Decimal, it will be zero if str is invalied
+  // it is checked in StrtoDecimal in class Decimal, it will be zero if str is
+  // invalied
   /*
   if (CheckStr(str)) {
     ret = rSuccess;
@@ -516,7 +517,8 @@ RetCode OperateDecimal::CheckSet(string& str) const {
 
 RetCode OperateBool::CheckSet(string& str) const {
   RetCode ret = rSuccess;
-  if (str == "" && nullable) return rSuccess;
+  if ((str == "" || str == "NULL" || str == "null") && nullable)
+    return rSuccess;
   if (str == "" && !nullable) {
     ret = rInvalidNullData;
     ELOG(ret, str);

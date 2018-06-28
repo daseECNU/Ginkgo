@@ -44,7 +44,8 @@ ProjectionDescriptor::ProjectionDescriptor(const string& name)
   // Meanwhile create a hsfsfile to store this column's data.
 }
 
-ProjectionDescriptor::~ProjectionDescriptor() {}
+ProjectionDescriptor::~ProjectionDescriptor() { delete partitioner; }
+
 void ProjectionDescriptor::addAttribute(Attribute attr) {
   const ColumnID cid(projection_id_, column_list_.size());
   const Column col(attr, cid);
@@ -67,6 +68,12 @@ Partitioner* ProjectionDescriptor::getPartitioner() const {
   return partitioner;
 }
 bool ProjectionDescriptor::isExist(const string& name) const {
+  for (unsigned i = 0; i < column_list_.size(); i++) {
+    if (column_list_[i].attrName == name) return true;
+  }
+  return false;
+}
+bool ProjectionDescriptor::isExist1(const string& name) const {
   for (unsigned i = 0; i < column_list_.size(); i++) {
     if (column_list_[i].attrName == name) return true;
   }

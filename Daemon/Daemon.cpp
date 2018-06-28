@@ -13,8 +13,11 @@
 #include "./Executing.h"
 #include "../Client/ClaimsServer.h"
 #include "../stmt_handler/stmt_handler.h"
+#include "../stmt_handler/trans_handler.h"
 
 using claims::stmt_handler::StmtHandler;
+using claims::trans_handler::TransHandler;
+
 #define WORK_THREAD_COUNT 3
 
 Daemon* Daemon::instance_ = 0;
@@ -95,25 +98,27 @@ void* Daemon::worker(void* para) {
     remote_command rc = Daemon::getInstance()->getRemoteCommand();
 
     // assume all commands are sql commands.
-    ExecutedResult result;
-    result.fd_ = rc.socket_fd;
-    result.status_ = true;
+    //    ExecutedResult result;
+    //    result.fd_ = rc.socket_fd;
+    //    result.status_ = true;
 
     // result is a pointer, which now is NULL and should be assigned in
     // function.
 
-    ClientListener::checkFdValid(result.fd_);
-    StmtHandler* stmt_handler = new StmtHandler(rc.cmd);
-    stmt_handler->Execute(&result);
-    LOG(INFO) << "the result of after running sql: " << rc.cmd
-              << " status_: " << result.status_
-              << "error info: " << result.error_info_
-              << " info: " << result.info_ << endl;
+    ClientListener::checkFdValid(rc.socket_fd);
+    StmtHandler* stmt_handler;  // It means nothing. If without it, gcc compiler
+                                // cannot pass.
+    TransHandler* trans_handler = new TransHandler(rc.cmd, rc.socket_fd);
+    trans_handler->Execute();
+    //    LOG(INFO) << "the result of after running sql: " << rc.cmd
+    //              << " status_: " << result.status_
+    //              << "error info: " << result.error_info_
+    //              << " info: " << result.info_ << endl;
 
-    ClientListener::checkFdValid(result.fd_);
+    ClientListener::checkFdValid(rc.socket_fd);
     printf("-Worker add result into the queue!\n");
-    Daemon::getInstance()->addExecutedResult(result);
-    delete stmt_handler;
+
+    delete trans_handler;
   }
   return NULL;
 }

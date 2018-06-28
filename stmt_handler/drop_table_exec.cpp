@@ -22,6 +22,10 @@
  *      Author: yuyang
  *		   Email: youngfish93@hotmail.com
  *
+ * 	Modified on : Aug 8, 2017
+ *      Author: zyhe
+ *       Email: hzylab@gmail.com
+ *
  * Description:
  *
  */
@@ -39,6 +43,7 @@
 #include "../loader/data_injector.h"
 #include "../loader/table_file_connector.h"
 #include "../stmt_handler/drop_table_exec.h"
+using claims::common::rFailure;
 using claims::common::FilePlatform;
 using claims::loader::TableFileConnector;
 using claims::catalog::Catalog;
@@ -57,16 +62,6 @@ DropTableExec::~DropTableExec() {}
 RetCode DropTableExec::Execute(ExecutedResult* exec_result) {
   RetCode ret = rSuccess;
 
-  SemanticContext sem_cnxt;
-  ret = drop_table_ast_->SemanticAnalisys(&sem_cnxt);
-  if (rSuccess != ret) {
-    exec_result->error_info_ =
-        "Semantic analysis error.\n" + sem_cnxt.error_msg_;
-    exec_result->status_ = false;
-    LOG(WARNING) << "semantic analysis error result= : " << ret;
-    cout << "semantic analysis error result= : " << ret << endl;
-    return ret;
-  }
   Catalog* local_catalog = Environment::getInstance()->getCatalog();
   AstDropTableList* table_list =
       dynamic_cast<AstDropTableList*>(drop_table_ast_->table_list_);
@@ -78,20 +73,23 @@ RetCode DropTableExec::Execute(ExecutedResult* exec_result) {
       // to make consistency, drop the del table first, and then the base table
       table_name = table_list->table_name_;
       if (CheckBaseTbl(table_name)) {  // drop the base table
-        ret = DropTable(table_name + "_DEL");
+        ret = DropTable(table_name);
         if (ret == rSuccess) {
-          cout << table_name + "_DEL is dropped from this database!" << endl;
-          ret = DropTable(table_name);
-          cout << table_name + "is dropped from this database!" << endl;
+          LOG(INFO) << table_name + " is dropped from this database!" << endl;
+          ret = DropTable(table_name + "_DEL");
+          LOG(INFO) << table_name + "_DEL is dropped from this database!"
+                    << endl;
         } else {
-          DropTable(table_name + "_DEL");
-          DropTable(table_name);
+          LOG(ERROR) << "drop " << table_name + " failure!" << endl;
+          return ret;
         }
       } else {  // drop the del table only, but the information in the catalog
                 // does not need to be removed
         ret = DeleteTableFiles(table_name);
         // todo (miqni 2016.1.28) to delete the del table from memory
-        cout << table_name + "_DeL is dropped from this database!" << endl;
+        // free table from memory(_pool)
+        FreeTableFromMemory(table_name);
+        LOG(INFO) << table_name + " is dropped from this database!" << endl;
       }
 
       if (ret == rSuccess) {
@@ -105,13 +103,12 @@ RetCode DropTableExec::Execute(ExecutedResult* exec_result) {
     }
     table_list = dynamic_cast<AstDropTableList*>(table_list->next_);
   }
-  local_catalog->saveCatalog();
   exec_result->status_ = true;
   exec_result->result_ = NULL;
   return ret;
 }
 
-bool DropTableExec::CheckBaseTbl(const string& table_name) const {
+static bool DropTableExec::CheckBaseTbl(const string& table_name) {
   Catalog* local_catalog = Environment::getInstance()->getCatalog();
   string base_tbl_name = "";
   // if the length of the table name is less than 4, it should be the name of
@@ -136,10 +133,9 @@ bool DropTableExec::CheckBaseTbl(const string& table_name) const {
 }
 
 /**
- * drop the table based on the provided table name,
- * this operator will delete the table in the catalog as well as the table file
- *on the disk or hdfs
- *
+ * @brief drop the table based on the provided table name, this operator will
+ * delete the table in the catalog as well as the table file on the disk or
+ * hdfs.
  * @param table_name
  * @return
  */
@@ -152,56 +148,165 @@ RetCode DropTableExec::DropTable(const string& table_name) {
     return ret;
   }
   // start to drop table
-  // you need to delete the file first, and then drop the informantion in the
-  // catalog
+  // you need to delete the file first. and then unbind the partition in slave
+  // node. in the end, drop the information in the catalog
   ret = DeleteTableFiles(table_name);
-  if (rSuccess != ret) {
-    ELOG(ret, "failed to delete the files when dropping table " + table_name);
-    return ret;
-  } else {
-    ret = DropTableFromCatalog(table_name);
-    if (ret != rSuccess) {
-      ELOG(ret,
-           "failed to drop the table from the catalog, while its files have "
-           "been deleted, when dropping table" +
-               table_name);
+  if (ret == rSuccess) {
+    if (FreeTableFromMemory(table_name)) {
+      ret = DropTableFromCatalog(table_name);
+      if (ret != rSuccess) {
+        ELOG(ret,
+             "failed to drop the table from the catalog, while its files have "
+             "been deleted, when dropping table " +
+                 table_name);
+        return ret;
+      }
       return ret;
+    } else {
+      ELOG(ret, "failed to delete the table from memory when dropping table " +
+                    table_name);
+      return rFailure;
     }
+  } else {
+    ELOG(ret, "failed to delete the file when dropping table " + table_name);
+    return rFailure;
   }
 }
 
 /**
- * drop the table information from the catalog as well as to delete the object
- * of the TableDescroptor of the table_anme
+ * @brief drop the table information from the catalog as well as to delete the
+ * object of the TableDescroptor of the table_anme
  * @param table_name
  * @return
  */
 RetCode DropTableExec::DropTableFromCatalog(const string& table_name) {
-  RetCode ret = rSuccess;
   Catalog* local_catalog = Environment::getInstance()->getCatalog();
   TableDescriptor* table_desc = local_catalog->getTable(table_name);
-  local_catalog->DropTable(table_name, table_desc->get_table_id());
+  local_catalog->dropTable(table_name, table_desc->get_table_id());
   delete table_desc;
+  return rSuccess;
 }
 
 /**
- * delete the file associated with the Table table_name only
+ * @brief delete the file associated with the Table table_name only
  * @param table_name
  * @return
  */
-RetCode DropTableExec::DeleteTableFiles(const string& table_name) {
+static RetCode DropTableExec::DeleteTableFiles(const string& table_name) {
   RetCode ret = rSuccess;
   // start to delete the files
-  TableFileConnector* connector = new TableFileConnector(
-      Config::local_disk_mode ? FilePlatform::kDisk : FilePlatform::kHdfs,
-      Environment::getInstance()->getCatalog()->getTable(table_name),
-      common::kReadFile);
-  EXEC_AND_RETURN_ERROR(
-      ret, connector->DeleteAllTableFiles(),
-      "failed to delete the projections, when delete the file on table" +
-          table_name);
+  TableDescriptor* table =
+      Environment::getInstance()->getCatalog()->getTable(table_name);
+  if (table != NULL) {
+    if (!table->GetProjectionList()->empty()) {
+      TableFileConnector* connector = new TableFileConnector(
+          Config::local_disk_mode ? FilePlatform::kDisk : FilePlatform::kHdfs,
+          table, common::kReadFile);
+      EXEC_AND_RETURN_ERROR(ret, connector->DeleteAllTableFiles(),
+                            "failed to delete all the projections, when delete "
+                            "the file on table " +
+                                table_name);
+      delete connector;
+      return ret;
+    } else {
+      ELOG(rFailure, "failed to drop table '" + table_name +
+                         "' files, cause its projections is null");
+      return rFailure;
+    }
+  } else {
+    ELOG(rFailure, "failed to drop table '" + table_name +
+                       "' files, cannot find the table in catalog");
+    return rFailure;
+  }
+}
 
+/**
+ * @brief delete one projection of the table files from the stroage
+ * @param table_name, projection_id
+ * @author zyhe
+ * @return
+ */
+static RetCode DropTableExec::DeleteProjectionFiles(const string& table_name,
+                                                    const string& proj_id) {
+  RetCode ret = rSuccess;
+  TableDescriptor* table =
+      Environment::getInstance()->getCatalog()->getTable(table_name);
+  if (!table->GetProjectionList()->empty()) {
+    TableFileConnector* connector = new TableFileConnector(
+        Config::local_disk_mode ? FilePlatform::kDisk : FilePlatform::kHdfs,
+        table, common::kReadFile);
+    EXEC_AND_RETURN_ERROR(ret, connector->DeleteOneProjectionFiles(proj_id),
+                          "failed to delete the projection [" + proj_id +
+                              "] when delete the file on table [" + table_name +
+                              "]");
+    delete connector;
+  }
   return ret;
+}
+
+/**
+ * @brief call the UnbindingEntireProjection() function to free the memory in
+ * the memory pool. The memory return to the memory pool rather than return to
+ * the operating system directly. It causes when you apply the memory next
+ * time thread will use the memory pool first.
+ * @param table_name
+ * @author zyhe
+ * @return
+ */
+static bool DropTableExec::FreeTableFromMemory(const string& table_name) {
+  if (table_name != "") {
+    Catalog* local_catalog = Environment::getInstance()->getCatalog();
+    TableDescriptor* table_desc = local_catalog->getTable(table_name);
+    if (table_desc != NULL) {
+      vector<ProjectionDescriptor*>* projection_list =
+          table_desc->GetProjectionList();
+      if (!projection_list->empty()) {
+        for (auto projection : *projection_list) {
+          Partitioner* partitioner = projection->getPartitioner();
+          bool res = Catalog::getInstance()
+                         ->getBindingModele()
+                         ->UnbindingEntireProjection(partitioner);
+          if (res) {
+            LOG(INFO) << "unbind entire projection ["
+                      << partitioner->getProejctionID().projection_off
+                      << "] in table [" << table_desc->getTableName() << "]"
+                      << std::endl;
+          } else {
+            LOG(ERROR) << "failed to unbind entire projection ["
+                       << partitioner->getProejctionID().projection_off
+                       << "] in table [" << table_desc->getTableName() << "]"
+                       << std::endl;
+            return false;
+          }
+        }
+      }
+    }
+  }
+  return true;
+}
+RetCode DropTableExec::GetWriteAndReadTables(
+    ExecutedResult& result,
+    vector<vector<pair<int, string>>>& stmt_to_table_list) {
+  RetCode ret = rSuccess;
+  vector<pair<int, string>> table_list;
+  pair<int, string> table_status;
+  SemanticContext sem_cnxt;
+  ret = drop_table_ast_->SemanticAnalisys(&sem_cnxt);
+  if (rSuccess != ret) {
+    result.error_info_ = "Semantic analysis error.\n" + sem_cnxt.error_msg_;
+    result.status_ = false;
+    LOG(WARNING) << "semantic analysis error result= : " << ret;
+    return ret;
+  } else {
+    vector<string> ori_tables = sem_cnxt.GetOriTables();
+    for (auto str : ori_tables) {
+      table_status.first = 2;
+      table_status.second = str;
+    }
+    table_list.push_back(table_status);
+    stmt_to_table_list.push_back(table_list);
+    return ret;
+  }
 }
 } /* namespace stmt_handler */
 } /* namespace claims */

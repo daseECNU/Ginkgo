@@ -11,7 +11,7 @@
 #define COMMON_EXPRESSION_DATA_TYPE_OPER_H_
 #include <string.h>
 #include <math.h>
-#include <iosfwd>
+#include <string>
 #include "./expr_node.h"
 #include "../../common/data_type.h"
 #include "../../common/Logging.h"
@@ -19,6 +19,9 @@
 #include "../../common/types/decimal.h"
 #include "boost/date_time/gregorian/parsers.hpp"
 #include <boost/date_time/gregorian/greg_duration.hpp>
+#include <boost/date_time/gregorian/gregorian.hpp>
+#include <boost/date_time/posix_time/posix_time.hpp>
+#include <boost/functional/hash.hpp>
 #include "boost/date_time/gregorian/formatters.hpp"
 namespace claims {
 namespace common {
@@ -29,6 +32,7 @@ class DataTypeOper {
  public:
   static DataTypeOperFunc data_type_oper_func_[DATA_TYPE_NUM][OPER_TYPE_NUM];
   static AvgDivide avg_divide_[DATA_TYPE_NUM];
+  static GetPartitionValue partition_value_[DATA_TYPE_NUM][2];
 };
 
 #define NextByte(p, plen) ((p)++, (plen)--)
@@ -273,6 +277,10 @@ inline void int_is_not_null(OperFuncInfo fcinfo) {
   assert(fcinfo->args_num_ == 1);
   *(bool *)fcinfo->result_ = (*(int *)fcinfo->args_[0] != NULL_INT);
 }
+inline void int_to_char(OperFuncInfo fcinfo) {
+  assert(fcinfo->args_num_ == 1);
+  *(int *)fcinfo->result_ = (*(int *)fcinfo->args_[0]);
+}
 
 /*******************int*************************/
 
@@ -372,6 +380,10 @@ inline void u_long_is_not_null(OperFuncInfo fcinfo) {
   *(bool *)fcinfo->result_ =
       (*(unsigned long *)fcinfo->args_[0] != NULL_U_LONG);
 }
+inline void u_long_to_char(OperFuncInfo fcinfo) {
+  assert(fcinfo->args_num_ == 1);
+  *(unsigned long *)fcinfo->result_ = (*(unsigned long *)fcinfo->args_[0]);
+}
 /*******************u_long*************************/
 
 /*******************float*************************/
@@ -458,6 +470,10 @@ inline void float_is_null(OperFuncInfo fcinfo) {
 inline void float_is_not_null(OperFuncInfo fcinfo) {
   assert(fcinfo->args_num_ == 1);
   *(bool *)fcinfo->result_ = ((*(float *)fcinfo->args_[0]) != NULL_FLOAT);
+}
+inline void float_to_char(OperFuncInfo fcinfo) {
+  assert(fcinfo->args_num_ == 1);
+  *(float *)fcinfo->result_ = (*(float *)fcinfo->args_[0]);
 }
 /*******************float*************************/
 
@@ -547,6 +563,11 @@ inline void double_is_null(OperFuncInfo fcinfo) {
 inline void double_is_not_null(OperFuncInfo fcinfo) {
   assert(fcinfo->args_num_ == 1);
   *(bool *)fcinfo->result_ = ((*(double *)fcinfo->args_[0]) != NULL_DOUBLE);
+}
+inline void double_to_char(OperFuncInfo fcinfo) {
+  assert(fcinfo->args_num_ == 1);
+  *(double *)fcinfo->result_ = *(double *)fcinfo->args_[0];
+
 }
 /*******************double*************************/
 
@@ -646,8 +667,113 @@ inline void smallInt_is_not_null(OperFuncInfo fcinfo) {
   assert(fcinfo->args_num_ == 1);
   *(bool *)fcinfo->result_ = ((*(short *)fcinfo->args_[0]) != NULL_SMALL_INT);
 }
+inline void smallInt_to_char(OperFuncInfo fcinfo) {
+  assert(fcinfo->args_num_ == 1);
+  *(short *)fcinfo->result_ = (*(short *)fcinfo->args_[0]);
+}
 /*******************smallInt*************************/
 
+/*******************usmallInt*************************/
+
+inline void usmallInt_add(OperFuncInfo fcinfo) {
+  assert(fcinfo->args_num_ == 2);
+  *(unsigned short int *)fcinfo->result_ =
+      (*(unsigned short int *)fcinfo->args_[0]) + (*(unsigned short int *)fcinfo->args_[1]);
+}
+inline void usmallInt_minus(OperFuncInfo fcinfo) {
+  assert(fcinfo->args_num_ == 2);
+  *(unsigned short int *)fcinfo->result_ =
+      (*(unsigned short int *)fcinfo->args_[0]) - (*(unsigned short int *)fcinfo->args_[1]);
+}
+inline void usmallInt_multiply(OperFuncInfo fcinfo) {
+  assert(fcinfo->args_num_ == 2);
+  *(unsigned short int *)fcinfo->result_ =
+      (*(unsigned short int *)fcinfo->args_[0]) * (*(unsigned short int *)fcinfo->args_[1]);
+}
+inline void usmallInt_divide(OperFuncInfo fcinfo) {
+  assert(fcinfo->args_num_ == 2);
+  unsigned short int val = *(unsigned short int *)fcinfo->args_[1];
+  if (val == 0) {
+    SQLParse_elog("The smallInt_divide divided = 0");
+    assert(false);
+  }
+  *(unsigned short int *)fcinfo->result_ =
+      (*(unsigned short int *)fcinfo->args_[0]) / (*(unsigned short int *)fcinfo->args_[1]);
+}
+inline void usmallInt_mod(OperFuncInfo fcinfo) {
+  assert(fcinfo->args_num_ == 2);
+  unsigned short int val = *(unsigned short int *)fcinfo->args_[1];
+  if (val == 0) {
+    SQLParse_elog("The smallInt_mod moded = 0");
+    assert(false);
+  }
+  *(unsigned short int *)fcinfo->result_ =
+      (*(unsigned short int *)fcinfo->args_[0] % (*(unsigned short int *)fcinfo->args_[1]));
+}
+inline void usmallInt_equal(OperFuncInfo fcinfo) {
+  assert(fcinfo->args_num_ == 2);
+  *(bool *)fcinfo->result_ =
+      (*(unsigned short int *)fcinfo->args_[0] == *(unsigned short int *)fcinfo->args_[1]);
+}
+inline void usmallInt_not_equal(OperFuncInfo fcinfo) {
+  assert(fcinfo->args_num_ == 2);
+  *(bool *)fcinfo->result_ =
+      (*(unsigned short int *)fcinfo->args_[0] != *(unsigned short int *)fcinfo->args_[1]);
+}
+inline void usmallInt_great(OperFuncInfo fcinfo) {
+  assert(fcinfo->args_num_ == 2);
+  *(bool *)fcinfo->result_ =
+      (*(unsigned short int *)fcinfo->args_[0] > *(unsigned short int *)fcinfo->args_[1]);
+}
+inline void usmallInt_great_equal(OperFuncInfo fcinfo) {
+  assert(fcinfo->args_num_ == 2);
+  *(bool *)fcinfo->result_ =
+      (*(unsigned short int *)fcinfo->args_[0] >= *(unsigned short int *)fcinfo->args_[1]);
+}
+inline void usmallInt_less(OperFuncInfo fcinfo) {
+  assert(fcinfo->args_num_ == 2);
+  *(bool *)fcinfo->result_ =
+      (*(unsigned short int *)fcinfo->args_[0] < *(unsigned short int *)fcinfo->args_[1]);
+}
+inline void usmallInt_less_equal(OperFuncInfo fcinfo) {
+  assert(fcinfo->args_num_ == 2);
+  *(bool *)fcinfo->result_ =
+      (*(unsigned short *)fcinfo->args_[0] <= *(unsigned short*)fcinfo->args_[1]);
+}
+inline void usmallInt_negative(OperFuncInfo fcinfo) {
+  assert(fcinfo->args_num_ == 1);
+  *(unsigned short *)fcinfo->result_ = (*(unsigned short*)fcinfo->args_[0] * (-1));
+}
+//
+inline void usmallInt_agg_max(OperFuncInfo fcinfo) {
+  assert(fcinfo->args_num_ == 2);
+  *(unsigned short *)fcinfo->result_ =
+      ((*(unsigned short *)fcinfo->args_[0]) > (*(unsigned short *)fcinfo->args_[1])
+           ? (*(unsigned short *)fcinfo->args_[0])
+           : (*(unsigned short *)fcinfo->args_[1]));
+}
+inline void usmallInt_agg_min(OperFuncInfo fcinfo) {
+  assert(fcinfo->args_num_ == 2);
+  *(unsigned short  *)fcinfo->result_ =
+      ((*(unsigned short *)fcinfo->args_[0]) < (*(unsigned short  *)fcinfo->args_[1])
+           ? (*(unsigned short  *)fcinfo->args_[0])
+           : (*(unsigned short  *)fcinfo->args_[1]));
+}
+inline void usmallInt_agg_sum(OperFuncInfo fcinfo) { usmallInt_add(fcinfo); }
+inline void usmallInt_agg_count(OperFuncInfo fcinfo) { usmallInt_add(fcinfo); }
+inline void usmallInt_is_null(OperFuncInfo fcinfo) {
+  assert(fcinfo->args_num_ == 1);
+  *(bool *)fcinfo->result_ = ((*(unsigned short *)fcinfo->args_[0]) == NULL_U_SMALL_INT);
+}
+inline void usmallInt_is_not_null(OperFuncInfo fcinfo) {
+  assert(fcinfo->args_num_ == 1);
+  *(bool *)fcinfo->result_ = ((*(unsigned short *)fcinfo->args_[0]) != NULL_U_SMALL_INT);
+}
+inline void usmallInt_to_char(OperFuncInfo fcinfo) {
+  assert(fcinfo->args_num_ == 1);
+  *(unsigned short int *)fcinfo->result_ = (*(unsigned short int*)fcinfo->args_[0]);
+}
+/*******************usmallInt*************************/
 /*****************boolean********************/
 
 inline void boolean_and(OperFuncInfo fcinfo) {
@@ -706,6 +832,10 @@ inline void boolean_is_null(OperFuncInfo fcinfo) {
 inline void boolean_is_not_null(OperFuncInfo fcinfo) {
   assert(fcinfo->args_num_ == 1);
   *(bool *)fcinfo->result_ = ((*(short *)fcinfo->args_[0]) != NULL_BOOLEAN);
+}
+inline void boolean_to_char(OperFuncInfo fcinfo) {
+  assert(fcinfo->args_num_ == 1);
+  *(bool *)fcinfo->result_ = (*(bool *)fcinfo->args_[0]);
 }
 
 /*****************boolean********************/
@@ -791,6 +921,10 @@ inline void decimal_is_null(OperFuncInfo fcinfo) {
 inline void decimal_is_not_null(OperFuncInfo fcinfo) {
   assert(fcinfo->args_num_ == 1);
   *(bool *)fcinfo->result_ = !(((Decimal *)fcinfo->args_[0])->isNull());
+}
+inline void decimal_to_char(OperFuncInfo fcinfo) {
+  assert(fcinfo->args_num_ == 1);
+  *(Decimal *)fcinfo->result_ = (*(Decimal *)fcinfo->args_[0]);
 }
 /*****************decimal********************/
 
@@ -904,6 +1038,10 @@ inline void string_is_not_null(OperFuncInfo fcinfo) {
   assert(fcinfo->args_num_ == 1);
   *(bool *)fcinfo->result_ = (*(char *)fcinfo->args_[0]) != NULL_STRING;
 }
+inline void string_to_char(OperFuncInfo fcinfo) {
+  assert(fcinfo->args_num_ == 1);
+  strcpy((char *)fcinfo->result_, (char *)fcinfo->args_[0]);
+}
 /*****************string********************/
 
 /*****************date********************/
@@ -1003,6 +1141,10 @@ inline void date_is_not_null(OperFuncInfo fcinfo) {
   assert(fcinfo->args_num_ == 1);
   *(bool *)fcinfo->result_ = !(((date *)fcinfo->args_[0])->is_infinity());
 }
+inline void date_to_char(OperFuncInfo fcinfo) {
+  assert(fcinfo->args_num_ == 1);
+  *(date *)fcinfo->result_ = (*(date *)fcinfo->args_[0]);
+}
 /*****************date********************/
 
 /*****************time********************/
@@ -1060,6 +1202,10 @@ inline void time_is_not_null(OperFuncInfo fcinfo) {
   *(bool *)fcinfo->result_ =
       !(((time_duration *)fcinfo->args_[0])->is_negative());
 }
+inline void time_to_char(OperFuncInfo fcinfo) {
+  assert(fcinfo->args_num_ == 1);
+  *(time_duration *)fcinfo->result_ = (*(time_duration *)fcinfo->args_[0]);
+}
 
 /*****************time********************/
 
@@ -1116,6 +1262,10 @@ inline void datetime_is_not_null(OperFuncInfo fcinfo) {
   assert(fcinfo->args_num_ == 1);
   *(bool *)fcinfo->result_ = !(((ptime *)fcinfo->args_[0])->is_infinity());
 }
+inline void datetime_to_char(OperFuncInfo fcinfo) {
+  assert(fcinfo->args_num_ == 1);
+  *(ptime *)fcinfo->result_ = (*(ptime *)fcinfo->args_[0]);
+}
 /*****************datetime********************/
 inline void InitOperatorFunc() {
   for (int i = 0; i < DATA_TYPE_NUM; i++)
@@ -1144,6 +1294,7 @@ inline void InitOperatorFunc() {
   DataTypeOper::data_type_oper_func_[t_int][oper_agg_count] = int_agg_count;
   DataTypeOper::data_type_oper_func_[t_int][oper_is_null] = int_is_null;
   DataTypeOper::data_type_oper_func_[t_int][oper_is_not_null] = int_is_not_null;
+  DataTypeOper::data_type_oper_func_[t_int][oper_to_char] = int_to_char;
 
   /*****************int********************/
 
@@ -1177,6 +1328,7 @@ inline void InitOperatorFunc() {
   DataTypeOper::data_type_oper_func_[t_u_long][oper_is_null] = u_long_is_null;
   DataTypeOper::data_type_oper_func_[t_u_long][oper_is_not_null] =
       u_long_is_not_null;
+  DataTypeOper::data_type_oper_func_[t_u_long][oper_to_char] = u_long_to_char;
   /*****************ulong********************/
 
   /*****************float********************/
@@ -1205,7 +1357,7 @@ inline void InitOperatorFunc() {
   DataTypeOper::data_type_oper_func_[t_float][oper_is_null] = float_is_null;
   DataTypeOper::data_type_oper_func_[t_float][oper_is_not_null] =
       float_is_not_null;
-
+  DataTypeOper::data_type_oper_func_[t_float][oper_to_char] = float_to_char;
   /*****************float********************/
 
   /*****************double********************/
@@ -1237,6 +1389,7 @@ inline void InitOperatorFunc() {
   DataTypeOper::data_type_oper_func_[t_double][oper_is_null] = double_is_null;
   DataTypeOper::data_type_oper_func_[t_double][oper_is_not_null] =
       double_is_not_null;
+  DataTypeOper::data_type_oper_func_[t_double][oper_to_char] = double_to_char;
   /*****************double********************/
 
   /*****************smallInt********************/
@@ -1271,8 +1424,54 @@ inline void InitOperatorFunc() {
       smallInt_is_null;
   DataTypeOper::data_type_oper_func_[t_smallInt][oper_is_not_null] =
       smallInt_is_not_null;
+  DataTypeOper::data_type_oper_func_[t_smallInt][oper_to_char] = smallInt_to_char;
   /*****************smallInt********************/
 
+  /*****************usmallInt********************/
+  DataTypeOper::data_type_oper_func_[t_u_smallInt][oper_add] = usmallInt_add;
+  DataTypeOper::data_type_oper_func_[t_u_smallInt][oper_minus] =
+        usmallInt_minus;
+  DataTypeOper::data_type_oper_func_[t_u_smallInt][oper_multiply] =
+        usmallInt_multiply;
+  DataTypeOper::data_type_oper_func_[t_u_smallInt][oper_divide] =
+        usmallInt_divide;
+  DataTypeOper::data_type_oper_func_[t_u_smallInt][oper_mod] = usmallInt_mod;
+  DataTypeOper::data_type_oper_func_[t_u_smallInt][oper_and] =
+        oper_not_support;
+  DataTypeOper::data_type_oper_func_[t_u_smallInt][oper_or] =
+        oper_not_support;
+  DataTypeOper::data_type_oper_func_[t_u_smallInt][oper_xor] =
+        oper_not_support;
+  DataTypeOper::data_type_oper_func_[t_u_smallInt][oper_not] =
+        oper_not_support;
+  DataTypeOper::data_type_oper_func_[t_u_smallInt][oper_equal] =
+        usmallInt_equal;
+  DataTypeOper::data_type_oper_func_[t_u_smallInt][oper_not_equal] =
+        usmallInt_not_equal;
+  DataTypeOper::data_type_oper_func_[t_u_smallInt][oper_great] =
+        usmallInt_great;
+  DataTypeOper::data_type_oper_func_[t_u_smallInt][oper_great_equal] =
+        usmallInt_great_equal;
+  DataTypeOper::data_type_oper_func_[t_u_smallInt][oper_less] =
+        usmallInt_less;
+  DataTypeOper::data_type_oper_func_[t_u_smallInt][oper_less_equal] =
+        usmallInt_less_equal;
+  DataTypeOper::data_type_oper_func_[t_u_smallInt][oper_negative] =
+        usmallInt_negative;
+  DataTypeOper::data_type_oper_func_[t_u_smallInt][oper_max] =
+        usmallInt_agg_max;
+  DataTypeOper::data_type_oper_func_[t_u_smallInt][oper_min] =
+        usmallInt_agg_min;
+  DataTypeOper::data_type_oper_func_[t_u_smallInt][oper_agg_sum] =
+        usmallInt_agg_sum;
+  DataTypeOper::data_type_oper_func_[t_u_smallInt][oper_agg_count] =
+        usmallInt_agg_count;
+  DataTypeOper::data_type_oper_func_[t_u_smallInt][oper_is_null] =
+        usmallInt_is_null;
+  DataTypeOper::data_type_oper_func_[t_u_smallInt][oper_is_not_null] =
+        usmallInt_is_not_null;
+  DataTypeOper::data_type_oper_func_[t_u_smallInt][oper_to_char] = usmallInt_to_char;
+  /*****************usmallInt********************/
   /*****************boolean********************/
   DataTypeOper::data_type_oper_func_[t_boolean][oper_add] = oper_not_support;
   DataTypeOper::data_type_oper_func_[t_boolean][oper_minus] = oper_not_support;
@@ -1298,6 +1497,8 @@ inline void InitOperatorFunc() {
   DataTypeOper::data_type_oper_func_[t_boolean][oper_is_null] = boolean_is_null;
   DataTypeOper::data_type_oper_func_[t_boolean][oper_is_not_null] =
       boolean_is_not_null;
+  DataTypeOper::data_type_oper_func_[t_boolean][oper_agg_count] = int_agg_count;
+  DataTypeOper::data_type_oper_func_[t_boolean][oper_to_char] = boolean_to_char;
   /*****************boolean********************/
 
   /*****************decimal********************/
@@ -1331,6 +1532,8 @@ inline void InitOperatorFunc() {
   DataTypeOper::data_type_oper_func_[t_decimal][oper_is_null] = decimal_is_null;
   DataTypeOper::data_type_oper_func_[t_decimal][oper_is_not_null] =
       decimal_is_not_null;
+  DataTypeOper::data_type_oper_func_[t_decimal][oper_to_char] = decimal_to_char;
+
   /*****************decimal********************/
 
   /*****************string********************/
@@ -1368,6 +1571,8 @@ inline void InitOperatorFunc() {
   DataTypeOper::data_type_oper_func_[t_string][oper_is_null] = string_is_null;
   DataTypeOper::data_type_oper_func_[t_string][oper_is_not_null] =
       string_is_not_null;
+  DataTypeOper::data_type_oper_func_[t_string][oper_to_char] = string_to_char;
+
   /*****************string********************/
 
   /*****************date********************/
@@ -1408,6 +1613,8 @@ inline void InitOperatorFunc() {
   DataTypeOper::data_type_oper_func_[t_date][oper_is_null] = date_is_null;
   DataTypeOper::data_type_oper_func_[t_date][oper_is_not_null] =
       date_is_not_null;
+  DataTypeOper::data_type_oper_func_[t_date][oper_to_char] = date_to_char;
+
   /*****************date********************/
 
   /*****************time********************/
@@ -1423,6 +1630,8 @@ inline void InitOperatorFunc() {
   DataTypeOper::data_type_oper_func_[t_time][oper_is_null] = time_is_null;
   DataTypeOper::data_type_oper_func_[t_time][oper_is_not_null] =
       time_is_not_null;
+  DataTypeOper::data_type_oper_func_[t_time][oper_to_char] = time_to_char;
+
   /*****************time********************/
 
   /*****************datetime********************/
@@ -1441,6 +1650,8 @@ inline void InitOperatorFunc() {
       datetime_is_null;
   DataTypeOper::data_type_oper_func_[t_datetime][oper_is_not_null] =
       datetime_is_not_null;
+  DataTypeOper::data_type_oper_func_[t_datetime][oper_to_char] = datetime_to_char;
+
   /*****************datetime********************/
 }
 inline void avg_error_divide(void *sum_value, int64_t tuple_number,
@@ -1497,6 +1708,167 @@ inline void InitAggAvgDivide() {
   DataTypeOper::avg_divide_[t_smallInt] = avg_smallint_divide;
   DataTypeOper::avg_divide_[t_u_smallInt] = avg_usmallint_divide;
   DataTypeOper::avg_divide_[t_decimal] = avg_decimal_divide;
+}
+
+inline unsigned partition_value_error(const void *addr,
+                                      const unsigned long &mod) {
+  assert(false && "error partition function!");
+}
+inline unsigned partition_value_int(const void *addr,
+                                    const unsigned long &mod) {
+  return boost::hash_value(*(int *)addr) % mod;
+}
+inline unsigned partition_value_float(const void *addr,
+                                      const unsigned long &mod) {
+  return boost::hash_value(*(float *)addr) % mod;
+}
+inline unsigned partition_value_double(const void *addr,
+                                       const unsigned long &mod) {
+  return boost::hash_value(*(double *)addr) % mod;
+}
+inline unsigned partition_value_ulong(const void *addr,
+                                      const unsigned long &mod) {
+  return boost::hash_value(*(unsigned long *)addr) % mod;
+}
+inline unsigned partition_value_smallint(const void *addr,
+                                         const unsigned long &mod) {
+  return boost::hash_value(*(short *)addr) % mod;
+}
+inline unsigned partition_value_usmallint(const void *addr,
+                                          const unsigned long &mod) {
+  return boost::hash_value(*(unsigned short *)addr) % mod;
+}
+inline unsigned partition_value_string(const void *addr,
+                                       const unsigned long &mod) {
+  return boost::hash_value(std::string((char *)addr)) % mod;
+}
+inline unsigned partition_value_date(const void *addr,
+                                     const unsigned long &mod) {
+  return boost::hash_value((*(boost::gregorian::date *)(addr)).julian_day()) %
+         mod;
+}
+inline unsigned partition_value_time(const void *addr,
+                                     const unsigned long &mod) {
+  return boost::hash_value((*(time_duration *)(addr)).total_nanoseconds()) %
+         mod;
+}
+inline unsigned partition_value_datetime(const void *addr,
+                                         const unsigned long &mod) {
+  return boost::hash_value(to_simple_string(*(ptime *)(addr))) % mod;
+}
+
+inline unsigned partition_value_decimal(const void *addr,
+                                        const unsigned long &mod) {
+  const void *pttint = (&((*(Decimal *)addr).GetTTInt()));
+  unsigned long ul1 = *reinterpret_cast<const unsigned long *>(pttint);
+  unsigned long ul2 = *reinterpret_cast<const unsigned long *>(pttint + 8);
+  unsigned long ul3 = *reinterpret_cast<const unsigned long *>(pttint + 16);
+  unsigned long ul4 = *reinterpret_cast<const unsigned long *>(pttint + 24);
+
+  boost::hash_combine(ul1, ul2);
+  boost::hash_combine(ul1, ul3);
+  boost::hash_combine(ul1, ul4);
+  return ul1 % mod;
+}
+
+inline unsigned partition_value_bool(const void *addr,
+                                     const unsigned long &mod) {
+  return boost::hash_value(*(int *)addr) % mod;
+}
+/*****for mod=2^n,but input mod=mod-1****/
+inline unsigned partition_value_int_and(const void *addr,
+                                        const unsigned long &mod) {
+  return boost::hash_value(*(int *)addr) & mod;
+}
+inline unsigned partition_value_float_and(const void *addr,
+                                          const unsigned long &mod) {
+  return boost::hash_value(*(float *)addr) & mod;
+}
+inline unsigned partition_value_double_and(const void *addr,
+                                           const unsigned long &mod) {
+  return boost::hash_value(*(double *)addr) & mod;
+}
+inline unsigned partition_value_ulong_and(const void *addr,
+                                          const unsigned long &mod) {
+  return (*(unsigned long *)addr) & mod;
+}
+inline unsigned partition_value_smallint_and(const void *addr,
+                                             const unsigned long &mod) {
+  return boost::hash_value(*(short *)addr) & mod;
+}
+inline unsigned partition_value_usmallint_and(const void *addr,
+                                              const unsigned long &mod) {
+  return boost::hash_value(*(unsigned short *)addr) & mod;
+}
+inline unsigned partition_value_string_and(const void *addr,
+                                           const unsigned long &mod) {
+  return boost::hash_value(std::string((char *)addr)) & mod;
+}
+inline unsigned partition_value_date_and(const void *addr,
+                                         const unsigned long &mod) {
+  return boost::hash_value((*(boost::gregorian::date *)(addr)).julian_day()) &
+         mod;
+}
+inline unsigned partition_value_time_and(const void *addr,
+                                         const unsigned long &mod) {
+  return boost::hash_value((*(time_duration *)(addr)).total_nanoseconds()) &
+         mod;
+}
+inline unsigned partition_value_datetime_and(const void *addr,
+                                             const unsigned long &mod) {
+  return boost::hash_value(to_simple_string(*(ptime *)(addr))) & mod;
+}
+
+inline unsigned partition_value_decimal_and(const void *addr,
+                                            const unsigned long &mod) {
+  const void *pttint = (&((*(Decimal *)addr).GetTTInt()));
+  unsigned long ul1 = *reinterpret_cast<const unsigned long *>(pttint);
+  unsigned long ul2 = *reinterpret_cast<const unsigned long *>(pttint + 8);
+  unsigned long ul3 = *reinterpret_cast<const unsigned long *>(pttint + 16);
+  unsigned long ul4 = *reinterpret_cast<const unsigned long *>(pttint + 24);
+
+  boost::hash_combine(ul1, ul2);
+  boost::hash_combine(ul1, ul3);
+  boost::hash_combine(ul1, ul4);
+  return ul1 & mod;
+}
+
+inline unsigned partition_value_bool_and(const void *addr,
+                                         const unsigned long &mod) {
+  return boost::hash_value(*(int *)addr) & mod;
+}
+
+inline void InitpartitionValue() {
+  for (int i = 0; i < DATA_TYPE_NUM; ++i) {
+    DataTypeOper::partition_value_[i][0] = partition_value_error;
+    DataTypeOper::partition_value_[i][1] = partition_value_error;
+  }
+  DataTypeOper::partition_value_[t_boolean][0] = partition_value_bool;
+  DataTypeOper::partition_value_[t_decimal][0] = partition_value_decimal;
+  DataTypeOper::partition_value_[t_datetime][0] = partition_value_datetime;
+  DataTypeOper::partition_value_[t_time][0] = partition_value_time;
+  DataTypeOper::partition_value_[t_date][0] = partition_value_date;
+  DataTypeOper::partition_value_[t_int][0] = partition_value_int;
+  DataTypeOper::partition_value_[t_float][0] = partition_value_float;
+  DataTypeOper::partition_value_[t_double][0] = partition_value_double;
+  DataTypeOper::partition_value_[t_smallInt][0] = partition_value_smallint;
+  DataTypeOper::partition_value_[t_u_smallInt][0] = partition_value_usmallint;
+  DataTypeOper::partition_value_[t_u_long][0] = partition_value_ulong;
+  DataTypeOper::partition_value_[t_string][0] = partition_value_string;
+
+  DataTypeOper::partition_value_[t_boolean][1] = partition_value_bool_and;
+  DataTypeOper::partition_value_[t_decimal][1] = partition_value_decimal_and;
+  DataTypeOper::partition_value_[t_datetime][1] = partition_value_datetime_and;
+  DataTypeOper::partition_value_[t_time][1] = partition_value_time_and;
+  DataTypeOper::partition_value_[t_date][1] = partition_value_date_and;
+  DataTypeOper::partition_value_[t_int][1] = partition_value_int_and;
+  DataTypeOper::partition_value_[t_float][1] = partition_value_float_and;
+  DataTypeOper::partition_value_[t_double][1] = partition_value_double_and;
+  DataTypeOper::partition_value_[t_smallInt][1] = partition_value_smallint_and;
+  DataTypeOper::partition_value_[t_u_smallInt][1] =
+      partition_value_usmallint_and;
+  DataTypeOper::partition_value_[t_u_long][1] = partition_value_ulong_and;
+  DataTypeOper::partition_value_[t_string][1] = partition_value_string_and;
 }
 
 }  // namespace common

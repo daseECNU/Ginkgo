@@ -71,6 +71,9 @@ void AstInsertStmt::Print(int level) const {
   if (col_list_ != NULL) {
     col_list_->Print(level + 1);
   }
+  if (select_stmt_ != NULL) {
+    select_stmt_->Print();
+  }
 }
 
 AstInsertValList::AstInsertValList(AstNodeType ast_node_type,

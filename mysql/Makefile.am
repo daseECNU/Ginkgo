@@ -1,8 +1,8 @@
 AM_CPPFLAGS= -fPIC -g3 -fpermissive \
 -I${BOOST_HOME} \
 -I${BOOST_HOME}/boost/asio \
--I${BOOST_HOME}/boost/serialization
-
+-I${BOOST_HOME}/boost/serialization\
+-I${CONNECT_HOME}/include/jdbc 
 
 AM_LDFLAGS = -pthread  -lmysqlcppconn -lboost_serialization -lboost_system  
 

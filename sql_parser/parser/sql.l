@@ -104,6 +104,7 @@ ESCAPED	{ return ESCAPED; }
 EXISTS	{ return EXISTS; }
 EXIT	{ return EXIT; }
 EXPLAIN	{ return EXPLAIN; }
+EXPORT { return EXPORT; }
 FETCH	{ return FETCH; }
 FLOAT4?	{ return FLOAT; }
 FOR	{ return FOR; }
@@ -123,6 +124,7 @@ HOUR_SECOND	{ return HOUR_SECOND; }
 IF	{ return IF; }
 IGNORE	{ return IGNORE; }
 IN	{ return IN; }
+INTO	{ return INTO; }
 INFILE	{ return INFILE; }
 INNER	{ return INNER; }
 INOUT	{ return INOUT; }
@@ -130,7 +132,6 @@ INSENSITIVE	{ return INSENSITIVE; }
 INSERT	{ return INSERT; }
 INT4?|INTEGER|INT	{ return INTEGER; }
 INTERVAL	{ return INTERVAL; }
-INTO	{ return INTO; }
 IS	{ return IS; }
 ITERATE	{ return ITERATE; }
 JOIN	{ return JOIN; }
@@ -236,6 +237,7 @@ TINYTEXT	{ return TINYTEXT; }
 TO	{ return TO; }
 TRAILING	{ return TRAILING; }
 TRIGGER	{ return TRIGGER; }
+TRUNCATE { return TRUNCATE; }
 UNDO	{ return UNDO; }
 UNION	{ return UNION; }
 UNIQUE	{ return UNIQUE; }
@@ -363,6 +365,11 @@ MAX    { int c = yyinput(pp->yyscan_info_); unput(c);
            if(c == '(') return FMAX;
            yylval->strval = strdup(yytext);
            return NAME; } 
+TO_CHAR  { int c = yyinput(pp->yyscan_info_); unput(c);
+           if(c == '(') return TO_CHAR;
+           yylval->strval = strdup(yytext);
+           return NAME; } 
+      
            
 [A-Za-z][A-Za-z0-9_]*	{ yylval->strval = strdup(yytext);
                           return NAME; }

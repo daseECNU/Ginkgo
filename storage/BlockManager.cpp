@@ -5,8 +5,11 @@
  *      Author: casa
  */
 #include <sstream>
-#include "BlockManager.h"
 #include <assert.h>
+#include <typeinfo>
+#include "snappy.h"
+
+#include "BlockManager.h"
 #include "../common/file_handle/hdfs_connector.h"
 #include "../Environment.h"
 #include "../common/rename.h"
@@ -222,7 +225,8 @@ ChunkInfo BlockManager::loadFromHdfs(string file_name) {
   file_name_latter = file_name.substr(pos + 1, file_name.length());
   int offset = atoi(file_name_latter.c_str());
   //  hdfsFS fs =
-  //      hdfsConnect(Config::hdfs_master_ip.c_str(), Config::hdfs_master_port);
+  //      hdfsConnect(Config::hdfs_master_ilengthp.c_str(),
+  //      Config::hdfs_master_port);
   hdfsFS fs = HdfsConnector::Instance();
   hdfsFile readFile =
       hdfsOpenFile(fs, file_name_former.c_str(), O_RDONLY, 0, 0, 0);
@@ -254,9 +258,16 @@ int BlockManager::LoadFromHdfs(const ChunkID& chunk_id, void* const& desc,
                                const unsigned& length) {
   lock.acquire();
   int ret;
+  uint64_t totoal_read = 0;
   uint64_t offset = chunk_id.chunk_off;
+  ChunkID next_chunk(chunk_id.partition_id, chunk_id.chunk_off + 1);
+
+  uint64_t offset_clen = 0;
+
+  size_t compress_length = 0;
   //  hdfsFS fs =
-  //      hdfsConnect(Config::hdfs_master_ip.c_str(), Config::hdfs_master_port);
+  //      hdfsConnect(Config::hdfs_master_ip.c_str(),
+  //      Config::hdfs_master_port);
   hdfsFS fs = HdfsConnector::Instance();
   hdfsFile readFile = hdfsOpenFile(
       fs, chunk_id.partition_id.getPathAndName().c_str(), O_RDONLY, 0, 0, 0);
@@ -280,53 +291,118 @@ int BlockManager::LoadFromHdfs(const ChunkID& chunk_id, void* const& desc,
     DLOG(INFO) << "file [" << chunk_id.partition_id.getPathAndName().c_str()
                << "] is opened for offset [" << offset << "]" << endl;
   }
-  uint64_t start_pos = CHUNK_SIZE * offset;
-  if (start_pos < 0) assert(false);
-  if (start_pos < hdfsfile->mSize) {
-    ret = hdfsPread(fs, readFile, start_pos, desc, length);
-  } else {
-    lock.release();
-    ret = -1;
+
+  if (offset == 0) {
+    chunkid_off_in_file_[chunk_id] = 0;
   }
+  uint64_t start_pos = chunkid_off_in_file_[chunk_id];
+  char* tmp = (char*)malloc(64 * 1024);
+  string* result = new string;
+  char head[100];
+  stringstream str;
+  if (start_pos < 0) assert(false);
+
+  // snappy decompress
+  // SIZE OF HEAD IS 100;
+
+  while (totoal_read < length) {
+    if (start_pos < hdfsfile->mSize) {
+      memset((void*)tmp, '\0', 64 * 1024);
+      head[100] = {0};
+  //    LOG(INFO) << "which is start_pos: " << start_pos << endl;
+      ret = hdfsPread(fs, readFile, start_pos, static_cast<void*>(head), 100);
+      compress_length = atoi(reinterpret_cast<const char*>(head));
+    //  std::cout << "Compress length: " << compress_length << endl;
+      start_pos += 100;
+      ret = hdfsPread(fs, readFile, start_pos, static_cast<void*>(tmp),
+                      compress_length);
+      snappy::Uncompress(tmp, compress_length, result);
+      str << *result;
+  //    LOG(INFO) << "HOW LONG THE RESULT: " << (*result).length() << endl;
+      totoal_read += BLOCK_SIZE;
+      start_pos += compress_length;
+  //    LOG(INFO) << "Finish the one size of block" << totoal_read << endl;
+    } else {
+      ret = -1;
+      break;
+    }
+  }
+  chunkid_off_in_file_[next_chunk] = start_pos;
+  string final = str.str();
+  final.copy((char*)desc, length, 0);
+  // snappy decompress
+  free(tmp);
+  delete result;
   hdfsCloseFile(fs, readFile);
   //  hdfsDisconnect(fs);
   lock.release();
-  return ret;
+  return totoal_read;
 }
 
 int BlockManager::LoadFromDisk(const ChunkID& chunk_id, void* const& desc,
                                const unsigned& length) const {
   int ret = 0;
   unsigned offset = chunk_id.chunk_off;
+  LOG(INFO) << "CHUNK OFFSET: " << chunk_id.chunk_off << endl;
   int fd = FileOpen(chunk_id.partition_id.getPathAndName().c_str(), O_RDONLY);
   if (fd == -1) {
-    //    logging_->elog("Fail to open file [%s].Reason:%s",
-    //                   chunk_id.partition_id.getPathAndName().c_str(),
-    //                   strerror(errno));
     ELOG(rLoadFromDiskOpenFailed,
          chunk_id.partition_id.getPathAndName().c_str());
     return -1;
   } else {
-    //    logging_->log("file [%s] is opened for offset[%d]\n",
-    //                  chunk_id.partition_id.getPathAndName().c_str(), offset);
     DLOG(INFO) << "file [" << chunk_id.partition_id.getPathAndName().c_str()
                << "] is opened for offset [" << offset << "]" << endl;
   }
   long int file_length = lseek(fd, 0, SEEK_END);
-
-  long start_pos = CHUNK_SIZE * offset;
-
-  //  logging_->log("start_pos=%ld**********\n", start_pos);
-  DLOG(INFO) << "start_pos=" << start_pos << "*********" << endl;
-
-  lseek(fd, start_pos, SEEK_SET);
-  if (start_pos < file_length) {
-    ret = read(fd, desc, length);
-  } else {
-    ret = 0;
+  ChunkID next_chunk(chunk_id.partition_id, chunk_id.chunk_off + 1);
+  if (offset == 0) {
+    chunkid_off_in_file_[chunk_id] = 0;
   }
+
+  uint64_t start_pos = chunkid_off_in_file_[chunk_id];
+  char* tmp = (char*)malloc(64 * 1024);
+  string* result = new string;
+  string tmp2;
+  tmp2.clear();
+  stringstream str;
+  char head[100];
+  size_t totoal_read = 0;
+  //  long start_pos = CHUNK_SIZE * offset;
+
+  LOG(INFO) << "start_pos=" << start_pos << "*********" << endl;
+  while (totoal_read < length) {
+    memset((void*)tmp, '\0', 64 * 1024);
+    result->clear();
+    if (start_pos < file_length) {
+      lseek(fd, start_pos, SEEK_SET);
+      ret = read(fd, head, 100);
+      size_t compress_length = atoi(reinterpret_cast<const char*>(head));
+      start_pos += 100;
+      lseek(fd, start_pos, SEEK_SET);
+      ret = read(fd, tmp, compress_length);
+      snappy::Uncompress(tmp, compress_length, result);
+      //      cout << *result << endl;
+      str << *result;
+//      LOG(INFO) << "HOW LONG THE RESULT: " << (*result).length() << endl;
+      totoal_read += BLOCK_SIZE;
+      start_pos += compress_length;
+//      LOG(INFO) << "Finish the one size of block" << totoal_read << endl;
+    }
+
+    else {
+      ret = 0;
+      break;
+    }
+  }
+  string final = str.str();
+  //  memcpy(reinterpret_cast<void*>(desc), final.data(), length);
+  final.copy((char*)desc, length, 0);
+  chunkid_off_in_file_[next_chunk] = start_pos;
+  free(tmp);
+  tmp=NULL;
+  delete result;
   FileClose(fd);
-  return ret;
+  return totoal_read;
 }
 
 BlockManagerId* BlockManager::getId() { return blockManagerId_; }
@@ -349,7 +425,7 @@ bool BlockManager::ContainsPartition(const PartitionID& part) const {
 bool BlockManager::AddPartition(const PartitionID& partition_id,
                                 const unsigned& number_of_chunks,
                                 const StorageLevel& desirable_storage_level) {
-  //  lock.acquire();  // test
+  lock.acquire();  // test
   boost::unordered_map<PartitionID, PartitionStorage*>::const_iterator it =
       partition_id_to_storage_.find(partition_id);
   if (it != partition_id_to_storage_.cend()) {
@@ -363,7 +439,7 @@ bool BlockManager::AddPartition(const PartitionID& partition_id,
                << partition_id.getName().c_str()
                << "](desriable_storage_level =" << desirable_storage_level
                << endl;
-    //    lock.release();  // test
+    lock.release();  // test
     return true;
   }
   partition_id_to_storage_[partition_id] = new PartitionStorage(
@@ -375,7 +451,7 @@ bool BlockManager::AddPartition(const PartitionID& partition_id,
              << partition_id.getName().c_str()
              << "](desriable_storage_level =" << desirable_storage_level
              << endl;
-  //  lock.release();  // test
+  lock.release();  // test
   return true;
 }
 

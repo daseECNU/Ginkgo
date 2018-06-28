@@ -6,7 +6,10 @@
  */
 
 #include "ResultSet.h"
-
+#include <algorithm>
+#include <string>
+#include <set>
+#include <vector>
 int utf8_strlen(const std::string& str) {
   const char* s = str.c_str();
   int i, j;
@@ -80,7 +83,7 @@ void ResultSet::print() const {
 
   for (unsigned i = 0; i < column_header_list_.size(); i++) {
     printf("| ", column_header_list_[i].c_str());
-
+    
     printNChar((column_wides[i] - column_header_list_[i].size()) / 2, ' ');
     printf("%s", column_header_list_[i].c_str());
     printNChar(column_wides[i] - column_header_list_[i].size() -
@@ -138,3 +141,125 @@ void ResultSet::printNChar(int n, char c) const {
     printf("%c", c);
   }
 }
+
+int find_pos(vector<unsigned> insert_index, unsigned number) {
+  for (int i = 0; i < insert_index.size(); i++) {
+    if (insert_index[i] == number) {
+      return i;
+    }
+  }
+}
+void ResultSet::getResult(unsigned int &change_row,
+                             vector<string>& sel_result) {
+  unsigned int row_count = 0;
+  Iterator it = this->createIterator();
+  BlockStreamBase* block;
+  BlockStreamBase::BlockStreamTraverseIterator* tuple_it;
+  std::ostringstream ostr;
+  ostr.clear();
+  set<int> row_id_pos;
+  for (int i = 0 ; i < this->column_header_list_.size(); i++) {
+    if (this->column_header_list_[i].find("row_id")
+        != string::npos) {
+      row_id_pos.insert(i);
+    }
+  }
+  while (block = it.nextBlock()) {
+    tuple_it = block->createIterator();
+    void* tuple;
+    while (tuple = tuple_it->nextTuple()) {
+      for (unsigned i = 0; i < column_header_list_.size(); i++) {
+        if (row_id_pos.find(i) == row_id_pos.end()) {
+          string data =  schema_->getcolumn(i)
+                       .operate->toString(schema_->getColumnAddess(i, tuple))
+                               .c_str();
+          if (data == "NULL") {
+            ostr <<"|";
+          } else {
+            ostr << data << "|";
+          }
+        }
+      }
+      ostr <<"\n";
+      change_row++;
+      row_count++;
+      if (row_count == 1000000) {
+        sel_result.push_back(ostr.str());
+        row_count = 0;
+        ostr.str("");
+      }
+    }
+    delete tuple_it;
+  }
+  // add last tuples
+  if (row_count >0)
+    sel_result.push_back(ostr.str());
+}
+
+void ResultSet::getResult(unsigned int &change_row,
+                            vector<unsigned> insert_index,
+                            vector<Attribute> attributes,
+                            Schema* table_schema,
+                            vector<string>& sel_result) {
+  unsigned int row_count = 0;
+  Iterator it = this->createIterator();
+  BlockStreamBase* block;
+  BlockStreamBase::BlockStreamTraverseIterator* tuple_it;
+  std::ostringstream ostr;
+  ostr.clear();
+  vector<int> row_id_pos;
+  // make insert column in order, make insert a(c2,c1) to  (c1,c2)
+  // set is from 1 to n, 0 is row_id
+  set<unsigned> insert_col_set;
+  set<unsigned>::iterator iter;
+  for (int i = 0 ; i < this->column_header_list_.size(); i++) {
+    if (this->column_header_list_[i].find("row_id")
+        == this->column_header_list_[i].npos) {
+      row_id_pos.push_back(i);
+    }
+  }
+  for (int i = 0; i < insert_index.size(); i++) {
+    insert_col_set.insert(insert_index[i]);
+  }
+  while (block = it.nextBlock()) {
+    tuple_it = block->createIterator();
+    void* tuple;
+    while (tuple = tuple_it->nextTuple()) {
+      iter = insert_col_set.begin();
+      for (int i = 1 ; i <attributes.size(); i++) {
+          if (i == *iter) {
+            // find iter's position in vector
+            string data = schema_
+                ->getcolumn(row_id_pos[find_pos(insert_index, i)])
+                        .operate->toString(
+                            schema_->getColumnAddess(
+                                row_id_pos[find_pos(insert_index, i)], tuple))
+                                        .c_str();
+            if (data == "NULL") {
+              ostr <<"|";
+            } else {
+              ostr << data << "|";
+            }
+            iter++;
+          } else {
+            // if not exist ,we need add " "
+            ostr <<"|";
+          }
+      }
+      ostr <<"\n";
+      change_row++;
+      row_count++;
+      if (row_count == 1000000) {
+        sel_result.push_back(ostr.str());
+        row_count = 0;
+        ostr.str("");
+      }
+    }
+    delete tuple_it;
+  }
+  // deal last tuples
+  if (row_count >0)
+    sel_result.push_back(ostr.str());
+}
+
+

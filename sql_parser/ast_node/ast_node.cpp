@@ -56,6 +56,8 @@ void AstNode::Print(int level) const {
   cout << setw(level * 8) << " "
        << "This is an AST_NODE!" << endl;
 }
+
+RetCode AstNode::SetScanAttrList(SemanticContext* sem_cnxt) { return rSuccess; }
 RetCode AstNode::SemanticAnalisys(SemanticContext* sem_cnxt) {
   LOG(WARNING) << "This is AstNode's semantic analysis" << endl;
   return rSuccess;
@@ -177,6 +179,7 @@ AstNode* AstNode::GetAndExpr(const set<AstNode*>& expression) {
   }
   return NULL;
 }
+
 void AstStmtList::Print(int level) const {
   cout << setw(level * 8) << " "
        << "|stmt list|" << endl;
@@ -184,9 +187,20 @@ void AstStmtList::Print(int level) const {
     stmt_->Print(level);
   }
   if (next_ != NULL) {
-    next_->Print(level++);
+    next_->Print(level);
   }
 }
+
+RetCode AstStmtList::SetScanAttrList(SemanticContext* sem_cnxt) {
+  if (stmt_ != NULL) {
+    stmt_->SetScanAttrList(sem_cnxt);
+  }
+  if (next_ != NULL) {
+    next_->SetScanAttrList(sem_cnxt);
+  }
+  return rSuccess;
+}
+
 RetCode AstStmtList::SemanticAnalisys(SemanticContext* sem_cnxt) {
   RetCode ret = rSuccess;
   if (NULL != stmt_) {
@@ -196,10 +210,14 @@ RetCode AstStmtList::SemanticAnalisys(SemanticContext* sem_cnxt) {
     }
   }
   if (NULL != next_) {
-    LOG(ERROR) << "just support one statement now!" << endl;
-    assert(false);
-    return rSuccess;
-    return next_->SemanticAnalisys(sem_cnxt);
+    //    LOG(ERROR) << "just support one statement now!" << endl;
+    //    assert(false);
+    //    return rSuccess;
+    //    return next_->SemanticAnalisys(sem_cnxt);
+    ret = next_->SemanticAnalisys(sem_cnxt);
+    if (rSuccess != ret) {
+      return ret;
+    }
   }
   return rSuccess;
 }
@@ -213,7 +231,13 @@ RetCode AstStmtList::PushDownCondition(PushDownConditionContext& pdccnxt) {
   return rSuccess;
 }
 RetCode AstStmtList::GetLogicalPlan(LogicalOperator*& logic_plan) {
-  return stmt_->GetLogicalPlan(logic_plan);
+  if (NULL != stmt_) {
+    stmt_->GetLogicalPlan(logic_plan);
+  }
+  if (NULL != next_) {
+    next_->GetLogicalPlan(logic_plan);
+  }
+  return rSuccess;
 }
 SemanticContext::SemanticContext() {
   tables_.clear();
@@ -225,6 +249,7 @@ SemanticContext::SemanticContext() {
   clause_type_ = kNone;
   have_agg = false;
   select_expr_have_agg = false;
+  is_all = false;
 }
 
 SemanticContext::~SemanticContext() {}
@@ -277,6 +302,10 @@ RetCode SemanticContext::AddTable(set<string> table) {
 }
 RetCode SemanticContext::AddTable(string table) {
   tables_.insert(table);
+  return rSuccess;
+}
+RetCode SemanticContext::AddOriTable(string table) {
+  ori_tables_.push_back(table);
   return rSuccess;
 }
 set<string> SemanticContext::get_tables() { return tables_; }

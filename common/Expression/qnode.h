@@ -29,8 +29,8 @@ typedef struct FuncCallInfoData {
 } *FuncCallInfo;
 typedef void (*ExecFunc)(FuncCallInfo fcinfo);
 typedef void *(*FuncCall)(Node *qinfo, void *tuple, Schema *schema);
-typedef void (*AvgDivide)(void *sum_value, unsigned long tuple_number,
-                          void *result);
+typedef void (*AvgDivideOld)(void *sum_value, unsigned long tuple_number,
+                             void *result);
 
 enum qnodetype {
   t_qnode,
@@ -47,40 +47,40 @@ enum qnodetype {
 };
 
 enum oper_type {
-  oper_none,
-  oper_add,
-  oper_minus,
-  oper_multiply,
-  oper_divide,
-  oper_mod,
-  oper_and,
-  oper_or,
-  oper_xor,
-  oper_not,
-  oper_equal,
-  oper_not_equal,
-  oper_great,
-  oper_great_equal,
-  oper_less,
-  oper_less_equal,
-  oper_both_trim,
-  oper_trailing_trim,
-  oper_leading_trim,
-  oper_like,
-  oper_not_like,
-  oper_upper,
-  oper_substring,
-  oper_negative,
-  oper_case_when,
-  oper_date_add_day,
-  oper_date_add_week,
-  oper_date_add_month,
-  oper_date_add_year,  // quanter type have been changed to month*3 in
-                       // transfromqual()
-  oper_date_sub_day,
-  oper_date_sub_week,
-  oper_date_sub_month,
-  oper_date_sub_year,
+  oper_none_old,
+  oper_add_old,
+  oper_minus_old,
+  oper_multiply_old,
+  oper_divide_old,
+  oper_mod_old,
+  oper_and_old,
+  oper_or_old,
+  oper_xor_old,
+  oper_not_old,
+  oper_equal_old,
+  oper_not_equal_old,
+  oper_great_old,
+  oper_great_equal_old,
+  oper_less_old,
+  oper_less_equal_old,
+  oper_both_trim_old,
+  oper_trailing_trim_old,
+  oper_leading_trim_old,
+  oper_like_old,
+  oper_not_like_old,
+  oper_upper_old,
+  oper_substring_old,
+  oper_negative_old,
+  oper_case_when_old,
+  oper_date_add_day_old,
+  oper_date_add_week_old,
+  oper_date_add_month_old,
+  oper_date_add_year_old,  // quanter type have been changed to month*3 in
+                           // transfromqual()
+  oper_date_sub_day_old,
+  oper_date_sub_week_old,
+  oper_date_sub_month_old,
+  oper_date_sub_year_old,
 };
 class QNode : public Node {
  public:

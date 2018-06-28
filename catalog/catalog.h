@@ -84,6 +84,7 @@ class Catalog {
   TableDescriptor* getTable(const TableID&) const;
   TableDescriptor* getTable(const std::string& table_name) const;
   void GetAllTables(ostringstream& ostr) const;
+  vector<TableID> GetAllTablesID() const;
   ProjectionDescriptor* getProjection(const ProjectionID&) const;
   ProjectionBinding* getBindingModele() const;
 
@@ -105,7 +106,24 @@ class Catalog {
   vector<PartitionID> getPartitionIDList(const std::string& table_name,
                                          const std::string& attribute_name);
 
-  bool DropTable(const std::string table_name, const TableID id);
+  bool dropTable(const std::string table_name, const TableID id);
+
+  // added by zyhe
+  bool dropAllProjection(const std::string table_name);
+  bool dropOneProjection(const std::string table_name, const int projection_id);
+  RetCode truncateTable(const std::string table_name);
+  RetCode truncateProjection(const std::string table_name,
+                             const int projection_id);
+
+  /**
+   * truncateDirtyData - called when the system start. Read the logical length
+   * of files and compare the actual length of files to truncate the dirty data.
+   */
+  RetCode truncateDirtyData();
+
+  RetCode getStringstream(string& str);
+  RetCode restoreCatalogFromBackup(const string backup);
+  //  RetCode update_UnorderedMap(TableDescriptor* table);
 
  private:
   Catalog();  // avoiding generate more instance

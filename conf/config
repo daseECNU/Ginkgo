@@ -4,85 +4,89 @@ ip = "127.0.0.1";
 #端口范围（调试用）
 PortManager:
 {
-    start = 19000;
-    end   = 19500;
+    start = 48000;
+    end   = 48500;
 }
 
 #master的IP地址和端口
 coordinator:
 {
     ip="127.0.0.1"
-    port="11001"
+    port="20000"
 }
 
-#是否为master. 若为master，则master=1，否则master=0
-master=1
-
-client_listener_port = 10000
-
+# whether this instance is the master.
+master = 1
 
 #hadoop上的数据目录
- 
-#data="/home/imdb/data/wangli/"
-#data="/home/imdb/data/wangli/"
-#data="/home/imdb/data/POC/sample/"
-#data="/home/minqi/git/Data/data/tpc-h/1-partition/sf-1/"
-#data="/home/minqi/git/Data/data/tpc-h/18-partition/sf-1/"
-#data="/home/imdb/data/SF-1/"
-#data="/home/imdb/data/SF-1/"
-#data="/home/imdb/data/stock/"
-#data="/home/imdb/data/stock/"
- 
+#the path for data
 data="/home/zzh/data/http/"
- 
-#data="/home/fish/data/test/"
-#data="/home/imdb/data/POC/"
-#data="/home/imdb/data/POC/"
-
-
-
-#the path for data and catalog
-#data="/home/imdb/data/"
-
-
-
 
 #hdfs主节点
-
-
 hdfs_master_ip="10.11.1.192"
 
 #hdfs主节点端口
-hdfs_master_port=9000
+hdfs_master_port = 9000
 
 #最大单机算子并行度
 max_degree_of_parallelism=4
 
 #初始单机算子并行度
-initial_degree_of_parallelism=1
+initial_degree_of_parallelism=4
+
+expander_adaptivity_check_frequency=1000
+
+enable_expander_adaptivity=1
+
+# 0: hdfs
+# 1: local
+local_disk_mode = 1
+
+client_listener_port = 10000
+
+enable_prune_column = 1
+
+enable_parquet = 0
+
+enable_codegen = 0
+
+load_thread_num = 4
+
+memory_utilization = 80
 
 
-expander_adaptivity_check_frequency=5000
+hash_join_bucket_num = 1048576
 
-enable_expander_adaptivity=0
+hash_join_bucket_size = 1024
 
-pipelined_exchange=1
+zk_znode_name="/Catalog_test"
 
-local_disk_mode=1
+#scan_batch=100
 
-scan_batch=100
 #enable llvm codegen or not
-enable_codegen=0
+#enable_codegen=0
 #
-##the httpserver info
-httpserver_master_ip="219.228.147.183"
-#
-httpserver_master_port="8097"
-#
-httpserver_thread_num="10"
-#
-httpserver_doc_root="/home/imdb/local/test/"
+#the httpserver info
+#http监听的ip
+#httpserver_master_ip="219.228.147.183"
 
-mysql_port = 12040
+#httpserver_master_port="8097"
+#http服务线程数目
+#httpserver_thread_num="4"
 
-mysql_password = "imdb"
+# jdbc监听端口
+jdbc_port = 12040
+
+#zookeeper_host_list = "127.0.0.1:2181"
+
+#千兆网一般设为3000 万兆网设为20000
+#expander_buffer_size = 3000
+
+#kerberos监听端口号
+#krb_listen_port=10010
+
+#kerberos的keyfile
+#krb_server_keyfile = "keyfile"
+#
+#kerberos_notify_port = 20000
+

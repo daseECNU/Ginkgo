@@ -83,6 +83,9 @@ bool Config::local_disk_mode;
 int Config::client_listener_port;
 
 bool Config::enable_codegen;
+bool Config::enable_prune_column;
+bool Config::enable_parquet;
+bool Config::enable_kerberos;
 
 std::string Config::catalog_file;
 
@@ -90,6 +93,7 @@ int Config::thread_pool_init_thread_num;
 
 int Config::load_thread_num;
 int Config::memory_utilization;
+std::string Config::zk_znode_name;
 
 std::string Config::httpserver_master_ip;
 
@@ -97,11 +101,24 @@ std::string Config::httpserver_master_port;
 
 std::string Config::httpserver_thread_num;
 
+// not used
 std::string Config::httpserver_doc_root;
 
 int Config::mysql_port;
 
 std::string Config::mysql_password;
+
+std::string Config::zookeeper_host_list;
+
+std::string Config::krb_listen_address;
+std::string Config::krb_server_keyfile;
+std::string Config::krb_srvname;
+std::string Config::krb_srvinstance;
+
+int Config::hash_join_bucket_num;
+int Config::hash_join_bucket_size;
+int Config::expander_buffer_size;
+int Config::kerberos_notify_port;
 
 Config *Config::getInstance() {
   if (instance_ == 0) {
@@ -174,11 +191,37 @@ void Config::initialize() {
 
   httpserver_doc_root = getString("httpserver_doc_root", "/home/imdb/doc_root");
 
-  mysql_port = getInt("mysql_port",3306);
+  mysql_port = getInt("jdbc_port", 3306);
 
-  mysql_password = getString("mysql_password","imdb");
-#ifdef DEBUG_Config
-  print_configure();
+  mysql_password = getString("mysql_password", "imdb");
+
+  enable_prune_column = getBoolean("enable_prune_column", true);
+
+  enable_parquet = getBoolean("enable_parquet", true);
+
+  enable_kerberos = getBoolean("enable_kerberos", false);
+
+  zk_znode_name = getString("zk_znode_name", data_dir + "CATALOG");
+
+  zookeeper_host_list = getString("zookeeper_host_list", "127.0.0.1:2181");
+
+  krb_listen_address = getString("krb_listen_port", "10010");
+
+  krb_server_keyfile = getString("krb_server_keyfile", "keyfile");
+
+  krb_srvname = getString("krb_srvname", "sample");
+
+  krb_srvinstance = getString("krb_srvinstance", "sample");
+
+  hash_join_bucket_num = getInt("hash_join_bucket_num", 1024 * 1024);
+
+  hash_join_bucket_size = getInt("hash_join_bucket_size", 1024);
+
+  expander_buffer_size = getInt("expander_buffer_size", 3000);
+
+  kerberos_notify_port = getInt("kerberos_notify_port", 15000);
+
+#ifdef DEBUG_Config print_configure();
 #endif
 }
 
@@ -234,7 +277,14 @@ void Config::print_configure() const {
   std::cout << "client_lisener_port:" << client_listener_port << std::endl;
   std::cout << "catalog_file:" << catalog_file << std::endl;
   std::cout << "codegen:" << enable_codegen << std::endl;
+  std::cout << "enable_prune_column: " << enable_prune_column << std::endl;
+  std::cout << "enable_parquet: " << enable_parquet << std::endl;
+  std::cout << "enable_kerberos: " << enable_kerberos << std::endl;
   std::cout << "load_thread_num:" << load_thread_num << std::endl;
+  std::cout << "hash_join_bucket_num: " << hash_join_bucket_num << std::endl;
+  std::cout << "hash_join_bucket_size: " << hash_join_bucket_size << std::endl;
+  std::cout << "expander_buffer_size: " << expander_buffer_size << std::endl;
+  std::cout << "kerberos_notify_port: " << kerberos_notify_port << std::endl;
 }
 
 void Config::setConfigFile(std::string file_name) { config_file = file_name; }

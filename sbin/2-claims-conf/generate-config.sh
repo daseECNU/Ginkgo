@@ -66,6 +66,18 @@ load_thread_num = $load_thread_num
 
 memory_utilization = $memory_utilization
 
+hash_join_bucket_num = $hash_join_bucket_num
+
+hash_join_bucket_size = $hash_join_bucket_size
+
+expander_buffer_size = $expander_buffer_size
+
+zookeeper_host_list = $zookeeper_host_list
+
+zk_znode_name = $zk_znode_name
+
+enable_parquet = $enable_parquet
+
 EOF
 done
 

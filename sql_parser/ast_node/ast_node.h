@@ -65,6 +65,8 @@ enum AstNodeType {
   AST_ORDERBY_LIST,
   AST_ORDERBY_CLAUSE,
   AST_HAVING_CLAUSE,
+  AST_DISTINCT_CLAUSE,
+  AST_DISTINCT_LIST,
   AST_LIMIT_CLAUSE,
   AST_SELECT_INTO_CLAUSE,
   AST_COLUMN,
@@ -120,7 +122,13 @@ enum AstNodeType {
   AST_BOOL,
   AST_SHOW_STMT,
   AST_DELETE_STMT,
-  AST_DESC_STMT
+  AST_DESC_STMT,
+  AST_UPDATE_STMT,
+  AST_UPDATE_SET_LIST,
+  AST_DROP_PROJECTION,
+  AST_TRUNCATE_TABLE,
+  AST_EXPORT_TABLE
+
 };
 // the order should be keep
 enum SubExprType {
@@ -143,7 +151,9 @@ class SemanticContext {
     kGroupByClause,
     kSelectClause,
     kHavingClause,
+    kDistinctClause,
     kOrderByClause,
+    kAggregationClause,
     kLimitClause
   };
   SemanticContext();
@@ -152,6 +162,7 @@ class SemanticContext {
   RetCode IsColumnExist(string& table, const string column);
   RetCode AddTable(string table);
   RetCode AddTable(set<string> table);
+  RetCode AddOriTable(string table);
   RetCode AddTableColumn(const string& table, const string& column);
   RetCode AddTableColumn(const multimap<string, string>& column_to_table);
   RetCode RebuildTableColumn(set<AstNode*>& aggregation);
@@ -166,6 +177,7 @@ class SemanticContext {
   void GetTableAllColumn(const string table,
                          multimap<string, string>& new_columns);
   void GetUniqueAggAttr(set<AstNode*>& new_set);
+  vector<string> GetOriTables() { return ori_tables_; };
   void ClearSelectAttrs() { select_attrs_.clear(); }
   set<AstNode*> get_aggregation();
   vector<AstNode*> get_groupby_attrs();
@@ -182,6 +194,9 @@ class SemanticContext {
   vector<AstNode*> select_expr_;
   vector<ColumnOffset> index_;  //  for create projection execute function
   string error_msg_;
+  // for remember all column we need to choose scan projection.
+  bool is_all;
+  std::unordered_map<string, set<string>> table_to_column;
 
  private:
   set<AstNode*> aggregation_;
@@ -189,6 +204,7 @@ class SemanticContext {
   set<AstNode*> select_attrs_;
   multimap<string, string> column_to_table_;
   set<string> tables_;
+  vector<string> ori_tables_;
 };
 class PushDownConditionContext {
  public:
@@ -287,6 +303,7 @@ class AstNode {
     return rSuccess;
   }
   AstNode* GetAndExpr(const set<AstNode*>& expression);
+  virtual RetCode SetScanAttrList(SemanticContext* sem_cnxt);
   AstNodeType ast_node_type_;
   string expr_str_;
 };
@@ -308,6 +325,7 @@ class AstStmtList : public AstNode {
   AstStmtList(AstNodeType ast_node_type, AstNode* stmt, AstNode* next);
   ~AstStmtList();
   void Print(int level = 0) const;
+  RetCode SetScanAttrList(SemanticContext* sem_cnxt);
   RetCode SemanticAnalisys(SemanticContext* sem_cnxt);
   RetCode PushDownCondition(PushDownConditionContext& pdccnxt);
   RetCode GetLogicalPlan(LogicalOperator*& logic_plan);

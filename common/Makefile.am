@@ -2,9 +2,12 @@ AM_CPPFLAGS= -fPIC -fpermissive -DTHERON_XS \
 -I${HADOOP_HOME}/include \
 -I${BOOST_HOME} \
 -I${BOOST_HOME}/boost/serialization \
--I${GTEST_HOME}/include
+-I${GTEST_HOME}/include\
+-I${ZOOKEEPER_HOME}/src/c/include\
+-I${ZOOKEEPER_HOME}/src/c/generated
 
-AM_LDFLAGS=-lc -lm -lrt -lboost_serialization -lpthread -lxs
+
+AM_LDFLAGS=-lc -lm -lrt -lboost_serialization -lpthread -lxs -DTHREAD -lzookeeper_mt
 
 if OPT_TCMALLOC
 AM_CPPFLAGS+=-fno-builtin-malloc -fno-builtin-calloc -fno-builtin-realloc -fno-builtin-free
@@ -41,7 +44,8 @@ libcommon_a_SOURCES = \
 	ids.cpp 			ids.h \
 	rename.h			error_define.h \
 	error_no.h			error_no.cpp \
-	memory.h
+	parquet_types.cpp   parquet_types.h \
+ 	memory.h 
 
 SUBDIRS = Block file_handle log Schema types Expression expression serialization
 DIST_SUBDIRS = Block file_handle log Schema types Expression expression serialization

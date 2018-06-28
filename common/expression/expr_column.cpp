@@ -43,6 +43,12 @@ void* ExprColumn::ExprEvaluate(ExprEvalCnxt& eecnxt) {
       attr_id_, eecnxt.tuple[table_id_]);
   return type_cast_func_(result, value_);
 }
+
+bool ExprColumn::isNullValue(ExprEvalCnxt& eecnxt) {
+  void* result = eecnxt.schema[table_id_]->getColumnAddess(
+      attr_id_, eecnxt.tuple[table_id_]);
+  return eecnxt.schema[table_id_]->getcolumn(attr_id_).operate->isNull(result);
+}
 // checking the column belongs to witch table
 void ExprColumn::InitExprAtLogicalPlan(LogicInitCnxt& licnxt) {
   return_type_ = licnxt.return_type_;
@@ -53,7 +59,7 @@ void ExprColumn::InitExprAtLogicalPlan(LogicInitCnxt& licnxt) {
     if (return_type_ == t_string) {
       value_size_ = std::max(licnxt.schema0_->getcolumn(attr_id_).get_length(),
                              static_cast<unsigned int>(BASE_DATA_SIZE));
-	} else if (return_type_ == t_decimal) {
+    } else if (return_type_ == t_decimal) {
       value_size_ = licnxt.schema0_->getcolumn(attr_id_).size;
     } else {
       value_size_ = licnxt.schema0_->getcolumn(attr_id_).get_length();
@@ -68,7 +74,7 @@ void ExprColumn::InitExprAtLogicalPlan(LogicInitCnxt& licnxt) {
         value_size_ =
             std::max(licnxt.schema1_->getcolumn(attr_id_).get_length(),
                      static_cast<unsigned int>(BASE_DATA_SIZE));
-	  } else if (return_type_ == t_decimal) {
+      } else if (return_type_ == t_decimal) {
         value_size_ = licnxt.schema1_->getcolumn(attr_id_).size;
       } else {
         value_size_ = licnxt.schema1_->getcolumn(attr_id_).get_length();
@@ -89,5 +95,10 @@ void ExprColumn::InitExprAtPhysicalPlan() {
 }
 
 ExprNode* ExprColumn::ExprCopy() { return new ExprColumn(this); }
+
+void ExprColumn::GetUniqueAttr(set<string>& attrs) {
+  attrs.insert(table_name_ + "." + column_name_);
+}
+
 }  // namespace common
 }  // namespace claims

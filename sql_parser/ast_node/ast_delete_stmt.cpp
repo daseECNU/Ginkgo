@@ -100,6 +100,7 @@ RetCode AstDeleteStmt::SemanticAnalisys(SemanticContext* sem_cnxt) {
     ret = rTableNotExisted;
     return ret;
   }
+  sem_cnxt->AddOriTable(tablename);
   return ret;
 }
 // } /* namespace ast_node */

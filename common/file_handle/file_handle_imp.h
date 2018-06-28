@@ -87,12 +87,15 @@ class FileHandleImp {
    * @return rSuccess if wrote length bytes
    */
   virtual RetCode Append(const void* buffer, const size_t length) = 0;
+  virtual RetCode AppendNoCompress(const void* buffer, const size_t length) = 0;
 
   virtual RetCode AtomicAppend(const void* buffer, const size_t length,
                                function<void()> lock_func,
                                function<void()> unlock_func) = 0;
 
   virtual RetCode OverWrite(const void* buffer, const size_t length) = 0;
+  virtual RetCode OverWriteNoCompress(const void* buffer,
+                                      const size_t length) = 0;
 
   virtual RetCode AtomicOverWrite(const void* buffer, const size_t length,
                                   function<void()> lock_func,
@@ -125,12 +128,27 @@ class FileHandleImp {
 
   virtual RetCode SwitchStatus(FileStatus status_to_be) = 0;
 
+  const size_t& get_logical_file_length() { return logical_file_length_; }
+
+  void set_logical_file_length(size_t logical_file_length) {
+    logical_file_length_ = logical_file_length;
+  }
+
+  /**
+   * Truncate - truncate the dirty data when failed to execute transaction.
+   * @param newlength The size the file is to be truncated to.
+   * @return Return rSuccess if succeed.
+   * @author zyhe.
+   */
+  virtual RetCode Truncate(const size_t newlength) = 0;
+
  protected:
   virtual RetCode SetPosition(size_t pos) = 0;
 
  protected:
   std::string file_name_;
   volatile FileStatus file_status_ = kClosed;
+  size_t logical_file_length_ = 0;
   //  Lock write_lock_;
   //  atomic<int> reference_count_;
   //  SpineLock i_win_to_close_;

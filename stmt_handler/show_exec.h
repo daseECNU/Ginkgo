@@ -45,6 +45,11 @@ class ShowExec : public StmtExec {
    */
   ShowExec(AstNode *stmt);  // NOLINT
   virtual ~ShowExec();
+
+  RetCode GetWriteAndReadTables(
+      ExecutedResult &result,
+      vector<vector<pair<int, string>>> &stmt_to_table_list);
+
   /**
    * @brief the concrete operation of show statement.
    */

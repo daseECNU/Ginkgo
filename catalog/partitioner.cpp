@@ -70,6 +70,11 @@ Partitioner::Partitioner(ProjectionID projection_id,
 
 Partitioner::~Partitioner() {
   // TODO Auto-generated destructor stub
+  for (auto partition_info : partition_info_list) {
+    delete partition_info;
+  }
+  delete partition_key_;
+  delete partition_function_;
 }
 unsigned Partitioner::getNumberOfPartitions() const {
   return partition_function_->getNumberOfPartitions();
@@ -102,7 +107,16 @@ void Partitioner::RegisterPartitionWithNumberOfBlocks(
       partition_info_list[partition_offset]->partition_id_.getName();
   partition_info_list[partition_offset]->number_of_blocks = number_of_blocks;
 }
+void Partitioner::RegisterPartitionWithNumberOfBlocksPar(
+    unsigned partition_offset, unsigned long number_of_blocks) {
+  assert(partition_offset < partition_function_->getNumberOfPartitions());
 
+  partition_info_list[partition_offset]->hdfs_file_name =
+      partition_info_list[partition_offset]->partition_id_.getName();
+  partition_info_list[partition_offset]->number_of_blocks += number_of_blocks;
+  //  cout << "now the block num is :  "
+  //       << partition_info_list[partition_offset]->number_of_blocks << endl;
+}
 void Partitioner::UpdatePartitionWithNumberOfChunksToBlockManager(
     unsigned partition_offset, unsigned long number_of_blocks) {
   assert(partition_offset < partition_function_->getNumberOfPartitions());
@@ -120,6 +134,24 @@ void Partitioner::UpdatePartitionWithNumberOfChunksToBlockManager(
     cout << "Need to be done: determine the OneToMany binding append NodeID!\n";
     assert(false);
   }
+}
+
+void Partitioner::initPartitionData(unsigned partition_key,
+                                    unsigned number_of_chunks = 0,
+                                    unsigned long number_of_blocks = 0) {
+  assert(partition_key < partition_function_->getNumberOfPartitions());
+
+  partition_info_list[partition_key]->number_of_blocks = 0;
+  partition_info_list[partition_key]->number_of_tuples_ = 0;
+}
+
+bool Partitioner::isEmpty() {
+  for (auto i : partition_info_list) {
+    if (i->number_of_blocks != 0 || i->number_of_tuples_ != 0) {
+      return false;
+    }
+  }
+  return true;
 }
 
 void Partitioner::print() {

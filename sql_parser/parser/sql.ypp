@@ -4,8 +4,8 @@
 %pure-parser
 %parse-param { struct ParseResult* result}
 %glr-parser
-%expect 4
-%expect-rr 62
+%expect 36
+%expect-rr 84
 %defines
 %{
 #include <stdlib.h>
@@ -30,6 +30,9 @@ using namespace std;
 #include "../ast_node/ast_show_stmt.h"
 #include "../ast_node/ast_delete_stmt.h"
 #include "../ast_node/ast_desc_stmt.h"
+#include "../ast_node/ast_update_stmt.h"
+#include "../ast_node/ast_truncate_stmt.h"
+#include "../ast_node/ast_export_stmt.h"
 
 void yyerror(struct ParseResult *pp,const char *s, ...);
 void emit(char *s, ...);
@@ -152,6 +155,7 @@ should replace YYLEX with the following clause in sql.tab.cpp, why so? I don't k
 %token EXISTS
 %token EXIT
 %token EXPLAIN
+%token EXPORT
 %token FETCH
 %token FLOAT
 %token FOR
@@ -397,10 +401,11 @@ should replace YYLEX with the following clause in sql.tab.cpp, why so? I don't k
 %token FMIN
 %token FMAX
 
+%token TO_CHAR
 
-%type <intval> select_opts opt_with_rollup opt_asc_desc opt_inner_cross left_right_full 
+%type <intval> opt_with_rollup opt_asc_desc opt_inner_cross left_right_full 
 %type <intval> opt_left_or_right_outer opt_outer  
-%type <ast_node> stmt_list  select_expr_list
+%type <ast_node> stmt_list  select_expr_list distinct_list select_opts
 %type <ast_node>  opt_where select_stmt stmt opt_groupby select_expr
 %type <ast_node>  opt_having opt_orderby expr
 %type <ast_node> groupby_list  table_reference table_factor orderby_list opt_limit
@@ -414,7 +419,7 @@ should replace YYLEX with the following clause in sql.tab.cpp, why so? I don't k
 %type <ast_node> create_database_stmt create_table_stmt create_select_statement
 %type <ast_node> create_definition create_col_list  create_index_stmt
 %type <ast_node> create_projection_stmt  drop_index_stmt
-%type <ast_node> drop_database_stmt drop_table_stmt table_list	
+%type <ast_node> drop_database_stmt drop_table_stmt table_list
 %type <ast_node>  insert_stmt
 %type <ast_node> insert_vals insert_vals_list
 %type <ast_node> insert_asgn_list 
@@ -422,6 +427,10 @@ should replace YYLEX with the following clause in sql.tab.cpp, why so? I don't k
 %type <ast_node> opt_col_names enum_list opt_length
 %type <ast_node> column_atts data_type load_table_stmt
 %type <ast_node> delete_opts delete_list delete_stmt
+%type <ast_node> update_stmt update_set_list
+%type <ast_node> truncate_table_stmt
+%type <ast_node> drop_projection_stmt
+%type <ast_node> export_table_stmt
 
 
 %type <intval> opt_if_exists opt_if_not_exists opt_ignore_replace
@@ -451,10 +460,10 @@ stmt_list: stmt ';'
 		} 
   						
   	}	
-	| stmt_list stmt ';'	
+	| stmt ';' stmt_list
 	{ 	
 		printf(">> \n"); 
-		$$=new AstStmtList(AST_STMT_LIST,$2,$1);
+		$$=new AstStmtList(AST_STMT_LIST,$1,$3);
 		if (result->error_number == 0)
 		{
 			result->ast  = $$;
@@ -489,14 +498,15 @@ stmt: select_stmt { $$ = $1;}
 	;
 
 select_stmt: 
-	SELECT select_opts select_expr_list
+	/*SELECT select_opts select_expr_list
 	{
 		$$=new AstSelectStmt(AST_SELECT_STMT, $2,$3,NULL,NULL,NULL,NULL,NULL,NULL,NULL);
 	}
-	| SELECT select_opts select_expr_list FROM table_references opt_where 
-    			opt_groupby opt_having opt_orderby opt_limit opt_into_list 
+	|*/
+	SELECT select_opts select_expr_list opt_into_list FROM table_references opt_where 
+    			opt_groupby opt_having opt_orderby opt_limit  
 	{
-		$$=new AstSelectStmt(AST_SELECT_STMT, $2,$3,$5,$6,$7,$8,$9,$10,$11);
+		$$=new AstSelectStmt(AST_SELECT_STMT, $2,$3,$6,$7,$8,$9,$10,$11,$4);
 	}
 	;
 
@@ -539,7 +549,12 @@ opt_limit: 	 				{ $$ = NULL; }
   	; 
 
 opt_into_list:			{ $$=NULL; }
-   | INTO column_list 	{ $$=NULL;}
+   | INTO table_factor PARTITIONED ON NAME	{ $$= new AstSelectIntoClause(AST_SELECT_INTO_CLAUSE, $2, string($5),1);}
+   | INTO table_factor NUMBER COMPARISON INTNUM PARTITIONED ON NAME
+   	{ 
+		if ($4 != 4) { yyerror(result,"please give a specific number"); } 
+		else    { $$= new AstSelectIntoClause(AST_SELECT_INTO_CLAUSE, $2, string($8),atoi($5)); }
+	}
    ;
 
 column_list: 
@@ -547,6 +562,7 @@ column_list:
   	| NAME ',' column_list 	{ $$ = new AstColumn(AST_COLUMN, string("NULL"), string($1), $3);}
   	;
 
+/*
 select_opts:							{ $$ = 0; }
 	| select_opts ALL					{ if($$ & 1) yyerror(result,"duplicate ALL option"); $$ = $1 | 1; }
 	| select_opts DISTINCT				{ if($$ & 2) yyerror(result,"duplicate DISTINCT option"); $$ = $1 | 2; }
@@ -557,7 +573,19 @@ select_opts:							{ $$ = 0; }
 	| select_opts SQL_BIG_RESULT      	{ if($$ & 64) yyerror(result,"duplicate SQL_BIG_RESULT option"); $$ = $1 | 64; }
 	| select_opts SQL_CALC_FOUND_ROWS 	{ if($$ & 128) yyerror(result,"duplicate SQL_CALC_FOUND_ROWS option"); $$ = $1 | 128; }
     ;
-
+*/
+select_opts:                      { $$ = NULL; }
+	| DISTINCT                      { $$ = new AstDistinctClause(AST_DISTINCT_CLAUSE, NULL, 1); }           
+	| DISTINCT ON '(' distinct_list ')'	{ $$ = new AstDistinctClause(AST_DISTINCT_CLAUSE, $4, 2); }
+	| ALL { $$ = new AstDistinctClause(AST_DISTINCT_CLAUSE, NULL, 0); }
+	| DISTINCT  distinct_list  { $$ = new AstDistinctClause(AST_DISTINCT_CLAUSE, $2, 3); }
+	;
+	
+distinct_list: 
+	expr 					{ $$ = new AstDistinctList(AST_DISTINCT_LIST, $1, NULL); }
+	| expr ',' distinct_list { $$ = new AstDistinctList(AST_DISTINCT_LIST, $1, $3); }
+	;
+	
 select_expr_list:
 	select_expr							{ $$ = new AstSelectList(AST_SELECT_LIST, 0,$1,NULL);}
     | select_expr ',' select_expr_list	{ $$ = new AstSelectList(AST_SELECT_LIST, 0,$1,$3);}
@@ -744,7 +772,13 @@ expr: FCOUNT '(' '*' ')'	                    { $$ = new AstExprUnary(AST_EXPR_UN
 	| FAVG '(' expr ')'                         { $$ = new AstExprUnary(AST_EXPR_UNARY, "AVG",	 	 $3); }
 	| FMIN '(' expr ')'                         { $$ = new AstExprUnary(AST_EXPR_UNARY, "MIN",	 	 $3); }
 	| FMAX '(' expr ')'                         { $$ = new AstExprUnary(AST_EXPR_UNARY, "MAX",	 	 $3); }
-   
+	| TO_CHAR '(' expr ')'                      { $$ = new AstExprUnary(AST_EXPR_UNARY, "TO_CHAR",	 $3); }
+	| TO_CHAR '(' select_opts ')'               { $$ = new AstExprUnary(AST_EXPR_UNARY, "TO_CHAR",	 $3); }
+   | FCOUNT '(' select_opts ')'	              { $$ = new AstExprUnary(AST_EXPR_UNARY, "COUNT",	 $3);    }
+   | FSUM '(' select_opts ')'                  { $$ = new AstExprUnary(AST_EXPR_UNARY, "SUM",	 	 $3); }
+	| FAVG '(' select_opts ')'                  { $$ = new AstExprUnary(AST_EXPR_UNARY, "AVG",	 	 $3); }
+	| FMIN '(' select_opts ')'                  { $$ = new AstExprUnary(AST_EXPR_UNARY, "MIN",	 	 $3); }
+	| FMAX '(' select_opts ')'                  { $$ = new AstExprUnary(AST_EXPR_UNARY, "MAX",	 	 $3); }
    ;
    
 expr: FSUBSTRING '(' expr ',' expr ')'		    { $$ = new AstExprFunc(AST_EXPR_FUNC, "SUBSTRING_EXPR_EXPR", 				$3, $5, 	NULL); }
@@ -998,16 +1032,32 @@ stmt: load_table_stmt	                    { $$ = $1;}
 load_table_stmt: LOAD TABLE NAME FROM expr_list WITH STRING ',' STRING SAMPLE COMPARISON APPROXNUM
 		{
 		  if ($11 != 4) { yyerror(result,"please give a specific number"); } 
-		  else {$$ = new AstLoadTable(AST_LOAD_TABLE, string($3), $5, string($7), string($9), atof($12), 0);}
+		  else {$$ = new AstLoadTable(AST_LOAD_TABLE, string($3), $5, string($7), string($9), atof($12), 1);}
 		}
-	| LOAD TABLE NAME FROM expr_list WITH STRING ',' STRING { $$ = new AstLoadTable(AST_LOAD_TABLE, string($3), $5, string($7), string($9), 1.0, 0);}
-	| APPEND TABLE NAME FROM expr_list WITH STRING ',' STRING { $$ = new AstLoadTable(AST_LOAD_TABLE, string($3), $5, string($7), string($9), 1.0, 1);}
+	| LOAD TABLE NAME FROM expr_list WITH STRING ',' STRING { $$ = new AstLoadTable(AST_LOAD_TABLE, string($3), $5, string($7), string($9), 1.0, 1);}
+	| APPEND TABLE NAME FROM expr_list WITH STRING ',' STRING { $$ = new AstLoadTable(AST_LOAD_TABLE, string($3), $5, string($7), string($9), 1.0, 2);}
 	| APPEND TABLE NAME FROM expr_list WITH STRING ',' STRING SAMPLE COMPARISON APPROXNUM 
 		{ if ($11 != 4) { yyerror(result,"please give a specific number"); } 
-		 else {$$ = new AstLoadTable(AST_LOAD_TABLE, string($3), $5, string($7), string($9), atof($12), 1);}
+		 else {$$ = new AstLoadTable(AST_LOAD_TABLE, string($3), $5, string($7), string($9), atof($12), 2);}
 		}
 	;
 
+	/** export table **/	
+stmt: export_table_stmt	                    { $$ = $1;}
+	;
+	
+export_table_stmt: EXPORT TABLE NAME INTO expr_list WITH STRING ',' STRING
+      { 
+      $$ = new AstExportTable(AST_EXPORT_TABLE, string($3), $5, string($7), string($9), NULL);
+
+           }
+	;
+export_table_stmt: EXPORT INTO expr_list WITH STRING ',' STRING select_stmt
+      { 
+      $$ = new AstExportTable(AST_EXPORT_TABLE, "", $3, string($5), string($7),$8);
+      
+           }
+    ;	
 	/** drop index **/	
 stmt: drop_index_stmt                       { $$ = $1; /*output($$, 1); puts("SQL parser： This is a drop_index statement");*/ }
     ;
@@ -1038,8 +1088,8 @@ drop_table_stmt:
 	
 table_list: NAME 					        { $$ = new AstDropTableList(AST_DROP_TABLE_LIST, "", string($1), NULL); }
 	| NAME '.' NAME				            { $$ = new AstDropTableList(AST_DROP_TABLE_LIST, string($1), string($3), NULL); }
-	| table_list ',' NAME			        { $$ = new AstDropTableList(AST_DROP_TABLE_LIST, "", string($3), $1); }
-	| table_list ',' NAME '.' NAME	        { $$ = new AstDropTableList(AST_DROP_TABLE_LIST, string($3), string($5), $1); }
+	| NAME ',' table_list			        { $$ = new AstDropTableList(AST_DROP_TABLE_LIST, "", string($1), $3); }
+	| NAME '.' NAME ',' table_list	        { $$ = new AstDropTableList(AST_DROP_TABLE_LIST, string($1), string($3), $5); }
 	;
 
 opt_rc: /* nil */ 	                        { $$ = 0; }
@@ -1047,6 +1097,24 @@ opt_rc: /* nil */ 	                        { $$ = 0; }
    | CASCADE 		                        { $$ = 2; }
    ;
 
+   /** drop projection **/	
+stmt: drop_projection_stmt                       { $$ = $1; /*output($$, 1); puts("SQL parser： This is a drop_projection statement"); */}
+
+drop_projection_stmt: 
+	DROP PROJECTION FROM NAME  { $$ = new AstDropProjection(AST_DROP_PROJECTION, string($4),1,NULL); }
+	| DROP PROJECTION INTNUM FROM NAME 
+											{ $$ = new AstDropProjection(AST_DROP_PROJECTION, string($5),0,atoi($3));}
+	;
+	
+
+
+   /** truncate table **/	
+stmt: truncate_table_stmt              { $$ = $1; /*output($$, 1); puts("SQL parser： This is a truncate statement"); */}
+
+truncate_table_stmt:
+	TRUNCATE TABLE table_list 			{ $$ = new AstTruncateTable(AST_TRUNCATE_TABLE,$3,"",""); } 
+	| TRUNCATE PROJECTION INTNUM FROM NAME		       { $$ = new AstTruncateTable(AST_TRUNCATE_TABLE,NULL,string($5),atoi($3)); } 
+	;
 
 /* statements: insert statement */	
 
@@ -1199,7 +1267,17 @@ delete_list: NAME opt_dot_star {  }
 opt_dot_star: /* nil */ 
    | '.' '*' 
    ;
-   
+
+stmt: update_stmt { $$ = $1; }
+   ;
+
+update_stmt: UPDATE table_factor SET update_set_list opt_where { $$ = new AstUpdateStmt(AST_UPDATE_STMT, $4, $2, $5); }
+   ;
+
+update_set_list: expr COMPARISON expr { $$ = new AstUpdateSetList(AST_UPDATE_SET_LIST, $1, $3, NULL); }
+   | update_set_list ',' expr COMPARISON expr { $$ = new AstUpdateSetList(AST_UPDATE_SET_LIST, $3, $5, $1); }
+   ;
+
 %%
 
 void emit(char *s, ...)
@@ -1297,4 +1375,3 @@ void yyerror(struct ParseResult *pp,const char *  s, ...) {
   vfprintf(stderr, s, ap);
   fprintf(stderr, "\n");
 }
-

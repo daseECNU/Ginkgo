@@ -37,7 +37,12 @@ function load_config()
     getcfg $config enable_codegen enable_codegen 
     getcfg $config load_thread_num load_thread_num
     getcfg $config memory_utilization memory_utilization
-
+    getcfg $config hash_join_bucket_num hash_join_bucket_num
+    getcfg $config hash_join_bucket_size hash_join_bucket_size
+    getcfg $config expander_buffer_size expander_buffer_size
+    getcfg $config zookeeper_host_list  zookeeper_host_list
+    getcfg $config zk_znode_name zk_znode_name
+    getcfg $config enable_parquet enable_parquet
 }
 
 function currdir()
@@ -69,6 +74,10 @@ echo "client_listener_port :                [$client_listener_port]"
 echo "enable_codegen :                      [$enable_codegen]"
 echo "load_thread_num :                     [$load_thread_num]"
 echo "memory_utilization :                  [$memory_utilization]"
+echo "hash_join_bucket_num :                [$hash_join_bucket_num]"
+echo "hash_join_bucket_size :               [$hash_join_bucket_size]"
+echo "zookeeper_host_list   :               [$zookeeper_host_list]"
+echo "catalog_znode_name    :               [$zk_znode_name]"
 echo "=========cluster config end=========="
 }
 

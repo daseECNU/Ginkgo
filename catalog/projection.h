@@ -74,11 +74,13 @@ class ProjectionDescriptor {
                          PartitionFunction* partition_functin);
   Partitioner* getPartitioner() const;
   bool isExist(const string& name) const;
+  bool isExist1(const string& name) const;
   inline void setProjectionID(const ProjectionID& pid) { projection_id_ = pid; }
   inline map<string, set<string> > getFileLocations() const {
     return fileLocations;
   }
   inline ProjectionID getProjectionID() const { return projection_id_; }
+  inline vector<Column> getColumnList() const { return column_list_; }
   bool AllPartitionBound() const;
   std::vector<Attribute> getAttributeList() const;
   Schema* getSchema() const;

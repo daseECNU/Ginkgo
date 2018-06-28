@@ -31,6 +31,7 @@
 
 #include "../catalog/projection_binding.h"
 
+#include <glog/logging.h>
 #include <vector>
 #include "../Environment.h"
 #include "../utility/maths.h"
@@ -48,13 +49,20 @@ ProjectionBinding::~ProjectionBinding() {
 
 bool ProjectionBinding::BindingEntireProjection(
     Partitioner* part, const StorageLevel& desriable_storage_level) {
+  lock_.acquire();
+  if (part->allPartitionBound()) {
+    LOG(WARNING) << "occurr to competition that sending binding message"
+                 << endl;
+    lock_.release();
+    return true;
+  }
   if (part->get_binding_mode_() == OneToOne) {
     std::vector<std::pair<unsigned, NodeID> > partition_id_to_nodeid_list;
     ResourceManagerMaster* rmm =
         Environment::getInstance()->getResourceManagerMaster();
     std::vector<NodeID> node_id_list = rmm->getSlaveIDList();
     unsigned allocate_cur = 0;
-    allocate_cur = GetRandomInt(node_id_list.size());
+    //    allocate_cur = GetRandomInt(node_id_list.size());
     for (unsigned i = 0; i < part->getNumberOfPartitions(); i++) {
       NodeID target = node_id_list[allocate_cur];
 
@@ -124,19 +132,21 @@ bool ProjectionBinding::BindingEntireProjection(
       //
       //      BlockManagerMaster::getInstance()->SendBindingMessage(partition_id,number_of_chunks,MEMORY,target);
     }
-    /* conduct the binding according to the bingding information list*/
+
+    /* conduct the binding according to the binding information list*/
     for (unsigned i = 0; i < partition_id_to_nodeid_list.size(); i++) {
       const unsigned partition_off = partition_id_to_nodeid_list[i].first;
       const NodeID node_id = partition_id_to_nodeid_list[i].second;
-      /* update the information in Catalog*/
-      part->bindPartitionToNode(partition_off, node_id);
-
       /* notify the StorageManger of the target node*/
       PartitionID partition_id(part->getProejctionID(), partition_off);
       const unsigned number_of_chunks = part->getPartitionChunks(partition_off);
       BlockManagerMaster::getInstance()->SendBindingMessage(
           partition_id, number_of_chunks, desriable_storage_level, node_id);
+      /* update the information in Catalog*/
+      part->bindPartitionToNode(partition_off, node_id);
     }
+
+    lock_.release();
     return true;
   }
 
@@ -152,25 +162,28 @@ bool ProjectionBinding::UnbindingEntireProjection(Partitioner* part) {
     ResourceManagerMaster* rmm =
         Environment::getInstance()->getResourceManagerMaster();
     for (int i = 0; i < part->getNumberOfPartitions(); i++) {
-      unsigned budget = part->getPartitionDataSize(i);
-      switch (DESIRIABLE_STORAGE_LEVEL) {
-        case MEMORY: {
-          rmm->ReturnMemoryBuget(part->getPartitionLocation(i), budget);
-          break;
+      /* check the partition whether binds NodeID or not  --added by zyhe */
+      if (part->getPartitionLocation(i) >= 0) {
+        unsigned budget = part->getPartitionDataSize(i);
+        switch (DESIRIABLE_STORAGE_LEVEL) {
+          case MEMORY: {
+            rmm->ReturnMemoryBuget(part->getPartitionLocation(i), budget);
+            break;
+          }
+          case DISK: {
+            rmm->ReturnDiskBuget(part->getPartitionLocation(i), budget);
+            break;
+          }
+          default:
+            break;
         }
-        case DISK: {
-          rmm->ReturnDiskBuget(part->getPartitionLocation(i), budget);
-          break;
-        }
-        default:
-          break;
-      }
 
-      PartitionID partition_id(part->getProejctionID(), i);
-      NodeID node_id = part->getPartitionLocation(i);
-      BlockManagerMaster::getInstance()->SendUnbindingMessage(partition_id,
-                                                              node_id);
-      part->unbindPartitionToNode(i);
+        PartitionID partition_id(part->getProejctionID(), i);
+        NodeID node_id = part->getPartitionLocation(i);
+        BlockManagerMaster::getInstance()->SendUnbindingMessage(partition_id,
+                                                                node_id);
+        part->unbindPartitionToNode(i);
+      }
     }
     return true;
   }

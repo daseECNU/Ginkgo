@@ -30,9 +30,9 @@
 
 #include <string>
 #include "../stmt_handler/stmt_exec.h"
-#include "../stmt_handler/select_exec.h"
 #include "../stmt_handler/load_exec.h"
 #include "../stmt_handler/insert_exec.h"
+#include "../stmt_handler/update_stmt_exec.h"
 #include "./create_table_exec.h"
 #include "../Daemon/Daemon.h"
 #include "../sql_parser/parser/parser.h"
@@ -44,7 +44,14 @@ class StmtHandler {
   explicit StmtHandler(string sql_stmt);
   StmtHandler(string sql_stmt, ExecutedResult* exec_result);
   virtual ~StmtHandler();
-  RetCode Execute(ExecutedResult* exec_result);
+  RetCode Execute(ExecutedResult& result);
+  RetCode StmtParser(ExecutedResult& result);
+  RetCode StmtContentAnalysis(
+      ExecutedResult& result,
+      vector<vector<pair<int, string>>>& stmt_to_table_list);
+  RetCode GetTablesInfomation(
+      AstNode* stmt_ast, ExecutedResult& result,
+      vector<vector<pair<int, string>>>& stmt_to_table_list);
 
  private:
   RetCode GenerateStmtExec(AstNode* stmt_ast);
@@ -53,6 +60,7 @@ class StmtHandler {
   Parser* sql_parser_;
   string sql_stmt_;
   StmtExec* stmt_exec_;
+  AstStmtList* stmt_list_;
 };
 
 }  // namespace stmt_handler

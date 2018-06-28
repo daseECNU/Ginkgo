@@ -75,7 +75,8 @@ class PhysicalAggregation : public PhysicalOperator {
           unsigned bucket_size, unsigned block_size,
           std::vector<unsigned> avg_index, AggNodeType agg_node_type,
           vector<ExprNode *> group_by_attrs,
-          vector<ExprUnary *> aggregation_attrs, int count_column_id);
+          vector<ExprUnary *> aggregation_attrs,
+          map<unsigned, unsigned> avg_id_to_count);
     State() : hash_schema_(0), input_schema_(0), output_schema_(0), child_(0){};
     ~State(){};
     friend class boost::serialization::access;
@@ -83,7 +84,7 @@ class PhysicalAggregation : public PhysicalOperator {
     void serialize(Archive &ar, const unsigned int version) {
       ar &input_schema_ &output_schema_ &hash_schema_ &child_ &num_of_buckets_ &
           bucket_size_ &block_size_ &avg_index_ &agg_node_type_ &
-              group_by_attrs_ &aggregation_attrs_ &count_column_id_;
+              group_by_attrs_ &aggregation_attrs_ &avg_id_to_count_;
     }
 
    public:
@@ -98,7 +99,7 @@ class PhysicalAggregation : public PhysicalOperator {
     AggNodeType agg_node_type_;
     vector<ExprNode *> group_by_attrs_;
     vector<ExprUnary *> aggregation_attrs_;
-    int count_column_id_;
+    map<unsigned, unsigned> avg_id_to_count_;
   };
   PhysicalAggregation(State state);
   PhysicalAggregation();

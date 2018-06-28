@@ -97,7 +97,8 @@ enum nodetype {
   t_table_list,       // 2014-3-24---增加---by Yu
   t_load_table_stmt,  // 2014-3-24---add---by Yu
   t_show_stmt,        // 2014-5-4---add---by Yu
-  t_drop_stmt
+  t_drop_stmt,
+  t_export_stmt
 };
 
 // 2014-4-14---delete union dataval, because only char* is need---by Yu
@@ -611,6 +612,15 @@ struct Show_stmt  // 2014-5-4---add ---by Yu
   char *like_string;
 };
 
+
+struct Exporttable_stmt {
+  nodetype type;
+  char *table_name;
+  Node *path;
+  char *column_separator;
+  char *tuple_separator;
+};
+
 //////////////////////////未完待续////////////////////////////////////////
 
 /******************DDL语句结束********************************************
@@ -784,6 +794,10 @@ struct Node *newLoadTable(nodetype type, char *table_name, Node *path,
 Node *newShowStmt(int show_type, bool full, char *database_name,
                   char *like_string, vector<Node *> *allnode);
 
+
+struct Node *newExportTable(nodetype type, char *table_name, Node *path,
+                          char *column_separator, char *tuple_separator,
+                          vector<Node *> *allnode);
 //////////////////////////////////////////////////////////////////////////////////////////
 
 inline void insertNodePointer(Node *a, vector<Node *> *allnode);

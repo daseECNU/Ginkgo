@@ -81,8 +81,8 @@ class Daemon {
  public:
   static Daemon* getInstance();
   static void* worker(void*);
-
   void addRemoteCommand(const remote_command& rc);
+  void addExecutedResult(const ExecutedResult& item);
 
   ExecutedResult getExecutedResult();
 
@@ -90,7 +90,6 @@ class Daemon {
   Daemon();
   virtual ~Daemon();
   remote_command getRemoteCommand();
-  void addExecutedResult(const ExecutedResult& item);
 
  private:
   static Daemon* instance_;
