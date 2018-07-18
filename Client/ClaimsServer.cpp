@@ -20,6 +20,7 @@
 #include "../catalog/catalog.h"
 #include "../Daemon/Daemon.h"
 #include "../common/Logging.h"
+#include "../httpserver/connection.hpp"
 
 // ClientListener::standard_input = dup(STD)
 int ClientListener::standard_input = dup(STDIN_FILENO);
@@ -36,6 +37,14 @@ ClientListener::ClientListener(int port) {
   m_port = port;
 }
 
+int check_sock_fd(int fd_) {
+  if (fd_ < 0) return -fd_;
+  httpserver::ResultString &rs = httpserver::GetResultString();
+  for (int i = 0; i < rs.connection_max_number_; i++) {
+    if (rs.sock_fd_[i] == fd_) return i;
+  }
+  return -1;
+}
 ClientListener::~ClientListener() { delete[] m_clientFds; }
 
 int ClientListener::addClient(const int fd) {
@@ -71,7 +80,7 @@ int ClientListener::receiveRequest(const int fd, const char *cmd) {
   remote_command rcmd;
   rcmd.socket_fd = fd;
   //	rcmd.cmd.append(cmd);
-  cout << cmd << endl;
+  // cout << cmd << endl;
   rcmd.cmd = std::string(cmd);
 
   Daemon::getInstance()->addRemoteCommand(rcmd);
@@ -241,7 +250,7 @@ void *ClientListener::receiveHandler(void *para) {
               checkFdValid(clientSockFd);
 
               printf("open communication with client, %d\n", clientSockFd);
-
+              // printf("wait 10 seconds");
               //						server->m_clientFds[server->m_num++]
               //= clientSockFd;
               server->addClient(clientSockFd);
@@ -739,8 +748,33 @@ void *ClientListener::sendHandler(void *para) {
     printf("-SendHandler: get ExecutedResult for %d\n", result.fd_);
     ClientListenerLogging::log("-SendHandler: get ExecutedResult for %d\n",
                                result.fd_);
-
     checkFdValid(result.fd_);
+    /* check the result .
+     *
+     */
+    // not send back, just system table
+    if (result.fd_ == -1) {
+      // do nothing
+      if (NULL != result.result_) {
+        delete result.result_;
+        result.result_ = NULL;
+        cout << "delete result in memory" << endl;
+      }
+      continue;
+    }
+    int temp = check_sock_fd(result.fd_);
+
+    if (temp != -1) {
+      cout << "server get the result!" << endl;
+      httpserver::ResultString &rs = httpserver::GetResultString();
+
+      httpserver::mutex_.lock();
+      rs.result_got_[temp] = true;
+      rs.result_[temp] = result;
+
+      httpserver::mutex_.unlock();
+      continue;
+    }
 
     if (result.status_ == true) {
       // OK

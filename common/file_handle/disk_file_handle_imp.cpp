@@ -223,8 +223,6 @@ RetCode DiskFileHandleImp::SetPosition(size_t pos) {
 
 RetCode DiskFileHandleImp::Append(const void* buffer, const size_t length) {
   int ret = rSuccess;
-  //  RefHolder holder(reference_count_);
-
   EXEC_AND_RETURN_ERROR(ret, SwitchStatus(kInAppending),
                         "failed to switch status");
   assert(fd_ >= 3);
@@ -243,8 +241,6 @@ RetCode DiskFileHandleImp::AtomicAppend(const void* buffer, const size_t length,
 
 RetCode DiskFileHandleImp::OverWrite(const void* buffer, const size_t length) {
   int ret = rSuccess;
-  //  RefHolder holder(reference_count_);
-
   EXEC_AND_RETURN_ERROR(ret, SwitchStatus(kInOverWriting),
                         "failed to switch status");
   assert(fd_ >= 3);
@@ -286,8 +282,6 @@ RetCode DiskFileHandleImp::DeleteFile() {
 RetCode DiskFileHandleImp::OverWriteNoCompress(const void* buffer,
                                                const size_t length) {
   int ret = rSuccess;
-  //  RefHolder holder(reference_count_);
-
   EXEC_AND_RETURN_ERROR(ret, SwitchStatus(kInOverWriting),
                         "failed to switch status");
   assert(fd_ >= 3);
@@ -300,8 +294,6 @@ RetCode DiskFileHandleImp::OverWriteNoCompress(const void* buffer,
 RetCode DiskFileHandleImp::AppendNoCompress(const void* buffer,
                                             const size_t length) {
   int ret = rSuccess;
-  //  RefHolder holder(reference_count_);
-
   EXEC_AND_RETURN_ERROR(ret, SwitchStatus(kInAppending),
                         "failed to switch status");
   assert(fd_ >= 3);
@@ -315,8 +307,6 @@ RetCode DiskFileHandleImp::WriteNoCompress(const void* buffer,
   assert(fd_ >= 3);
   assert((kInOverWriting == file_status_ || kInAppending == file_status_) &&
          " files is not opened in writing mode");
-  //  RefHolder holder(reference_count_);
-
   size_t total_write_num = 0;
   while (total_write_num < length) {
     ssize_t write_num =

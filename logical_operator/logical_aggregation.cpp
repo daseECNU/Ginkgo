@@ -1,4 +1,3 @@
-
 /*
  * Copyright [2012-2015] DaSE@ECNU
  *
@@ -477,7 +476,7 @@ void LogicalAggregation::Print(int level) const {
   cout << setw((level - 1) * kTabSize) << " "
        << "## group by attributes:" << endl;
   for (int i = 0; i < group_by_attrs_.size(); ++i) {
-    cout << "    " << group_by_attrs_[i]->alias_ << endl;
+    cout << setw(level * kTabSize) << " " << group_by_attrs_[i]->alias_ << endl;
   }
   cout << setw((level - 1) * kTabSize) << " "
        << "## aggregation attributes:" << endl;

@@ -254,7 +254,6 @@ bool Catalog::IsDataFileExist() {
 RetCode Catalog::restoreCatalog() {
   int ret = rSuccess;
   string catalog_file = Config::zk_znode_name;
-  //  LockGuard<Lock> guard(write_lock_);
 
   // check whether there is catalog file if there are data file
   if (!read_connector_->CanAccess()) {  // !read_connector_->CanAccess() &&

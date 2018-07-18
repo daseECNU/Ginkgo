@@ -34,36 +34,23 @@
 namespace claims {
 namespace common {
 
-//
 RetCode ZkFileHandleImp::SwitchStatus(FileStatus status_to_be) {
   int old_file_status = file_status_;
   int flag;
   if (kInReading == status_to_be && kInReading != file_status_) {
-    // Close();
-    // file_ = hdfsOpenFile(fs_, file_name_.c_str(), O_RDONLY, 0, 0, 0);
     flag = zoo_wexists(zh_, zk_znode_name_, zk_wexists_watcher, (void*)"test",
                        NULL);
   } else if (kInOverWriting == status_to_be) {
-    // Close();
-    // file_ = hdfsOpenFile(fs_, file_name_.c_str(), O_WRONLY, 0, 0, 0);
     flag = zoo_wexists(zh_, zk_znode_name_, zk_wexists_watcher, (void*)"test",
                        NULL);
   } else if (kInAppending == status_to_be && kInAppending != file_status_) {
-    // Close();
-
     flag = zoo_wexists(zh_, zk_znode_name_, zk_wexists_watcher, (void*)"test",
                        NULL);
-    // file_ = hdfsOpenFile(fs_, file_name_.c_str(), O_WRONLY | O_APPEND, 0, 0,
-    // 0);
   } else {
     return rSuccess;
   }
 
   if (flag != ZOK) {
-    //    PLOG(INFO) << "failed to reopen ZNode:" << file_name_ << "("
-    //                << file_status_info[old_file_status] << ")  in mode "
-    //                << file_status_info[status_to_be] << " .";
-    //    return rOpenHdfsFileFail;
     PLOG(INFO) << "The ZNode : " << zk_znode_name_ << "is not exists...";
     PLOG(INFO) << "creating ZNode ....";
 
@@ -75,11 +62,8 @@ RetCode ZkFileHandleImp::SwitchStatus(FileStatus status_to_be) {
       LOG(INFO) << "Error when create Znode..." << endl;
     }
   } else {
-    //    can_close_.set_value(1);
     file_status_ = status_to_be;
     LOG(INFO) << "Znode : " << zk_znode_name_ << "is exists";
-    //              << file_status_info[old_file_status] << ") is reopened for "
-    //              << file_status_info[file_status_] << endl;
     return rSuccess;
   }
 }
@@ -115,8 +99,6 @@ RetCode ZkFileHandleImp::ReadTotalFile(void*& buffer, size_t* length) {
   flag = zoo_get(zh_, zk_znode_name_, 0, static_cast<char*>(buffer), &bufferlen,
                  NULL);
 
-  // for(int i=0;i<bufferlen;i)(char*)buffer[i]=buffer_[i];
-  //*buffer = *buffer_;
   *length = bufferlen;
   if (flag == ZOK)
     return rSuccess;

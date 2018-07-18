@@ -12,17 +12,18 @@ PortManager:
 coordinator:
 {
     ip="127.0.0.1"
-    port="10010"
+    port="20000"
 }
 
 # whether this instance is the master.
 master = 1
 
 #hadoop上的数据目录
-data = "/home/he/imdb/data/1partition/"
+#the path for data
+data="/home/zzh/data/http/"
 
 #hdfs主节点
-hdfs_master_ip = "127.0.0.1"
+hdfs_master_ip="10.11.1.192"
 
 #hdfs主节点端口
 hdfs_master_port = 9000
@@ -31,7 +32,7 @@ hdfs_master_port = 9000
 max_degree_of_parallelism=4
 
 #初始单机算子并行度
-initial_degree_of_parallelism=1
+initial_degree_of_parallelism=4
 
 expander_adaptivity_check_frequency=1000
 
@@ -39,7 +40,7 @@ enable_expander_adaptivity=1
 
 # 0: hdfs
 # 1: local
-local_disk_mode = 0
+local_disk_mode = 1
 
 client_listener_port = 10000
 
@@ -53,13 +54,39 @@ load_thread_num = 4
 
 memory_utilization = 80
 
+
 hash_join_bucket_num = 1048576
 
 hash_join_bucket_size = 1024
 
 zk_znode_name="/Catalog_test"
 
-zookeeper_host_list = "127.0.0.1:2181"
+#scan_batch=100
+
+#enable llvm codegen or not
+#enable_codegen=0
+#
+#the httpserver info
+#http监听的ip
+#httpserver_master_ip="219.228.147.183"
+
+#httpserver_master_port="8097"
+#http服务线程数目
+#httpserver_thread_num="4"
+
+# jdbc监听端口
+jdbc_port = 12040
+
+#zookeeper_host_list = "127.0.0.1:2181"
 
 #千兆网一般设为3000 万兆网设为20000
-expander_buffer_size = 3000
+#expander_buffer_size = 3000
+
+#kerberos监听端口号
+#krb_listen_port=10010
+
+#kerberos的keyfile
+#krb_server_keyfile = "keyfile"
+#
+#kerberos_notify_port = 20000
+

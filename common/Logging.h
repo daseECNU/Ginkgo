@@ -302,4 +302,7 @@ static void Logging_BlockStreamExchangeLowerBase(const char* format, ...) {
 void SQLParse_log(const char* format, ...);
 void SQLParse_elog(const char* format, ...);
 
+void MySqlElog(const char* format, ...);
+void MySqlLog(const char* format, ...);
+
 #endif /* LOGGING_H_ */

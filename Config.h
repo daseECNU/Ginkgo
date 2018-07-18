@@ -81,6 +81,13 @@ class Config {
   static std::string catalog_file;
   static int thread_pool_init_thread_num;
   static int memory_utilization;
+  static std::string httpserver_master_ip;
+  static std::string httpserver_master_port;
+  static std::string httpserver_thread_num;
+  static std::string httpserver_doc_root;
+  static int mysql_port;
+  // not used now
+  static std::string mysql_password;
   static std::string zk_znode_name;
   static int load_thread_num;
   static std::string zookeeper_host_list;

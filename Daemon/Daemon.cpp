@@ -127,6 +127,7 @@ void Daemon::addRemoteCommand(const remote_command& rc) {
   lock_->acquire();
   remote_command_queue_.push_back(rc);
   lock_->release();
+  cout <<".String is :"<< rc.cmd <<"." << endl;
   semaphore_command_queue_.post();
   //  cout<<"post command queue semaphore"<<endl;
 }

@@ -3,7 +3,9 @@ AM_CPPFLAGS=-fPIC  -DTHERON_XS\
 -I${JAVA_HOME}/include\
 -I${JAVA_HOME}/include/linux \
 -I${BOOST_HOME} \
+-I${BOOST_HOME}/boost/asio \
 -I${BOOST_HOME}/boost/serialization \
+-I${CONNECT_HOME}/include/jdbc \
 -I${GTEST_HOME}/include \
 -I${CAF_HOME}/libcaf_io	\
 -I${CAF_HOME}/libcaf_core\
@@ -15,9 +17,10 @@ AM_CPPFLAGS=-fPIC  -DTHERON_XS\
 #-L/usr/local/lib \
 #-L/usr/local/lib \-lprofiler
 #-I/usr/local/include
-AM_LDFLAGS=  -lc -lm -lrt -lcaf_core -lcaf_io -lpthread -lboost_serialization -lboost_date_time -lboost_system  \
+
+AM_LDFLAGS=  -lc -lm -lrt -lcaf_core -lcaf_io -lpthread -lboost_serialization -lboost_date_time -lboost_system -lmysqlcppconn \
 	-lconfig++ -lxs -lnuma -lreadline -lhistory -lz -ltinfo -Wl,--no-as-needed -ldl -rdynamic -lglog  -lsnappy \
-	 -lthrift -DTHREAD -lzookeeper_mt
+	 -lthrift -DTHREAD -lzookeeper_mt -lboost_thread-mt
 
 	
 if OPT_TCMALLOC
@@ -65,6 +68,9 @@ LDADD =  \
 	common/types/Test/libtest.a \
 	common/types/ttmath/libttmath.a \
 	utility/libutility.a \
+	httpserver/libhttpserver.a\
+	mysql/libmysql.a\
+   mysql/packet/libpacket.a \
 	${CAF_HOME}/build/lib/libcaf_core.so \
 	${CAF_HOME}/build/lib/libcaf_io.so \
 	${BOOST_HOME}/stage/lib/libboost_serialization.a \
@@ -74,7 +80,7 @@ LDADD =  \
 	${JAVA_HOME}/jre/lib/amd64/server/libjvm.so\
 	${GTEST_HOME}/libgtest.a \
 	${GLOG_HOME}/.libs/libglog.so.0 \
-      ${KERBEROS_HOME}/src/lib/libkrb5.so\
+    ${KERBEROS_HOME}/src/lib/libkrb5.so\
 	-lLLVMJIT -lLLVMX86Disassembler -lLLVMX86AsmParser -lLLVMX86CodeGen -lLLVMSelectionDAG -lLLVMAsmPrinter \
 	-lLLVMMCParser -lLLVMCodeGen -lLLVMScalarOpts -lLLVMInstCombine -lLLVMTransformUtils -lLLVMipa -lLLVMAnalysis \
 	-lLLVMX86Desc -lLLVMX86Info -lLLVMX86AsmPrinter -lLLVMX86Utils -lLLVMMCJIT -lLLVMTarget -lLLVMRuntimeDyld \
@@ -111,9 +117,9 @@ test_SOURCES = Test/gtest_main.cpp\
 				
 SUBDIRS=  catalog Client common Daemon Executor IndexManager\
 loader physical_operator logical_operator  Resource \
-storage Test utility codegen sql_parser stmt_handler  node_manager exec_tracker
+storage Test utility codegen sql_parser stmt_handler  node_manager exec_tracker httpserver mysql
 
 DIST_SUBDIRS =  catalog Client common Daemon Executor IndexManager\
 loader physical_operator logical_operator  Resource \
-storage Test utility codegen sql_parser stmt_handler node_manager exec_tracker
+storage Test utility codegen sql_parser stmt_handler node_manager exec_tracker httpserver mysql
 

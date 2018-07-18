@@ -95,6 +95,19 @@ int Config::load_thread_num;
 int Config::memory_utilization;
 std::string Config::zk_znode_name;
 
+std::string Config::httpserver_master_ip;
+
+std::string Config::httpserver_master_port;
+
+std::string Config::httpserver_thread_num;
+
+// not used
+std::string Config::httpserver_doc_root;
+
+int Config::mysql_port;
+
+std::string Config::mysql_password;
+
 std::string Config::zookeeper_host_list;
 
 std::string Config::krb_listen_address;
@@ -106,6 +119,7 @@ int Config::hash_join_bucket_num;
 int Config::hash_join_bucket_size;
 int Config::expander_buffer_size;
 int Config::kerberos_notify_port;
+
 Config *Config::getInstance() {
   if (instance_ == 0) {
     instance_ = new Config();
@@ -169,6 +183,18 @@ void Config::initialize() {
 
   memory_utilization = getInt("memory_utilization", 100);
 
+  httpserver_master_ip = getString("httpserver_master_ip", "127.0.0.1");
+
+  httpserver_master_port = getString("httpserver_master_port", "8097");
+
+  httpserver_thread_num = getString("httpserver_thread_num", "50");
+
+  httpserver_doc_root = getString("httpserver_doc_root", "/home/imdb/doc_root");
+
+  mysql_port = getInt("jdbc_port", 3306);
+
+  mysql_password = getString("mysql_password", "imdb");
+
   enable_prune_column = getBoolean("enable_prune_column", true);
 
   enable_parquet = getBoolean("enable_parquet", true);
@@ -179,7 +205,7 @@ void Config::initialize() {
 
   zookeeper_host_list = getString("zookeeper_host_list", "127.0.0.1:2181");
 
-  krb_listen_address = getString("krb_listen_address", "10010");
+  krb_listen_address = getString("krb_listen_port", "10010");
 
   krb_server_keyfile = getString("krb_server_keyfile", "keyfile");
 
@@ -195,8 +221,7 @@ void Config::initialize() {
 
   kerberos_notify_port = getInt("kerberos_notify_port", 15000);
 
-#ifdef DEBUG_Config
-  print_configure();
+#ifdef DEBUG_Config print_configure();
 #endif
 }
 
