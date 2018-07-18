@@ -152,6 +152,7 @@ RetCode UnionExec::Execute() {
   }
 
   ret = UnionExec::Checkcolumn();
+  // cout << "ret" << ret << endl;
   if (ret != rSuccess) {
     LOG(ERROR) << "the columns are inequality." << endl;
     return ret;
@@ -371,16 +372,12 @@ RetCode UnionExec::Checkcolumn() {
         for (auto i : agg_attrs_) {
           string expr_type = i->expr_str_.substr(0, i->expr_str_.find('('));
           cout << "^^^^^^^" << expr_type << endl;
-          //          cout << "rrr"
-          //               <<
-          //               reinterpret_cast<AstExprUnary*>(select_expr->expr_)
-          //                      ->arg0_->expr_str_ << endl;
 
           if (expr_type == "AVG") {
             cout << "jj" << expr_type << endl;
             //  break;
 
-            column_type_list_.push_back(t_double);
+            column_type_list_.push_back(t_u_long);
           } else if (expr_type == "SUM") {
             cout << "jj" << expr_type << endl;
             column_type_list_.push_back(t_double);
@@ -406,7 +403,7 @@ RetCode UnionExec::Checkcolumn() {
 
           } else if (expr_type == "COUNT") {
             cout << "jj" << expr_type << endl;
-            column_type_list_.push_back(t_double);
+            column_type_list_.push_back(t_u_long);
 
             // break;
           }
@@ -498,9 +495,7 @@ RetCode UnionExec::Checkcolumn() {
     } else {
       cout << "i>0" << endl;
       vector<data_type>::iterator pos = column_type_list_.begin();
-      int column_num = 1;
       while (NULL != select_list) {
-        column_num++;
         if (select_list->is_all_) {
           //遍历from_list,获取全部table将所有table的column放入结构体or对比结构体。
 
@@ -515,9 +510,9 @@ RetCode UnionExec::Checkcolumn() {
           break;
         }
 
+        AstSelectExpr* select_expr =
+            reinterpret_cast<AstSelectExpr*>(select_list->args_);
         for (auto i : agg_attrs_) {
-          if (agg_attrs_.size() != column_type_list_.size())
-            return rUnionnomatch;
           string expr_type = i->expr_str_.substr(0, i->expr_str_.find('('));
           cout << "^^^^^^^" << expr_type << endl;
           //          cout << "rrr"
@@ -530,7 +525,7 @@ RetCode UnionExec::Checkcolumn() {
             //  break;
 
             // column_type_list_.push_back(t_u_long);
-            if (!checktype(t_double, pos)) return rUnionnomatch;
+            if (!checktype(t_u_long, pos)) return rUnionnomatch;
           } else if (expr_type == "SUM") {
             cout << "jj" << expr_type << endl;
             // column_type_list_.push_back(t_double);
@@ -557,14 +552,11 @@ RetCode UnionExec::Checkcolumn() {
           } else if (expr_type == "COUNT") {
             cout << "jj" << expr_type << endl;
             //   column_type_list_.push_back(t_u_long);
-            if (!checktype(t_double, pos)) return rUnionnomatch;
+            if (!checktype(t_u_long, pos)) return rUnionnomatch;
             // break;
           }
         }
         if (agg_attrs_.size() > 0) break;
-
-        AstSelectExpr* select_expr =
-            reinterpret_cast<AstSelectExpr*>(select_list->args_);
 
         switch (select_expr->expr_->ast_node_type()) {
           case AST_COLUMN_ALL_ALL: {
@@ -633,10 +625,11 @@ RetCode UnionExec::Checkcolumn() {
         }
         //        pos++;
       }
-      if (column_num != column_type_list_.size()) return rUnionnomatch;
     }
+    // agg_attrs_.clear();
   }
   column_type_list_.clear();
+  agg_attrs_.clear();
   return ret;
 }
 
