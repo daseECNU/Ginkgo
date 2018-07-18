@@ -165,7 +165,6 @@ RetCode SelectExec::Execute() {
 //    LOG(ERROR) << "semantic analysis error result= : " << ret;
 //    return ret;
 //  }
-
 #ifdef PRINTCONTEXT
   select_ast_->Print();
   cout << "--------------begin push down condition ------------" << endl;

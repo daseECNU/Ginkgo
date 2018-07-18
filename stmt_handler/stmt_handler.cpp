@@ -40,6 +40,7 @@
 #include "../stmt_handler/drop_proj_exec.h"
 #include "../stmt_handler/show_exec.h"
 #include "../stmt_handler/export_exec.h"
+#include "../stmt_handler/union_stmt.h"
 #include "../utility/Timer.h"
 #include "../common/error_define.h"
 
@@ -120,6 +121,10 @@ RetCode StmtHandler::GenerateStmtExec(AstNode* stmt_ast) {
     }
     case AST_EXPORT_TABLE: {
       stmt_exec_ = new ExportExec(stmt_ast);
+      break;
+    }
+    case AST_UNION_STMT: {
+      stmt_exec_ = new UnionExec(stmt_ast, sql_stmt_);
       break;
     }
     default: {
@@ -264,6 +269,11 @@ RetCode StmtHandler::GetTablesInfomation(
     }
     case AST_EXPORT_TABLE: {
       stmt_exec_ = new ExportExec(stmt_ast);
+      stmt_exec_->GetWriteAndReadTables(result,stmt_to_table_list);
+      break;
+    }
+    case AST_UNION_STMT: {
+      stmt_exec_ = new UnionExec(stmt_ast, sql_stmt_);
       stmt_exec_->GetWriteAndReadTables(result, stmt_to_table_list);
       break;
     }

@@ -338,6 +338,7 @@ const int rCreateProjectionOnDelTableFailed = -14138;
 const int rNULLDropTableName = -14139;
 const int rStmtCancelled = -14140;
 const int rUnknowStmtType = -14141;
+const int rUnionnomatch = -14142;
 
 const int rDistinctInAggregationIsMoreThanOne = -14146;
 const int rDistinctInAggregationIsLessThanOne = -14147;
@@ -350,6 +351,7 @@ const int rRegisterToMasterError = -14302;
 const int rCouldnotFindCancelQueryId = -14400;
 const int rNetworkError = -14401;
 const int rSendingTimeout = -14402;
+const int rGetUnionChild = -14403;
 }  // end namespace common
 }  // end namespace claims
 

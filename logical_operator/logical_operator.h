@@ -60,7 +60,8 @@ enum OperatorType {
   kLogicalLimit,
   kLogicalSubquery,
   kLogicalDeleteFilter,
-  kLogicalOuterJoin
+  kLogicalOuterJoin,
+  kLogicalUnion
 };
 
 typedef PhysicalOperatorBase* PhysicalPlan;

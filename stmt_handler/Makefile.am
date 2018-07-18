@@ -47,5 +47,6 @@ libstmthandler_a_SOURCES = \
 	drop_proj_exec.cpp drop_proj_exec.h \
 	export_exec.cpp  export_exec.h\
 	trans_handler.cpp trans_handler.h \
-	drop_proj_exec.cpp drop_proj_exec.h
+	drop_proj_exec.cpp drop_proj_exec.h \
+	union_stmt.cpp  union_stmt.h
 	

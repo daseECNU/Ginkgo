@@ -51,6 +51,8 @@ libphysicalqueryplan_a_SOURCES = \
 	physical_nest_loop_join.h				physical_nest_loop_join.cpp	\
 	physical_delete_filter.h                physical_delete_filter.cpp \
 	physical_outer_hash_join.h              physical_outer_hash_join.cpp\
+	physical_union.h                    physical_union.cpp\
+	combine_tuple.cpp                   combine_tuple.h\
 	segment.cpp 							segment.h
 			
 SUBDIRS = 

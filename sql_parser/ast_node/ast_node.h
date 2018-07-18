@@ -127,7 +127,8 @@ enum AstNodeType {
   AST_UPDATE_SET_LIST,
   AST_DROP_PROJECTION,
   AST_TRUNCATE_TABLE,
-  AST_EXPORT_TABLE
+  AST_EXPORT_TABLE,
+  AST_UNION_STMT
 
 };
 // the order should be keep

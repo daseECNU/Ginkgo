@@ -45,6 +45,7 @@ namespace claims {
 namespace stmt_handler {
 class SelectExec : public StmtExec {
   friend class DeleteStmtExec;
+  friend class UnionExec;
 
  public:
   SelectExec(AstNode* stmt, string raw_sql);  // NOLINT
