@@ -23,7 +23,7 @@ master = 1
 data="/home/zzh/data/http/"
 
 #hdfs主节点
-hdfs_master_ip="10.11.1.192"
+hdfs_master_ip="172.29.133.209"
 
 #hdfs主节点端口
 hdfs_master_port = 9000
@@ -40,7 +40,7 @@ enable_expander_adaptivity=1
 
 # 0: hdfs
 # 1: local
-local_disk_mode = 1
+local_disk_mode = 0
 
 client_listener_port = 10000
 

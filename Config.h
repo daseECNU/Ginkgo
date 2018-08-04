@@ -98,7 +98,7 @@ class Config {
   static std::string krb_server_keyfile;
   static std::string krb_srvname;
   static std::string krb_srvinstance;
-
+  static std::string hdfs_kerb_cache;
   static int kerberos_notify_port;
 
  private:

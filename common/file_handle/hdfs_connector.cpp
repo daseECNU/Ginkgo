@@ -32,6 +32,7 @@ namespace claims {
 namespace common {
 
 hdfsFS HdfsConnector::fs_ = NULL;
+hdfsBuilder* HdfsConnector::pbld_ = NULL;
 
 } /* namespace common */
 } /* namespace claims */

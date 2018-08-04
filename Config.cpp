@@ -114,7 +114,7 @@ std::string Config::krb_listen_address;
 std::string Config::krb_server_keyfile;
 std::string Config::krb_srvname;
 std::string Config::krb_srvinstance;
-
+std::string Config::hdfs_kerb_cache;
 int Config::hash_join_bucket_num;
 int Config::hash_join_bucket_size;
 int Config::expander_buffer_size;
@@ -212,6 +212,8 @@ void Config::initialize() {
   krb_srvname = getString("krb_srvname", "sample");
 
   krb_srvinstance = getString("krb_srvinstance", "sample");
+
+  hdfs_kerb_cache = getString("hdfs_kerb_cache", "null");
 
   hash_join_bucket_num = getInt("hash_join_bucket_num", 1024 * 1024);
 

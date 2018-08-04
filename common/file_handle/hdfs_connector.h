@@ -43,11 +43,22 @@ namespace common {
 class HdfsConnector {
  public:
   static hdfsFS Instance() {
+    if (NULL == pbld_) {
+      LOG(INFO) << "start to create new hdfs builder.";
+      pbld_ = hdfsNewBuilder();
+      hdfsBuilderSetNameNode(pbld_, Config::hdfs_master_ip.c_str());
+      hdfsBuilderSetNameNodePort(pbld_, Config::hdfs_master_port);
+      if (Config::hdfs_kerb_cache != "null") {
+        hdfsBuilderSetKerbTicketCachePath(pbld_,
+                                          Config::hdfs_kerb_cache.c_str());
+      }
+    }
     if (NULL == fs_) {
       LOG(INFO) << "start to connect to HDFS";
       Config::getInstance();
-      fs_ =
-          hdfsConnect(Config::hdfs_master_ip.c_str(), Config::hdfs_master_port);
+      fs_ = hdfsBuilderConnect(pbld_);
+      //          hdfsConnect(Config::hdfs_master_ip.c_str(),
+      //          Config::hdfs_master_port);
       if (NULL == fs_) {
         LOG(ERROR) << "failed to connect to HDFS(ip:" << Config::hdfs_master_ip
                    << ", port:" << Config::hdfs_master_port << ")" << std::endl;
@@ -63,13 +74,17 @@ class HdfsConnector {
 
   ~HdfsConnector() {
     hdfsDisconnect(fs_);
+    hdfsFreeBuilder(pbld_);
     fs_ = NULL;
+    pbld_ = NULL;
     std::cerr << "disconnected hdfs and fs_ was set to NULL" << std::endl;
   }
 
  private:
   HdfsConnector() {}
+  static hdfsBuilder* pbld_;
   static hdfsFS fs_;
+  //  static struct hdfsBuilder *pbld_;
 };
 
 } /* namespace common */
