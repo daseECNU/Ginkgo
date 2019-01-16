@@ -95,13 +95,33 @@ void TableDescriptor::InitTableData() {
     meta_start_pos_.clear();
     file_len_.clear();
     meta_len_.clear();
-  }
-  for (int i = 0; i < getNumberOfProjection(); i++) {
-    for (int j = 0;
-         j < projection_list_[i]->getPartitioner()->getNumberOfPartitions();
-         ++j) {
-      projection_list_[i]->getPartitioner()->initPartitionData(j);
-      logical_files_length_[i][j] = 0;
+  } else {
+    if (Config::distributed_load) {
+      for (map<int, vector<vector<uint64_t>>>::iterator iter =
+               logical_files_length_dist_.begin();
+           iter != logical_files_length_dist_.end(); iter++) {
+        for (int i = 0; i < iter->second.size(); ++i) {
+          for (int j = 0; j < iter->second[i].size(); ++j) {
+            iter->second[i][j] = 0;
+          }
+        }
+      }
+      for (int i = 0; i < getNumberOfProjection(); i++) {
+        for (int j = 0;
+             j < projection_list_[i]->getPartitioner()->getNumberOfPartitions();
+             ++j) {
+          projection_list_[i]->getPartitioner()->initPartitionData(j);
+        }
+      }
+    } else {
+      for (int i = 0; i < getNumberOfProjection(); i++) {
+        for (int j = 0;
+             j < projection_list_[i]->getPartitioner()->getNumberOfPartitions();
+             ++j) {
+          projection_list_[i]->getPartitioner()->initPartitionData(j);
+          logical_files_length_[i][j] = 0;
+        }
+      }
     }
   }
 }
@@ -339,19 +359,42 @@ RetCode TableDescriptor::TruncateFilesFromTable() {
       }
     }
   } else {
-    for (int i = 0; i < getNumberOfProjection(); i++) {
-      for (int j = 0;
-           j < projection_list_[i]->getPartitioner()->getNumberOfPartitions();
-           ++j) {
-        ret = write_connector_->TruncateFileFromPrtn(
-            i, j, logical_files_length_[i][j]);
-        if (rTruncateFileFail == ret) {
-          return ret;
-        } else {
-          if (rTruncateReset == ret) {
-            InitTableData();
+    if (Config::distributed_load) {
+      for (map<int, vector<vector<uint64_t>>>::iterator iter =
+               logical_files_length_dist_.begin();
+           iter != logical_files_length_dist_.end(); iter++) {
+        for (int i = 0; i < iter->second.size(); i++) {
+          for (int j = 0; j < iter->second[i].size(); ++j) {
+            ret = write_connector_->TruncateFileFromPrtnDist(
+                i, j, iter->first, iter->second[i][j]);
+            if (rTruncateFileFail == ret) {
+              return ret;
+            } else {
+              if (rTruncateReset == ret) {
+                InitTableData();
+              }
+              //(todo save file_length)
+              // write_connector_->SaveUpdatedFileLengthToCatalog();
+            }
           }
-          write_connector_->SaveUpdatedFileLengthToCatalog();
+        }
+      }
+
+    } else {
+      for (int i = 0; i < getNumberOfProjection(); i++) {
+        for (int j = 0;
+             j < projection_list_[i]->getPartitioner()->getNumberOfPartitions();
+             ++j) {
+          ret = write_connector_->TruncateFileFromPrtn(
+              i, j, logical_files_length_[i][j]);
+          if (rTruncateFileFail == ret) {
+            return ret;
+          } else {
+            if (rTruncateReset == ret) {
+              InitTableData();
+            }
+            write_connector_->SaveUpdatedFileLengthToCatalog();
+          }
         }
       }
     }

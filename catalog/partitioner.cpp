@@ -34,7 +34,7 @@
 #include <stdio.h>
 #include <cmath>
 #include <vector>
-
+#include <utility>
 #include "../catalog/catalog.h"
 #include "../Environment.h"
 #include "../utility/print_tool.h"
@@ -107,6 +107,27 @@ void Partitioner::RegisterPartitionWithNumberOfBlocks(
       partition_info_list[partition_offset]->partition_id_.getName();
   partition_info_list[partition_offset]->number_of_blocks = number_of_blocks;
 }
+
+// for distributed loading
+void Partitioner::RegisterPartitionWithNumberOfBlocksDist(
+    unsigned partition_offset, unsigned long number_of_blocks, int load_node_id,
+    int mode) {
+  assert(partition_offset < partition_function_->getNumberOfPartitions());
+  pair<unsigned, int> blk_info = make_pair(partition_offset, load_node_id);
+  if (mode == 2) {
+    // append
+    num_of_block_[blk_info] += number_of_blocks;
+    std::cout << "blk_info : " << blk_info.first << " , " << blk_info.second
+              << "blk num : " << num_of_block_[blk_info] << endl;
+  } else if (mode == 1) {
+    // load
+    num_of_block_[blk_info] = number_of_blocks;
+    std::cout << "blk_info : " << blk_info.first << " , " << blk_info.second
+              << "blk num : " << num_of_block_[blk_info] << endl;
+  }
+  // don't initial file name, cause name is not used
+  partition_info_list[partition_offset]->number_of_blocks += number_of_blocks;
+}
 void Partitioner::RegisterPartitionWithNumberOfBlocksPar(
     unsigned partition_offset, unsigned long number_of_blocks) {
   assert(partition_offset < partition_function_->getNumberOfPartitions());
@@ -114,13 +135,10 @@ void Partitioner::RegisterPartitionWithNumberOfBlocksPar(
   partition_info_list[partition_offset]->hdfs_file_name =
       partition_info_list[partition_offset]->partition_id_.getName();
   partition_info_list[partition_offset]->number_of_blocks += number_of_blocks;
-  //  cout << "now the block num is :  "
-  //       << partition_info_list[partition_offset]->number_of_blocks << endl;
 }
 void Partitioner::UpdatePartitionWithNumberOfChunksToBlockManager(
     unsigned partition_offset, unsigned long number_of_blocks) {
   assert(partition_offset < partition_function_->getNumberOfPartitions());
-
   unsigned number_of_chunks = ceil((number_of_blocks) / (float)1024);
   if (mode_ == OneToOne) {
     if (partition_info_list[partition_offset]->is_all_blocks_bound()) {
@@ -136,6 +154,23 @@ void Partitioner::UpdatePartitionWithNumberOfChunksToBlockManager(
   }
 }
 
+void Partitioner::UpdatePartitionWithNumberOfChunksToBlockManagerDist(
+    unsigned partition_offset, unsigned long number_of_blocks,
+    int load_node_id) {
+  assert(partition_offset < partition_function_->getNumberOfPartitions());
+  unsigned number_of_chunks = ceil((number_of_blocks) / (float)1024);
+  if (mode_ == OneToOne) {
+    if (partition_info_list[partition_offset]->is_all_blocks_bound()) {
+      NodeID node_id = partition_info_list[partition_offset]->get_location();
+      BlockManagerMaster::getInstance()->SendBindingMessage(
+          PartitionID(projection_id_, partition_offset, load_node_id),
+          number_of_chunks, MEMORY, node_id);
+    }
+  } else {
+    // Ginkgo not consider this mode right now
+  }
+}
+
 void Partitioner::initPartitionData(unsigned partition_key,
                                     unsigned number_of_chunks = 0,
                                     unsigned long number_of_blocks = 0) {
@@ -143,6 +178,7 @@ void Partitioner::initPartitionData(unsigned partition_key,
 
   partition_info_list[partition_key]->number_of_blocks = 0;
   partition_info_list[partition_key]->number_of_tuples_ = 0;
+  num_of_block_.clear();
 }
 
 bool Partitioner::isEmpty() {
@@ -192,6 +228,13 @@ unsigned Partitioner::getPartitionBlocks(unsigned partitoin_index) const {
 unsigned Partitioner::getPartitionChunks(unsigned partition_index) const {
   return ceil(partition_info_list[partition_index]->number_of_blocks / 1024.0f);
 }
+
+unsigned Partitioner::getPartitionChunksByMap(unsigned partition_index,
+                                              int load_node_id) const {
+  pair<unsigned, int> part_node = make_pair(partition_index, load_node_id);
+  return ceil((float)num_of_block_[part_node] / 1024.0f);
+}
+
 NodeID Partitioner::getPartitionLocation(unsigned partition_offset) const {
   if (partition_info_list[partition_offset]->get_mode() == OneToOne) {
     return partition_info_list[partition_offset]->get_location();

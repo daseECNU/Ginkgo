@@ -8,7 +8,7 @@ AM_CPPFLAGS= -fPIC -fpermissive \
 -I${ZOOKEEPER_HOME}/src/c/generated
 
 
-AM_LDFLAGS=-lc -lm -lrt -lboost_system -lboost_serialization -ll -ly -lstdc++ -lxs -DTHREAD -lzookeeper_mt
+AM_LDFLAGS=-lc -lm -lrt -lboost_system -lboost_serialization -ll -ly -lstdc++ -lxs -DTHREAD -lzookeeper_mt -lhdfs
 
 if OPT_TCMALLOC
 AM_CPPFLAGS+=-fno-builtin-malloc -fno-builtin-calloc -fno-builtin-realloc -fno-builtin-free
@@ -23,6 +23,7 @@ LDADD = ../catalog/libcatalog.a \
 		../utility/libutility.a \
 		../sql_parser/ast_node/libast_node.a \
 		../sql_parser/parser/libparser.a \
+		${HADOOP_HOME}/lib/native/libhdfs.a\
 		${BOOST_HOME}/stage/lib/libboost_system.a \
 		${BOOST_HOME}/stage/lib/libboost_system.so \
 		${BOOST_HOME}/stage/lib/libboost_serialization.a \

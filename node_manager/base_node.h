@@ -51,6 +51,7 @@ using OkAtom = caf::atom_constant<caf::atom("ok")>;
 using RegisterAtom = caf::atom_constant<caf::atom("register")>;
 using ExitAtom = caf::atom_constant<caf::atom("exit")>;
 using SendPlanAtom = caf::atom_constant<caf::atom("send_plan")>;
+using LoadPlanAtom = caf::atom_constant<caf::atom("Load_Plan")>;
 using AskExchAtom = caf::atom_constant<caf::atom("ask_exch")>;
 using BindingAtom = caf::atom_constant<caf::atom("binding")>;
 using UnBindingAtom = caf::atom_constant<caf::atom("unbinding")>;

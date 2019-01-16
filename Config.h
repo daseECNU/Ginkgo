@@ -100,6 +100,8 @@ class Config {
   static std::string krb_srvinstance;
   static std::string hdfs_kerb_cache;
   static int kerberos_notify_port;
+  static bool distributed_load;
+  static int load_node_num;
 
  private:
   static Config* instance_;

@@ -197,8 +197,11 @@ Environment::Environment(bool ismaster) : ismaster_(ismaster) {
     initializeClientListener();
     /*create jdbc three system tables
      * variables, session, COLLATIONS
+     *
+     * JDBC system table confilict with distributed loading ,because system use
+     *insert
      * */
-    if (catalog_->getTable("variables") == NULL) {
+    /*if (catalog_->getTable("variables") == NULL) {
       string query1 =
           "create table if not exists variables(Variable_name "
           "varchar(64),Valve "
@@ -279,7 +282,7 @@ Environment::Environment(bool ismaster) : ismaster_(ismaster) {
       TransHandler* trans_handler2 = new TransHandler(query3, -1);
       trans_handler2->Execute();
       delete trans_handler2;
-    }
+    }*/
   }
 }
 
@@ -330,6 +333,14 @@ void Environment::AnnounceCafMessage() {
                         &PartitionID::partition_off);
   announce<ExchangeID>("ExchangeID", &ExchangeID::exchange_id,
                        &ExchangeID::partition_offset);
+  announce<LoadInfo>("LoadInfo", &LoadInfo::cols_, &LoadInfo::proj_cols_,
+                     &LoadInfo::write_path_, &LoadInfo::part_key_idx_,
+                     &LoadInfo::prj_index_vec_, &LoadInfo::part_func_v_,
+                     &LoadInfo::tbl_name_);
+  announce<LoadMsg>("LoadMsg", &LoadMsg::blks_per_partition_,
+                    &LoadMsg::logical_lengths_, &LoadMsg::write_path_name_,
+                    &LoadMsg::node_id_, &LoadMsg::load_mode_,
+                    &LoadMsg::tbl_name_);
   announce<BaseNode>("BaseNode", &BaseNode::node_id_to_addr_);
   announce<NodeSegmentID>("NodeSegmentID", &NodeSegmentID::first,
                           &NodeSegmentID::second);

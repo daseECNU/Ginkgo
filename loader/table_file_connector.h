@@ -59,8 +59,9 @@ class TableFileConnector {
  public:
   TableFileConnector(common::FilePlatform platform, TableDescriptor* table,
                      common::FileOpenFlag open_flag);
-  //  TableFileConnector(common::FilePlatform platform,
-  //                     std::vector<std::vector<std::string>> writepath);
+  TableFileConnector(common::FilePlatform platform,
+                     vector<vector<string>> write_path,
+                     common::FileOpenFlag open_flag);
   ~TableFileConnector();
   RetCode Open();
   RetCode Close();
@@ -95,6 +96,12 @@ class TableFileConnector {
   RetCode TruncateFileFromPrtn(unsigned projection_offset,
                                unsigned partition_offset, uint64_t& length);
 
+  RetCode TruncateFileFromPrtnDist(unsigned projection_offset,
+                                   unsigned partition_offset, unsigned node_id,
+                                   uint64_t& length);
+
+  vector<vector<size_t>> GetFileHandleLength();
+  vector<vector<string>> GetWritePathName();
   // added by zyhe
   void SaveUpdatedFileLengthToCatalog();
 
@@ -105,8 +112,14 @@ class TableFileConnector {
   /// for common file
   vector<vector<common::FileHandleImp*>> file_handles_;
   vector<vector<string>> write_path_name_;
+
   vector<vector<Lock>> write_locks_;
   TableDescriptor* table_;
+
+  // for distributed load
+  // <node_id, projection_id, partition >
+  map<int, vector<vector<common::FileHandleImp*>>> dist_file_handles_;
+  map<int, vector<vector<Lock>>> dist_write_locks_;
 
   /// for parquet
   // <partition_key_index, projection_id>

@@ -137,12 +137,31 @@ bool ProjectionBinding::BindingEntireProjection(
     for (unsigned i = 0; i < partition_id_to_nodeid_list.size(); i++) {
       const unsigned partition_off = partition_id_to_nodeid_list[i].first;
       const NodeID node_id = partition_id_to_nodeid_list[i].second;
-      /* notify the StorageManger of the target node*/
-      PartitionID partition_id(part->getProejctionID(), partition_off);
-      const unsigned number_of_chunks = part->getPartitionChunks(partition_off);
-      BlockManagerMaster::getInstance()->SendBindingMessage(
-          partition_id, number_of_chunks, desriable_storage_level, node_id);
-      /* update the information in Catalog*/
+      if (Config::distributed_load) {
+        // in distributed loading,Bind message are many to one
+        int last_num_chunks = 0;
+        for (int load_node_id = 0; load_node_id < Config::load_node_num;
+             ++load_node_id) {
+          PartitionID partition_id(part->getProejctionID(), partition_off,
+                                   load_node_id);
+          const unsigned number_of_chunks =
+              part->getPartitionChunksByMap(partition_off, 0);
+          last_num_chunks += number_of_chunks;
+          //          BlockManagerMaster::getInstance()->SendBindingMessage(
+          //              partition_id, number_of_chunks,
+          //              desriable_storage_level, node_id);
+          BlockManagerMaster::getInstance()->SendBindingMessage(
+              partition_id, last_num_chunks, desriable_storage_level, node_id);
+        }
+      } else {
+        /* notify the StorageManger of the target node*/
+        PartitionID partition_id(part->getProejctionID(), partition_off);
+        const unsigned number_of_chunks =
+            part->getPartitionChunks(partition_off);
+        BlockManagerMaster::getInstance()->SendBindingMessage(
+            partition_id, number_of_chunks, desriable_storage_level, node_id);
+        /* update the information in Catalog*/
+      }
       part->bindPartitionToNode(partition_off, node_id);
     }
 

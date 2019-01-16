@@ -11,10 +11,14 @@
 std::string PartitionID::getPathAndName() const {
   std::ostringstream str;
   std::string str1;
-  //		str<<"/home/claims/data/tpc-h/4_partitions/SF-20/T"<<projection_id.table_id<<"G"<<projection_id.projection_off<<"P"<<partition_off;
-  //		str<<"/home/claims/data/wangli/T"<<projection_id.table_id<<"G"<<projection_id.projection_off<<"P"<<partition_off;
-  str << Config::data_dir << "T" << projection_id.table_id << "G"
-      << projection_id.projection_off << "P" << partition_off;
+  if (node_id == -1) {
+    str << Config::data_dir << "T" << projection_id.table_id << "G"
+        << projection_id.projection_off << "P" << partition_off;
+  } else {
+    str << Config::data_dir << "T" << projection_id.table_id << "G"
+        << projection_id.projection_off << "P" << partition_off << "N"
+        << node_id;
+  }
   str1 = str.str();
   str.clear();
   return str1;

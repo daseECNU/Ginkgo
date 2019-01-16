@@ -31,6 +31,7 @@
 #include <stdlib.h>
 #include <vector>
 #include <string>
+#include <map>
 
 #include "./file_connector.h"
 #include "../catalog/table.h"
@@ -111,55 +112,138 @@ TableFileConnector::TableFileConnector(FilePlatform platform,
       write_locks_parq_[part_index.first] = partition_locks;
     }
   } else {
-    int i = 0, j = 0;
-    for (auto projection_iter : write_path_name_) {
-      vector<FileHandleImp*> projection_files;
-      projection_files.clear();
-      vector<Lock> projection_locks;
-      projection_locks.clear();
-      for (auto partition_iter : projection_iter) {
-        FileHandleImp* file =
-            FileHandleImpFactory::Instance().CreateFileHandleImp(
-                platform_, partition_iter);
-        vector<vector<uint64_t>> logical_files_length_ =
-            table->GetLogicalFilesLength();
-        file->set_logical_file_length(logical_files_length_[i][j]);
-        projection_files.push_back(file);
-        projection_locks.push_back(Lock());
-        LOG(INFO)
-            << "push file handler which handles " << partition_iter
-            << " into projection_files. Now the size of projection_files is "
-            << projection_files.size() << std::endl;
-        ++j;
+    if (Config::distributed_load) {
+      map<int, vector<vector<string>>> dist_write_path =
+          table->GetDistWritePath();
+      map<int, vector<vector<uint64_t>>>& dist_file_length =
+          table->GetLogicalFilesLengthDist();
+      int i = 0, j = 0, k = 0;
+      for (map<int, vector<vector<string>>>::iterator iter =
+               dist_write_path.begin();
+           iter != dist_write_path.end(); iter++) {
+        vector<vector<FileHandleImp*>> projection_files;
+        vector<vector<Lock>> projection_locks;
+        for (int j = 0; j < dist_write_path[i].size(); ++j) {
+          vector<FileHandleImp*> part_files;
+          vector<Lock> part_locks;
+          for (int k = 0; k < dist_write_path[i][j].size(); ++k) {
+            FileHandleImp* file =
+                FileHandleImpFactory::Instance().CreateFileHandleImp(
+                    platform_, dist_write_path[i][j][k]);
+            file->set_logical_file_length(dist_file_length[i][j][k]);
+            part_files.push_back(file);
+            part_locks.push_back(Lock());
+          }
+          projection_files.push_back(part_files);
+          projection_locks.push_back(part_locks);
+        }
+        dist_file_handles_[iter->first] = projection_files;
+        dist_write_locks_[iter->first] = projection_locks;
       }
-      file_handles_.push_back(projection_files);
-      write_locks_.push_back(projection_locks);
-      ++i;
+      LOG(INFO) << "open all " << file_handles_.size()
+                << " file successfully in distributed mode" << std::endl;
+    } else {
+      int i = 0, j = 0;
+      vector<vector<uint64_t>> logical_files_length_ =
+          table->GetLogicalFilesLength();
+      for (auto projection_iter : write_path_name_) {
+        vector<FileHandleImp*> projection_files;
+        projection_files.clear();
+        vector<Lock> projection_locks;
+        projection_locks.clear();
+        for (auto partition_iter : projection_iter) {
+          FileHandleImp* file =
+              FileHandleImpFactory::Instance().CreateFileHandleImp(
+                  platform_, partition_iter);
+          file->set_logical_file_length(logical_files_length_[i][j]);
+          projection_files.push_back(file);
+          projection_locks.push_back(Lock());
+          LOG(INFO)
+              << "push file handler which handles " << partition_iter
+              << " into projection_files. Now the size of projection_files is "
+              << projection_files.size() << std::endl;
+          ++j;
+        }
+        file_handles_.push_back(projection_files);
+        write_locks_.push_back(projection_locks);
+        ++i;
+      }
+      LOG(INFO) << "open all " << file_handles_.size() << " file successfully"
+                << std::endl;
     }
-    LOG(INFO) << "open all " << file_handles_.size() << " file successfully"
-              << std::endl;
   }
 }
 
-// TableFileConnector::TableFileConnector(FilePlatform platform,
-//                                       TableDescriptor* table)
-//    : TableFileConnector(platform, table->GetAllPartitionsPath()) {}
-
-// TableFileConnector::TableFileConnector(FilePlatform platform,
-//                                       vector<vector<string>> writepath)
-//    : FileConnector(platform), write_path_name_(writepath) {
-//  imp_ = FileHandleImpFactory::Instance().CreateFileHandleImp(platform_);
-//}
+TableFileConnector::TableFileConnector(FilePlatform platform,
+                                       vector<vector<string>> write_path,
+                                       FileOpenFlag open_flag)
+    : platform_(platform),
+      write_path_name_(write_path),
+      ref_(0),
+      open_flag_(open_flag) {
+  int i = 0, j = 0;
+  for (auto projection_iter : write_path_name_) {
+    vector<FileHandleImp*> projection_files;
+    projection_files.clear();
+    vector<Lock> projection_locks;
+    projection_locks.clear();
+    for (auto partition_iter : projection_iter) {
+      FileHandleImp* file =
+          FileHandleImpFactory::Instance().CreateFileHandleImp(platform_,
+                                                               partition_iter);
+      file->set_logical_file_length(0);
+      projection_files.push_back(file);
+      projection_locks.push_back(Lock());
+      LOG(INFO)
+          << "push file handler which handles " << partition_iter
+          << " into projection_files. Now the size of projection_files is "
+          << projection_files.size() << std::endl;
+      ++j;
+    }
+    file_handles_.push_back(projection_files);
+    write_locks_.push_back(projection_locks);
+    ++i;
+  }
+  LOG(INFO) << "open all " << file_handles_.size() << " file successfully"
+            << std::endl;
+  table_ = NULL;
+}
 
 TableFileConnector::~TableFileConnector() {
   Close();
-  for (auto proj_iter : file_handles_) {
-    for (auto part_iter : proj_iter) {
-      DELETE_PTR(part_iter);
+  if (Config::enable_parquet) {
+    for (auto partition_imp : file_handles_parq_) {
+      for (int i = 0; i < partition_imp.second.size(); i++) {
+        DELETE_PTR(partition_imp.second[i]);
+      }
+    }
+  } else {
+    if (Config::distributed_load) {
+      // (master has all info need clean )
+      for (map<int, vector<vector<common::FileHandleImp*>>>::iterator iter =
+               dist_file_handles_.begin();
+           iter != dist_file_handles_.end(); ++iter) {
+        for (int i = 0; i < iter->second.size(); ++i) {
+          for (int j = 0; j < iter->second[i].size(); ++j) {
+            DELETE_PTR(iter->second[i][j]);
+          }
+        }
+      }
+      // (slave clean write info after load)
+      for (auto proj_iter : file_handles_) {
+        for (auto part_iter : proj_iter) {
+          DELETE_PTR(part_iter);
+        }
+      }
+    } else {
+      for (auto proj_iter : file_handles_) {
+        for (auto part_iter : proj_iter) {
+          DELETE_PTR(part_iter);
+        }
+      }
     }
   }
   LOG(INFO) << "closed all hdfs file of table" << std::endl;
-  //  DELETE_PTR(imp_);
 }
 
 RetCode TableFileConnector::Open() {
@@ -181,19 +265,40 @@ RetCode TableFileConnector::Open() {
           }
         }
       } else {
-        for (auto partitions_imp : file_handles_) {
-          for (auto imp : partitions_imp) {
-            RetCode subret = rSuccess;
-            EXEC_AND_ONLY_LOG_ERROR(
-                subret, imp->SwitchStatus(
-                            static_cast<FileHandleImp::FileStatus>(open_flag_)),
-                "failed to open file:" << imp->get_file_name());
-            if (rSuccess != subret) ret = subret;  // one failed, all failed
+        if (Config::distributed_load) {
+          for (map<int, vector<vector<common::FileHandleImp*>>>::iterator iter =
+                   dist_file_handles_.begin();
+               iter != dist_file_handles_.end(); ++iter) {
+            for (int i = 0; i < iter->second.size(); ++i) {
+              for (int j = 0; j < iter->second[i].size(); ++j) {
+                RetCode subret = rSuccess;
+                EXEC_AND_ONLY_LOG_ERROR(
+                    subret,
+                    iter->second[i][j]->SwitchStatus(
+                        static_cast<FileHandleImp::FileStatus>(open_flag_)),
+                    "failed to open file:"
+                        << iter->second[i][j]->get_file_name());
+                if (rSuccess != subret) ret = subret;  // one failed, all failed
+              }
+            }
+          }
+        } else {
+          for (auto partitions_imp : file_handles_) {
+            for (auto imp : partitions_imp) {
+              RetCode subret = rSuccess;
+              EXEC_AND_ONLY_LOG_ERROR(
+                  subret,
+                  imp->SwitchStatus(
+                      static_cast<FileHandleImp::FileStatus>(open_flag_)),
+                  "failed to open file:" << imp->get_file_name());
+              if (rSuccess != subret) ret = subret;  // one failed, all failed
+            }
           }
         }
       }
       if (rSuccess == ret) {
-        table_->update_lock_.acquire();  // lock to avoid updating table
+        if (table_ != nullptr)
+          table_->update_lock_.acquire();  // lock to avoid updating table
         ++ref_;
         is_closed = false;
       }
@@ -343,19 +448,49 @@ RetCode TableFileConnector::Close() {
           }
         }
       } else {
-        for (int i = 0; i < file_handles_.size(); ++i) {
-          for (int j = 0; j < file_handles_[i].size(); ++j) {
-            RetCode subret = rSuccess;
-            EXEC_AND_ONLY_LOG_ERROR(subret, file_handles_[i][j]->Close(),
-                                    "failed to close "
-                                        << write_path_name_[i][j]);
-            if (rSuccess != subret) ret = subret;
+        if (Config::distributed_load) {
+          // start Gingko stage for truncate (master)
+          for (int i = 0; i < dist_file_handles_.size(); ++i) {
+            for (int j = 0; j < dist_file_handles_[i].size(); ++i) {
+              for (int k = 0; k < dist_file_handles_[i][j].size(); ++k) {
+                std::cout << "close : ~~"
+                          << dist_file_handles_[i][j][k]->get_file_name()
+                          << endl;
+                RetCode subret = rSuccess;
+                EXEC_AND_ONLY_LOG_ERROR(
+                    subret, dist_file_handles_[i][j][k]->Close(),
+                    "failed to close "
+                        << dist_file_handles_[i][j][k]->get_file_name());
+                if (rSuccess != subret) ret = subret;  // one failed, all failed
+              }
+            }
+          }
+          // load stage (slave)
+          for (int i = 0; i < file_handles_.size(); ++i) {
+            for (int j = 0; j < file_handles_[i].size(); ++j) {
+              RetCode subret = rSuccess;
+              EXEC_AND_ONLY_LOG_ERROR(subret, file_handles_[i][j]->Close(),
+                                      "failed to close "
+                                          << write_path_name_[i][j]);
+              if (rSuccess != subret) ret = subret;
+            }
+          }
+        } else {
+          for (int i = 0; i < file_handles_.size(); ++i) {
+            for (int j = 0; j < file_handles_[i].size(); ++j) {
+              RetCode subret = rSuccess;
+              EXEC_AND_ONLY_LOG_ERROR(subret, file_handles_[i][j]->Close(),
+                                      "failed to close "
+                                          << write_path_name_[i][j]);
+              if (rSuccess != subret) ret = subret;
+            }
           }
         }
       }
       if (rSuccess == ret) {
         is_closed = true;
-        table_->update_lock_.release();  // now table can update its catalog.
+        if (table_ != nullptr)
+          table_->update_lock_.release();  // now table can update its catalog.
         LOG(INFO) << "closed all file handles" << std::endl;
       }
     }
@@ -391,6 +526,20 @@ RetCode TableFileConnector::DeleteAllTableFiles() {
         }
       }
     } else {
+      //      if (Config::distributed_load) {
+      for (int i = 0; i < dist_file_handles_.size(); ++i) {
+        for (int j = 0; j < dist_file_handles_[i].size(); ++i) {
+          for (int k = 0; k < dist_file_handles_[i][j].size(); ++k) {
+            RetCode subret = rSuccess;
+            EXEC_AND_ONLY_LOG_ERROR(
+                subret, dist_file_handles_[i][j][k]->DeleteFile(),
+                "failed to delete file "
+                    << dist_file_handles_[i][j][k]->get_file_name());
+            if (rSuccess != subret) ret = subret;
+          }
+        }
+      }
+      //      } else {
       for (auto prj_files : file_handles_) {
         for (auto file : prj_files) {
           RetCode subret = rSuccess;
@@ -401,6 +550,7 @@ RetCode TableFileConnector::DeleteAllTableFiles() {
         }
       }
     }
+    //    }
     if (rSuccess == ret) {
       LOG(INFO) << "deleted all files" << std::endl;
     }
@@ -433,17 +583,36 @@ RetCode TableFileConnector::DeleteOneProjectionFiles(string proj_id) {
         if (rSuccess != subret) ret = subret;
       }
     } else {
-      for (auto prj_files : file_handles_) {
-        for (auto file : prj_files) {
-          RetCode subret = rSuccess;
-          string file_name = file->get_file_name();
-          auto pos = file_name.rfind("G");
-          if (proj_id == file_name.substr(++pos, 1)) {
-            EXEC_AND_ONLY_LOG_ERROR(subret, file->DeleteFile(),
-                                    "failed to delete file "
-                                        << file->get_file_name());
+      if (Config::distributed_load) {
+        for (int i = 0; i < dist_file_handles_.size(); ++i) {
+          for (int j = 0; j < dist_file_handles_[i].size(); ++i) {
+            for (int k = 0; k < dist_file_handles_[i][j].size(); ++k) {
+              RetCode subret = rSuccess;
+              string file_name = dist_file_handles_[i][j][k]->get_file_name();
+              auto pos = file_name.rfind("G");
+              if (proj_id == file_name.substr(++pos, 1)) {
+                EXEC_AND_ONLY_LOG_ERROR(
+                    subret, dist_file_handles_[i][j][k]->DeleteFile(),
+                    "failed to delete file "
+                        << dist_file_handles_[i][j][k]->get_file_name());
+              }
+              if (rSuccess != subret) ret = subret;  // one failed, all failed
+            }
           }
-          if (rSuccess != subret) ret = subret;
+        }
+      } else {
+        for (auto prj_files : file_handles_) {
+          for (auto file : prj_files) {
+            RetCode subret = rSuccess;
+            string file_name = file->get_file_name();
+            auto pos = file_name.rfind("G");
+            if (proj_id == file_name.substr(++pos, 1)) {
+              EXEC_AND_ONLY_LOG_ERROR(subret, file->DeleteFile(),
+                                      "failed to delete file "
+                                          << file->get_file_name());
+            }
+            if (rSuccess != subret) ret = subret;
+          }
         }
       }
     }
@@ -510,6 +679,8 @@ RetCode TableFileConnector::UpdateWithNewProj() {
       write_locks_parq_[hash_key_index] = partition_locks;
     }
   } else {
+    // because distributed loading can not decide file name, we create path in
+    // load stage
     int proj_index = table_->projection_list_.size() - 1;
     vector<string> prj_write_path;
     vector<Lock> prj_locks;
@@ -534,7 +705,6 @@ RetCode TableFileConnector::UpdateWithNewProj() {
 
   return rSuccess;
 }
-
 RetCode TableFileConnector::TruncateFileFromPrtn(unsigned projection_offset,
                                                  unsigned partition_offset,
                                                  uint64_t& length) {
@@ -559,22 +729,64 @@ RetCode TableFileConnector::TruncateFileFromPrtn(unsigned projection_offset,
       ret = file_handles_parq_[projection_offset][partition_offset]->Truncate(
           length);
       if (rTruncateFileFail == ret) {
-        cout << "failed to truncate file " +
-                    file_handles_parq_[projection_offset][partition_offset]
-                        ->get_file_name() << endl;
+        LOG(ERROR)
+            << "failed to truncate file " +
+                   file_handles_parq_[projection_offset][partition_offset]
+                       ->get_file_name() << endl;
       }
       return ret;
     } else {
       ret =
           file_handles_[projection_offset][partition_offset]->Truncate(length);
       if (rTruncateFileFail == ret) {
-        cout << "failed to truncate file " +
-                    file_handles_[projection_offset][partition_offset]
-                        ->get_file_name();
+        LOG(ERROR) << "failed to truncate file " +
+                          file_handles_[projection_offset][partition_offset]
+                              ->get_file_name();
       }
       return ret;
     }
   }
+}
+
+RetCode TableFileConnector::TruncateFileFromPrtnDist(unsigned projection_offset,
+                                                     unsigned partition_offset,
+                                                     unsigned node_id,
+                                                     uint64_t& length) {
+  RetCode ret = rSuccess;
+  if (table_->getProjectoin(projection_offset)->getPartitioner()->isEmpty()) {
+    if (Config::enable_parquet) {
+    } else {
+      dist_file_handles_[node_id][projection_offset][partition_offset]
+          ->DeleteFile();
+    }
+  } else {
+    if (Config::enable_parquet) {
+    } else {
+      ret = dist_file_handles_[node_id][projection_offset][partition_offset]
+                ->Truncate(length);
+      if (rTruncateFileFail == ret) {
+        LOG(ERROR) << "failed to truncate file " +
+                          dist_file_handles_[node_id][projection_offset]
+                                            [partition_offset]->get_file_name();
+      }
+      return ret;
+    }
+  }
+}
+
+vector<vector<size_t>> TableFileConnector::GetFileHandleLength() {
+  vector<vector<size_t>> res;
+  for (int i = 0; i < file_handles_.size(); ++i) {
+    vector<size_t> lens;
+    for (int j = 0; j < file_handles_[i].size(); ++j) {
+      lens.push_back(file_handles_[i][j]->get_logical_file_length());
+    }
+    res.push_back(lens);
+  }
+  return res;
+}
+vector<vector<string>> TableFileConnector::GetWritePathName() {
+  return write_path_name_;
 }
 void TableFileConnector::SaveUpdatedFileLengthToCatalog() {
   for (int i = 0; i < table_->getNumberOfProjection(); i++) {
@@ -587,6 +799,7 @@ void TableFileConnector::SaveUpdatedFileLengthToCatalog() {
     }
   }
 }
+
 void TableFileConnector::InitMemFileLength(unsigned projection_offset,
                                            unsigned partition_offset) {
   file_handles_[projection_offset][partition_offset]->set_logical_file_length(

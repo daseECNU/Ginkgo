@@ -9,7 +9,7 @@ AM_CPPFLAGS= -fPIC -fpermissive \
 -I${ZOOKEEPER_HOME}/src/c/generated
 
 
-AM_LDFLAGS=-lc -lm -lrt  -lxs -lboost_serialization -lboost_system  -lthrift -DTHREAD -lzookeeper_mt
+AM_LDFLAGS=-lc -lm -lrt  -lxs -lboost_serialization -lboost_system  -lthrift -DTHREAD -lzookeeper_mt -lhdfs
 
 
 if OPT_TCMALLOC

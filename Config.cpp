@@ -18,14 +18,14 @@ using namespace std;
 //#define DEBUG_Config
 
 string gete() {
-  char *p = getenv("CLAIMS_HOME");
+  char *p = getenv("GINKGO_HOME");
   stringstream sp;
   sp << string(p).c_str() << "conf/config";
   return sp.str();
   //	return "/home/imdb/config/wangli/config";
 }
 string get_default_logfile_name() {
-  char *p = getenv("CLAIMS_HOME");
+  char *p = getenv("GINKGO_HOME");
   stringstream sp;
   sp << string(p).c_str() << "/log/claims.log";
   return sp.str();
@@ -87,6 +87,8 @@ bool Config::enable_prune_column;
 bool Config::enable_parquet;
 bool Config::enable_kerberos;
 
+bool Config::distributed_load;
+
 std::string Config::catalog_file;
 
 int Config::thread_pool_init_thread_num;
@@ -119,7 +121,7 @@ int Config::hash_join_bucket_num;
 int Config::hash_join_bucket_size;
 int Config::expander_buffer_size;
 int Config::kerberos_notify_port;
-
+int Config::load_node_num;
 Config *Config::getInstance() {
   if (instance_ == 0) {
     instance_ = new Config();
@@ -223,6 +225,9 @@ void Config::initialize() {
 
   kerberos_notify_port = getInt("kerberos_notify_port", 15000);
 
+  distributed_load = getBoolean("distributed_load", false);
+
+  load_node_num = getInt("load_node_num", 1);
 #ifdef DEBUG_Config print_configure();
 #endif
 }
@@ -287,6 +292,7 @@ void Config::print_configure() const {
   std::cout << "hash_join_bucket_size: " << hash_join_bucket_size << std::endl;
   std::cout << "expander_buffer_size: " << expander_buffer_size << std::endl;
   std::cout << "kerberos_notify_port: " << kerberos_notify_port << std::endl;
+  std::cout << "distributed_load: " << distributed_load << std::endl;
 }
 
 void Config::setConfigFile(std::string file_name) { config_file = file_name; }

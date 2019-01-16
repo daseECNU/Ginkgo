@@ -30,39 +30,42 @@
 #ifndef STMT_HANDLER_HDFS_LOAD_EXEC_H
 #define STMT_HANDLER_HDFS_LOAD_EXEC_H
 
-//#include "../stmt_handler/stmt_exec.h"
 #include <hdfs.h>
 #include <string>
+#include <vector>
 #include "../common/error_define.h"
 using std::string;
-
-namespace claims{
-namespace loader{
+using std::vector;
+namespace claims {
+namespace loader {
 /**
  * @brief
  * @details
  */
-class HdfsLoader{
-public:
+class HdfsLoader {
+ public:
   HdfsLoader();
   virtual ~HdfsLoader();
-  //RetCode Execute (ExecutedResult* exec_result);
-   RetCode CheckHdfsFile(string file_name);
-   RetCode PrepareForLoadFromHdfs();
-   int GetCharFromBuffer(void*& buffer, int & pos, int & read_num, const int & length,
-                             int & total_read_num);
-   RetCode GetFromHdfs(const string& file_name,int & length);
-   RetCode OpenHdfsFile(string & file_name);
-   RetCode CloseHdfsFile();
-private:
-  //AstLoadTable* load_ast_;
+  // RetCode Execute (ExecutedResult* exec_result);
+  RetCode CheckHdfsFile(string file_name);
+  RetCode PrepareForLoadFromHdfs();
+  int GetCharFromBuffer(void*& buffer, int& pos, int& read_num,
+                        const int& length, uint64_t& total_read_num);
+  RetCode GetFromHdfs(const string& file_name, int& length);
+  RetCode OpenHdfsFile(string& file_name);
+  RetCode SeekHdfsFile(uint64_t pos);
+  RetCode CloseHdfsFile();
+
+  //  vector<int64_t> getPart(string path, int part, char sep);
+  //  int getOffset(int64_t start, int64_t end, int64_t& result, char sep);
+
+ private:
+  // AstLoadTable* load_ast_;
   hdfsFS fs_;
   hdfsFile file_;
-  //common::FileHandleImp* imp_;
 
+  // common::FileHandleImp* imp_;
 };
-
-
 }
 }
 

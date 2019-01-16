@@ -1395,6 +1395,34 @@ class OperateBool : public Operate {
   void SetDefault(string& str) const { str = "false"; }
 };
 
+struct col_type {
+  col_type() : type_(0), nullable_(false), size_(0) {}
+  col_type(int type, bool nullable, unsigned size) {
+    type_ = type;
+    nullable_ = nullable;
+    size_ = size;
+  }
+  bool operator==(const col_type& r) const {
+    return type_ == r.type_ && nullable_ == r.nullable_ && size_ == r.size_;
+  }
+  friend class boost::serialization::access;
+  template <class Archive>
+  void serialize(Archive& ar, const unsigned int version) {
+    ar& type_& size_& nullable_;
+  }
+  int type_;
+  bool nullable_;
+  unsigned size_;
+};
+
+static size_t hash_value(const col_type& key) {
+  size_t seed = 0;
+  boost::hash_combine(seed, boost::hash_value(key.nullable_));
+  boost::hash_combine(seed, boost::hash_value(key.size_));
+  boost::hash_combine(seed, boost::hash_value(key.type_));
+  return seed;
+}
+
 class column_type {
  public:
   column_type(data_type type, unsigned _size = 0, bool _nullable = true)
@@ -1521,5 +1549,84 @@ class column_type {
     }
   }
 };
+struct LoadInfo {
+  bool operator==(const LoadInfo& r) const {
+    if (cols_.size() != r.cols_.size() ||
+        proj_cols_.size() != r.proj_cols_.size() ||
+        write_path_.size() != r.write_path_.size() ||
+        part_key_idx_.size() != r.part_key_idx_.size() ||
+        prj_index_vec_.size() != r.prj_index_vec_.size() ||
+        part_func_v_.size() != r.part_func_v_.size() ||
+        tbl_name_ != r.tbl_name_) {
+      return false;
+    }
+    return true;
+  }
+  LoadInfo() {}
+  LoadInfo(vector<string> cols, vector<vector<string>> proj_cols,
+           vector<vector<string>> write_path, vector<int> part_key_idx,
+           vector<vector<unsigned>> prj_index_vec, vector<string> part_func_v,
+           string tbl_name)
+      : cols_(cols),
+        proj_cols_(proj_cols),
+        write_path_(write_path),
+        part_key_idx_(part_key_idx),
+        prj_index_vec_(prj_index_vec),
+        part_func_v_(part_func_v),
+        tbl_name_(tbl_name) {}
+  friend class boost::serialization::access;
+  template <class Archive>
+  void serialize(Archive& ar, const unsigned int version) {
+    ar& cols_& proj_cols_& write_path_& part_key_idx_& prj_index_vec_&
+        part_func_v_& tbl_name_;
+  }
+  vector<string> cols_;
+  vector<vector<string>> proj_cols_;
+  vector<vector<string>> write_path_;
+  vector<int> part_key_idx_;
+  vector<vector<unsigned>> prj_index_vec_;
+  vector<string> part_func_v_;
+  string tbl_name_;
+};
+
+struct LoadMsg {
+  bool operator==(const LoadMsg& r) const {
+    return node_id_ == r.node_id_ && load_mode_ == r.load_mode_ &&
+           tbl_name_ == r.tbl_name_ &&
+           blks_per_partition_.size() == r.blks_per_partition_.size() &&
+           logical_lengths_.size() == r.logical_lengths_.size() &&
+           write_path_name_.size() == r.write_path_name_.size();
+  }
+  LoadMsg() {}
+  LoadMsg(int node_id, int load_mode, string tbl_name,
+          vector<vector<unsigned long>> blks_per_partition,
+          vector<vector<unsigned long>> logical_lengths,
+          vector<vector<string>> write_path_name)
+      : node_id_(node_id),
+        load_mode_(load_mode),
+        tbl_name_(tbl_name),
+        blks_per_partition_(blks_per_partition),
+        logical_lengths_(logical_lengths),
+        write_path_name_(write_path_name) {}
+  friend class boost::serialization::access;
+  template <class Archive>
+  void serialize(Archive& ar, const unsigned int version) {
+    ar& blks_per_partition_& logical_lengths_& write_path_name_& node_id_&
+        load_mode_& tbl_name_;
+  }
+  vector<vector<size_t>> blks_per_partition_;  // block num of partition
+  vector<vector<size_t>> logical_lengths_;     // file length
+  vector<vector<string>> write_path_name_;
+  int node_id_;    // load node id
+  int load_mode_;  // load or append
+  string tbl_name_;
+};
+// bool operator==(const LoadMsg& lhs, const LoadMsg& rhs) {
+//  return lhs.node_id_ == rhs.node_id_ && lhs.load_mode_ == rhs.load_mode_ &&
+//         lhs.tbl_name_ == rhs.tbl_name_ &&
+//         lhs.blks_per_partition_.size() == rhs.blks_per_partition_.size() &&
+//         lhs.logical_lengths_.size() == rhs.logical_lengths_.size() &&
+//         lhs.write_path_name_.size() == rhs.write_path_name_.size();
+//}
 
 #endif /* DATA_TYPE_H_ */

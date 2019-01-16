@@ -214,6 +214,10 @@ public:
 	unsigned getNumberOfPartitions()const{
 		return range_;
 	}
+
+	bool operator==(const GeneralModuloFunction& r){
+		return range_ == r.getNumberOfPartitions();
+	}
 private:
 	unsigned long range_;
 	unsigned skipbits_;

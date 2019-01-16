@@ -33,6 +33,17 @@ std::string Schema::getColumnValue(const void* tuple_start_address, int i) {
   return columns[i].operate->toString(getColumnAddess(i, tuple_start_address));
 }
 
+std::vector<col_type> Schema::getColumnVec() {
+  vector<col_type> res;
+  for (int i = 0; i < columns.size(); ++i) {
+    col_type c_type;
+    c_type.nullable_ = columns[i].nullable;
+    c_type.size_ = columns[i].size;
+    c_type.type_ = columns[i].type;
+    res.push_back(c_type);
+  }
+  return res;
+}
 bool Schema::hasSameSchema(Schema* schema) {
   if (this->getSchemaType() != schema->getSchemaType()) return false;
   if (this->getncolumns() != schema->getncolumns()) return false;

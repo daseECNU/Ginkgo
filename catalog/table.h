@@ -205,6 +205,14 @@ class TableDescriptor {
     return logical_files_length_;
   }
 
+  map<int, vector<vector<uint64_t>>>& GetLogicalFilesLengthDist() {
+    return logical_files_length_dist_;
+  }
+
+  map<int, vector<vector<string>>>& GetDistWritePath() {
+    return dist_write_path_;
+  }
+
  private:
   void InitFileConnector();
 
@@ -273,6 +281,10 @@ class TableDescriptor {
   map<int, int> part_to_proj_;
   vector<vector<uint64_t>> logical_files_length_;
 
+  //< node_id, <projection_id, partition_id>>
+  map<int, vector<vector<uint64_t>>> logical_files_length_dist_;
+  //< node_id, <projection_id, partition_id>>
+  map<int, vector<vector<string>>> dist_write_path_;
   // Loading or inserting blocks updating table(create new projection and so
   // on), vice versa.
   SpineLock update_lock_;
@@ -286,7 +298,8 @@ class TableDescriptor {
     ar& tableName& attributes& table_id_& projection_list_& row_number_&
         has_deleted_tuples_& meta_start_pos_& meta_len_& file_len_&
             part_to_proj_& file_num_& logical_files_length_&
-                has_deleted_tuples_;
+                logical_files_length_dist_& dist_write_path_&
+                    has_deleted_tuples_;
     //    InitLocks();
     InitFileConnector();
   }

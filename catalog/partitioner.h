@@ -35,6 +35,7 @@
 #include <vector>
 #include <string>
 #include <map>
+#include <utility>
 
 #include "../catalog/attribute.h"
 #include "../catalog/column.h"
@@ -259,11 +260,16 @@ class Partitioner {
   void RegisterPartition(unsigned partitoin_key, unsigned number_of_chunks);
   void RegisterPartitionWithNumberOfBlocks(unsigned partitoin_key,
                                            unsigned long number_of_blocks);
+  void RegisterPartitionWithNumberOfBlocksDist(unsigned partition_offset,
+                                               unsigned long number_of_blocks,
+                                               int load_node_id, int mode);
   void RegisterPartitionWithNumberOfBlocksPar(unsigned partition_offset,
                                               unsigned long number_of_blocks);
   void UpdatePartitionWithNumberOfChunksToBlockManager(
       unsigned partitoin_offset, unsigned long number_of_blocks);
-
+  void UpdatePartitionWithNumberOfChunksToBlockManagerDist(
+      unsigned partition_offset, unsigned long number_of_blocks,
+      int load_node_id);
   unsigned getPartitionDataSize(unsigned partitoin_index) const;
 
   unsigned long getPartitionCardinality(unsigned partitoin_index) const;
@@ -271,7 +277,8 @@ class Partitioner {
   unsigned getPartitionBlocks(unsigned partitoin_index) const;
 
   unsigned getPartitionChunks(unsigned partition_index) const;
-
+  unsigned getPartitionChunksByMap(unsigned partition_index,
+                                   int load_node_id) const;
   bool isEmpty();
 
   NodeID getPartitionLocation(unsigned partition_offset) const;
@@ -304,6 +311,9 @@ class Partitioner {
    * location.
    */
   vector<PartitionInfo *> partition_info_list;
+  // partition_id, load_node_id  => num_of_block
+  map<pair<unsigned, int>, long> num_of_block_;
+
   binding_mode mode_;
   ProjectionID projection_id_;
   //  hashmap<PartitionID,std::string> partitionid_to_filename_;
@@ -332,7 +342,7 @@ class Partitioner {
     ar.register_type(static_cast<OneToOnePartitionInfo *>(NULL));
 
     ar &partition_key_ &partition_function_ &number_of_partitions_ &
-        partition_info_list &mode_ &projection_id_;
+        partition_info_list &mode_ &projection_id_ &num_of_block_;
   }
 };
 

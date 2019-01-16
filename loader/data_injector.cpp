@@ -162,6 +162,7 @@ DataInjector::DataInjector(TableDescriptor* table, const string col_separator,
       row_separator_(row_separator),
       row_id_in_table_(table_->row_number_),
       connector_(table_->get_connector()),
+      connector_pointer_(NULL),
       hdfsloader_(new HdfsLoader()) {
   sub_tuple_generator_.clear();
   table_schema_ = table_->getSchema();
@@ -201,24 +202,67 @@ DataInjector::DataInjector(TableDescriptor* table, const string col_separator,
   }
 
   sblock_ = new Block(BLOCK_SIZE);
+}
 
-  // #ifdef DATA_DO_LOAD
-  //   connector_ = table_->get_connector();
-  // #endif
+DataInjector::DataInjector(
+    const string col_separator, const string row_separator,
+    uint64_t tuple_start, std::vector<column_type> columns,
+    vector<vector<column_type>> proj_columns, vector<vector<string>> write_path,
+    vector<int> part_key_idx, vector<GeneralModuloFunction> part_func_v,
+    vector<vector<unsigned>> prj_index_vec, string tbl_name)
+    : col_separator_(col_separator),
+      row_separator_(row_separator),
+      row_id_in_table_(tuple_start),
+      partition_key_index_(part_key_idx),
+      part_func_list_(part_func_v),
+      tbl_name_(tbl_name),
+      hdfsloader_(new HdfsLoader()) {
+  table_schema_ = new SchemaFix(columns);
+  projections_schema_.clear();
+  sub_tuple_generator_.clear();
+  for (int i = 0; i < proj_columns.size(); ++i) {
+    projections_schema_.push_back(new SchemaFix(proj_columns[i]));
+  }
+  for (int i = 0; i < proj_columns.size(); ++i) {
+    SubTuple* st =
+        new SubTuple(table_schema_, projections_schema_[i], prj_index_vec[i]);
+    sub_tuple_generator_.push_back(st);
+  }
+
+  int node_id = Environment::getInstance()->get_slave_node()->get_node_id();
+  for (int i = 0; i < write_path.size(); ++i) {
+    vector<string> write_p;
+    for (int j = 0; j < write_path[i].size(); ++j) {
+      stringstream ss;
+      ss << write_path[i][j] << 'N' << node_id;
+      string s = ss.str();
+      write_p.push_back(s);
+    }
+    write_path_.push_back(write_p);
+  }
+  for (int i = 0; i < part_func_list_.size(); ++i) {
+    partition_functin_list_.push_back(&part_func_list_[i]);
+  }
+
+  connector_pointer_ = new TableFileConnector(FilePlatform::kHdfs, write_path_,
+                                              common::kAppendFile);
+  sblock_ = new Block(BLOCK_SIZE);
 }
 
 DataInjector::~DataInjector() {
-  DELETE_PTR(table_schema_);
-  //  DELETE_PTR(connector_);
-  DELETE_PTR(sblock_);
+  if (table_schema_ != NULL) DELETE_PTR(table_schema_);
+  if (sblock_ != NULL) DELETE_PTR(sblock_);
+  if (connector_pointer_ != NULL) DELETE_PTR(connector_pointer_);
   for (auto it : pj_buffer_) {
     for (auto iter : it) {
-      DELETE_PTR(iter);
+      if (iter != NULL) DELETE_PTR(iter);
     }
     it.clear();
   }
   pj_buffer_.clear();
-  for (auto it : sub_tuple_generator_) DELETE_PTR(it);
+  for (auto it : sub_tuple_generator_) {
+    if (it != NULL) DELETE_PTR(it);
+  }
   sub_tuple_generator_.clear();
 
   write_path_.clear();
@@ -424,14 +468,6 @@ RetCode DataInjector::CheckFiles(vector<string> input_file_names,
         result->SetError("Can't access file :" + file_name);
         return ret;
       }
-      /*
-      hdfsFileInfo* hdfsfile = hdfsGetPathInfo(fs_,file_name.c_str());
-      if(NULL == hdfsfile){
-        PLOG(ERROR) << "failed to open file :" << file_name << " in mode"
-                        << file_status_info[FileHandleImp::kInReading] << " .";
-            return rOpenHdfsFileFail;
-      }
-*/
     } else {
       ifstream input_file(file_name.c_str());
       if (!input_file.good()) {
@@ -484,6 +520,62 @@ RetCode DataInjector::PrepareEverythingForLoading(
   return ret;
 }
 
+RetCode DataInjector::PrepareEverythingForDistributed(
+    vector<string> input_file_names, FileOpenFlag open_flag) {
+  RetCode ret = rSuccess;
+  for (int i = 0; i < projections_schema_.size(); i++) {
+    vector<BlockStreamBase*> temp_v;
+    vector<size_t> tmp_block_num;
+    vector<size_t> tmp_tuple_count;
+    for (int j = 0; j < part_func_list_[i].getNumberOfPartitions(); ++j) {
+      temp_v.push_back(BlockStreamBase::createBlock(
+          projections_schema_[i], BLOCK_SIZE - sizeof(unsigned)));
+      connector_pointer_->InitMemFileLength(i, j);
+      tmp_tuple_count.push_back(0);
+      tmp_block_num.push_back(0);
+      LOG(INFO) << "init number of partitions (" << i << "," << j
+                << "):" << tmp_block_num[j];
+    }
+    pj_buffer_.push_back(temp_v);
+    blocks_per_partition_.push_back(tmp_block_num);
+    tuples_per_partition_.push_back(tmp_tuple_count);
+  }
+  ret = hdfsloader_->PrepareForLoadFromHdfs();
+  if (ret == rFailure) {
+    LOG(ERROR) << " PrepareForLoadFromHdfs Fail!";
+    return ret;
+  }
+  if (kCreateFile == open_flag)
+    EXEC_AND_LOG(ret, connector_pointer_->DeleteAllTableFiles(),
+                 "deleted all table files", "failed to delete all table files");
+  EXEC_AND_RETURN_ERROR(ret, connector_pointer_->Open(),
+                        " failed to open connector");
+  if (kCreateFile == open_flag && Config::master) {
+    table_ = Catalog::getInstance()->getTable(tbl_name_);
+    for (int i = 0; i < table_->getNumberOfProjection(); i++) {
+      if (table_->getProjectoin(i)->getPartitioner()->allPartitionBound()) {
+        bool res = Catalog::getInstance()
+                       ->getBindingModele()
+                       ->UnbindingEntireProjection(
+                           table_->getProjectoin(i)->getPartitioner());
+        if (res) {
+          std::cout << "unbound entire projection " << i << " in table "
+                    << table_->getTableName() << std::endl;
+          LOG(INFO) << "unbound entire projection " << i << " in table "
+                    << table_->getTableName() << std::endl;
+        } else {
+          std::cout << "failed to unbind entire projection " << i
+                    << " in table " << tbl_name_ << std::endl;
+          LOG(ERROR) << "failed to unbind entire projection " << i
+                     << " in table " << table_->getTableName() << std::endl;
+          return rFailure;
+        }
+      }
+    }
+  }
+  return ret;
+}
+
 RetCode DataInjector::FinishJobAfterLoading(FileOpenFlag open_flag) {
   int ret = rSuccess;
 
@@ -509,9 +601,6 @@ RetCode DataInjector::LoadFromFileMultiThread(vector<string> input_file_names,
                                               double sample_rate) {
   int ret = rSuccess;
   int file_count = 0;
-  //  HdfsLoader* hdfsloader_ = new HdfsLoader();
-  //  LOG(INFO) << "enter the loadfromfilemultithread and create the
-  //      hdfsloader_ "<<std::endl;
   uint64_t row_id_in_file = 0;
   uint64_t inserted_tuples_in_file = 0;
   uint64_t total_tuple_count = 0;
@@ -542,27 +631,23 @@ RetCode DataInjector::LoadFromFileMultiThread(vector<string> input_file_names,
   for (auto file_name : input_file_names) {
     if (file_name.find(hdfs_name) == 0) {
       file_name = file_name.substr(hdfs_name.length());
-      // hdfsFileInfo* hdfsfile = hdfsGetPathInfo(fs_, file_name.c_str())  ;
       DLOG_DI("Now handle hdfs_file :" << file_name);
       void* buffer;
       buffer = Malloc(hdfsreadlength + 1);
       int pos = 0;
       int read_num = 0;
       const int length = hdfsreadlength;
-      //      hdfsloader_->file_ =
-      //          hdfsOpenFile(hdfsloader_->fs_,
-      //          file_name.c_str(),O_RDONLY,0,0,0);
       ret = hdfsloader_->OpenHdfsFile(file_name);
       if (ret != rSuccess) {
         cout << "open file error" << endl;
       }
+
       while (GetTupleTerminatedByFromHdfs(buffer, hdfsloader_, file_name,
                                           tuple_record, row_separator_, pos,
                                           read_num, length) ||
              tuple_record != "") {
         if (tuple_record == "\r")
           tuple_record = "";  // eliminate the effect of '\r'
-        // std::cout<<"get the tuple_record is"<<tuple_record<<std::endl;
         DLOG_DI("---------------read tuple "
                 << tuple_record << "tuple size is " << tuple_record.length()
                 << ". input file's eof is " << input_file.eof());
@@ -680,6 +765,102 @@ RetCode DataInjector::LoadFromFileMultiThread(vector<string> input_file_names,
   return ret;
 }
 
+RetCode DataInjector::DistributedLoadMultiThread(
+    vector<string> input_file_names, int open_flag, vector<uint64_t> start,
+    vector<uint64_t> end, int total_nodes, LoadMsg& ldmsg) {
+  int ret = rSuccess;
+  int file_count = 0;
+  uint64_t inserted_tuples_in_file = 0;
+  uint64_t total_tuple_count = 0;
+  string tuple_record = "";
+  multi_thread_status_ = rSuccess;
+  all_tuple_read_ = false;
+  result_ = new ExecutedResult();
+  thread_index_ = 0;
+  EXEC_AND_RETURN_ERROR(ret, PrepareEverythingForDistributed(
+                                 input_file_names, FileOpenFlag(open_flag)),
+                        "failed to prepare everything for distributed loading");
+  // create threads handling tuples
+  int thread_count = Config::load_thread_num;
+  assert(thread_count >= 1);
+  task_lists_ = new std::list<LoadTask>[thread_count];
+  task_list_access_lock_ = new SpineLock[thread_count];
+  tuple_count_sem_in_lists_ = new semaphore[thread_count];
+  for (int i = 0; i < thread_count; ++i) {
+    Environment::getInstance()->getThreadPool()->AddTask(HandleTuple, this);
+  }
+
+  // start to read every raw data file
+  for (auto file_name : input_file_names) {
+    void* buffer;
+    if (file_name.find(hdfs_name) == 0) {
+      file_name = file_name.substr(hdfs_name.length());
+      DLOG_DI("Now handle hdfs_file :" << file_name);
+      buffer = Malloc(hdfsreadlength + 1);
+      int pos = 0;
+      int read_num = 0;
+      const int length = hdfsreadlength;
+      uint64_t total_read_num = 0;
+      uint64_t need_read = end[0] - start[0];
+      ret = hdfsloader_->OpenHdfsFile(file_name);
+      if (ret != rSuccess) {
+        cout << "open hdfs file error" << endl;
+      }
+      ret = hdfsloader_->SeekHdfsFile(start[0]);
+      if (ret != rSuccess) {
+        cout << "seek hdfs file error" << endl;
+      }
+      while (GetTupleFromHdfs(buffer, hdfsloader_, tuple_record, row_separator_,
+                              pos, read_num, total_read_num, length) ||
+             tuple_record != "") {
+        if (tuple_record == "\r")
+          tuple_record = "";  // eliminate the effect of '\r'
+        if (0 == row_id_in_table_ % 10000) {
+          AnnounceIAmLoading();
+          row_id_in_table_ += (total_nodes - 1) * 10000;
+        }
+        ++row_id_in_table_;
+        int list_index = row_id_in_table_ % thread_count;
+        {  // push into one thread local tuple pool
+          LockGuard<SpineLock> guard(
+              task_list_access_lock_[list_index]);  /// lock/sem
+          task_lists_[list_index].push_back(
+              std::move(LoadTask(tuple_record, file_name, row_id_in_table_)));
+        }
+        tuple_count_sem_in_lists_[list_index].post();
+        if (total_read_num >= need_read) break;
+      }
+    }
+    free(buffer);
+    buffer = NULL;
+    hdfsloader_->CloseHdfsFile();
+  }
+  __sync_add_and_fetch(&all_tuple_read_, 1);
+
+  for (int i = 0; i < thread_count; ++i)
+    PLOG_DI("after reading all tuple, tuple count sem value of thread "
+            << i << " is :" << tuple_count_sem_in_lists_[i].get_value());
+
+  // waiting for all threads finishing task
+  for (int i = 0; i < thread_count; ++i) finished_thread_sem_.wait();
+  LOG(INFO) << " all threads finished its job " << endl;
+  if (rSuccess != (ret = multi_thread_status_)) {
+    ELOG(multi_thread_status_, "failed to load using multi-thread ");
+    return ret;
+  }
+  EXEC_AND_LOG(ret, connector_pointer_->Close(), "closed connector.",
+               "Failed to close connector. ret:" << ret);
+  for (int i = 0; i < thread_count; ++i) task_lists_[i].clear();
+
+  ldmsg.logical_lengths_ = connector_pointer_->GetFileHandleLength();
+  ldmsg.write_path_name_ = connector_pointer_->GetWritePathName();
+  ldmsg.blks_per_partition_ = blocks_per_partition_;
+  DELETE_ARRAY(task_lists_);
+  DELETE_ARRAY(task_list_access_lock_);
+  DELETE_ARRAY(tuple_count_sem_in_lists_);
+  delete result_;
+  return ret;
+}
 /**
  * Phase 1: write data from file into block, then write into HDFS/disk when
  * every block is filled fully by raw data
@@ -719,17 +900,28 @@ RetCode DataInjector::LoadFromFile(vector<string> input_file_names,
 RetCode DataInjector::PrepareLocalPJBuffer(
     vector<vector<BlockStreamBase*>>& pj_buffer) {
   int ret = rSuccess;
-  for (int i = 0; i < table_->getNumberOfProjection(); i++) {
-    vector<BlockStreamBase*> temp_v;
-    for (
-        int j = 0;
-        j < table_->getProjectoin(i)->getPartitioner()->getNumberOfPartitions();
-        ++j) {
-      temp_v.push_back(
-          BlockStreamBase::createBlock(table_->getProjectoin(i)->getSchema(),
-                                       BLOCK_SIZE - sizeof(unsigned)));
+  if (Config::distributed_load) {
+    for (int i = 0; i < projections_schema_.size(); i++) {
+      vector<BlockStreamBase*> temp_v;
+      for (int j = 0; j < part_func_list_[i].getNumberOfPartitions(); ++j) {
+        temp_v.push_back(BlockStreamBase::createBlock(
+            projections_schema_[i], BLOCK_SIZE - sizeof(unsigned)));
+      }
+      pj_buffer.push_back(temp_v);
     }
-    pj_buffer.push_back(temp_v);
+  } else {
+    for (int i = 0; i < table_->getNumberOfProjection(); i++) {
+      vector<BlockStreamBase*> temp_v;
+      for (int j = 0; j < table_->getProjectoin(i)
+                              ->getPartitioner()
+                              ->getNumberOfPartitions();
+           ++j) {
+        temp_v.push_back(
+            BlockStreamBase::createBlock(table_->getProjectoin(i)->getSchema(),
+                                         BLOCK_SIZE - sizeof(unsigned)));
+      }
+      pj_buffer.push_back(temp_v);
+    }
   }
   return ret;
 }
@@ -756,11 +948,6 @@ void* DataInjector::HandleTuple(void* ptr) {
   RetCode ret = rSuccess;
   int self_thread_index = __sync_fetch_and_add(&injector->thread_index_, 1);
   LOG(INFO) << "my thread_index is " << self_thread_index << endl;
-  LOG(INFO)
-      << "before handling tuple, thread " << self_thread_index
-      << " tuple count sem value is :"
-      << injector->tuple_count_sem_in_lists_[self_thread_index].get_value()
-      << endl;
   /*
    * store the validity of every column data,
    * the extra 2 validity[(-1, rTooManyColumn), (-1, rTooFewColumn)]
@@ -781,16 +968,9 @@ void* DataInjector::HandleTuple(void* ptr) {
 
   while (true) {
     if (injector->multi_thread_status_ != rSuccess) break;
-    GET_TIME_DI(start_get_task_time);
     if (injector->all_tuple_read_ == 1) {
-      GET_TIME_DI(start_read_sem);
       if (!injector->tuple_count_sem_in_lists_[self_thread_index]
                .try_wait()) {  ///// lock/sem
-        ATOMIC_ADD(injector->total_read_sem_fail_count_, 1);
-        ATOMIC_ADD(injector->total_read_sem_time_,
-                   GetElapsedTimeInUs(start_read_sem));
-        DLOG_DI("all tuple in pool is handled ");
-
         EXEC_AND_LOG(
             ret, injector->FlushNotFullBlock(block_to_write, local_pj_buffer),
             "flush all last block that are not full",
@@ -802,34 +982,23 @@ void* DataInjector::HandleTuple(void* ptr) {
         injector->finished_thread_sem_.post();
         return NULL;  // success. all tuple is handled
       }
-      DLOG_DI("all tuple is read ,tuple count sem is:"
-              << injector->tuple_count_sem_in_lists_[self_thread_index]
-                     .get_value());
       // get tuple from list without lock, as
       // producer thread is over, there are only consumer threads
       task = std::move(injector->task_lists_[self_thread_index].front());
       injector->task_lists_[self_thread_index].pop_front();
     } else {
-      DLOG_DI("tuple count sem is:"
+      /*DLOG_DI("tuple count sem is:"
               << injector->tuple_count_sem_in_lists_[self_thread_index]
-                     .get_value());
+                     .get_value());*/
       // waiting for new tuple read from file
-      GET_TIME_DI(start_unread_sem);
       if (!injector
                ->tuple_count_sem_in_lists_[self_thread_index]  ///// lock/sem
                .try_wait()) {                                  ///// lock/sem
-        ATOMIC_ADD(injector->total_unread_sem_fail_count_, 1);
         continue;
       }
-      ATOMIC_ADD(injector->total_unread_sem_time_,
-                 GetElapsedTimeInUs(start_unread_sem));
       // get tuple from pool with lock
-      GET_TIME_DI(start_tuple_buffer_lock_time);
       LockGuard<SpineLock> guard(
           injector->task_list_access_lock_[self_thread_index]);  ///// lock/sem
-      ATOMIC_ADD(
-          injector->total_lock_tuple_buffer_time_,            ///// lock/sem
-          GetElapsedTimeInUs(start_tuple_buffer_lock_time));  ///// lock/sem
       task = std::move(
           injector->task_lists_[self_thread_index].front());  ///// lock/sem
       injector->task_lists_[self_thread_index].pop_front();   ///// lock/sem
@@ -838,24 +1007,19 @@ void* DataInjector::HandleTuple(void* ptr) {
     tuple_to_handle = task.tuple_;
     file_name = task.file_name_;
     row_id_in_file = task.row_id_in_file_;
-    DLOG_DI("thread " << self_thread_index
-                      << " get task whose row_id_in_file is "
-                      << row_id_in_file);
-    ATOMIC_ADD(injector->total_get_task_time_,
-               GetElapsedTimeInUs(start_get_task_time));
     if (0 == row_id_in_file % 50000) injector->AnnounceIAmLoading();
-
-    GET_TIME_DI(add_time);
-    EXEC_AND_ONLY_LOG_ERROR(ret, injector->AddRowIdColumn(tuple_to_handle),
-                            "failed to add row_id column for tuple.");
+    if (Config::distributed_load == true) {
+      tuple_to_handle = std::to_string(task.row_id_in_file_) +
+                        injector->col_separator_ + tuple_to_handle +
+                        injector->col_separator_;
+    } else {
+      EXEC_AND_ONLY_LOG_ERROR(ret, injector->AddRowIdColumn(tuple_to_handle),
+                              "failed to add row_id column for tuple.");
+    }
     if (ret != rSuccess) {  // it is not need to use lock
       injector->multi_thread_status_ = ret;
       break;
     }
-    ATOMIC_ADD(injector->total_add_time_, GetElapsedTimeInUs(add_time));
-    DLOG_DI("after adding row id, tuple is:" << tuple_to_handle);
-
-    GET_TIME_DI(start_check_time);
     columns_validities.clear();
     memset(tuple_buffer, 0, injector->table_schema_->getTupleMaxSize());
     if (rSuccess != (ret = injector->CheckAndToValue(
@@ -876,16 +1040,9 @@ void* DataInjector::HandleTuple(void* ptr) {
         string validity_info = injector->GenerateDataValidityInfo(
             it, injector->table_, row_id_in_file, file_name);
         DLOG_DI("append warning info:" << validity_info);
-        GET_TIME_DI(start_append_warning_time);
-        injector->result_->AtomicAppendWarning(validity_info);  /////  lock/sem
-        ATOMIC_ADD(injector->total_append_warning_time_,
-                   GetElapsedTimeInUs(start_append_warning_time));
+        injector->result_->AtomicAppendWarning(validity_info);  ///// lock/sem
       }
     }
-    ATOMIC_ADD(injector->total_check_and_to_value_time_,
-               GetElapsedTimeInUs(start_check_time));
-
-    GET_TIME_DI(start_insert_time);
     EXEC_AND_ONLY_LOG_ERROR(
         ret, injector->InsertSingleTuple(tuple_buffer, block_to_write,
                                          local_pj_buffer),  ///// lock/sem
@@ -895,8 +1052,6 @@ void* DataInjector::HandleTuple(void* ptr) {
       injector->multi_thread_status_ = ret;
       break;
     }
-    ATOMIC_ADD(injector->total_insert_time_,
-               GetElapsedTimeInUs(start_insert_time));
   }
 
   DELETE_PTR(block_to_write);
@@ -1085,26 +1240,43 @@ RetCode DataInjector::InsertFromString(const string tuples,
 // flush the last block which is not full of 64*1024Byte
 RetCode DataInjector::FlushNotFullBlock(
     Block* block_to_write, vector<vector<BlockStreamBase*>>& pj_buffer) {
-  TableDescriptor* table = table_;
+  //  TableDescriptor* table = table_;
   int ret = rSuccess;
-  for (int i = 0; i < table_->getNumberOfProjection(); i++) {
-    for (
-        int j = 0;
-        j < table_->getProjectoin(i)->getPartitioner()->getNumberOfPartitions();
-        j++) {
-      if (!pj_buffer[i][j]->Empty()) {
-        pj_buffer[i][j]->serialize(*block_to_write);
-#ifdef DATA_DO_LOAD
-        EXEC_AND_LOG(ret,
-                     connector_.AtomicFlush(i, j, block_to_write->getBlock(),
-                                            block_to_write->getsize()),
-                     "flushed the last block from buffer(" << i << "," << j
-                                                           << ") into file",
-                     "failed to flush the last block from buffer("
-                         << i << "," << j << "). ret:" << ret);
-#endif
-        __sync_add_and_fetch(&blocks_per_partition_[i][j], 1);
-        pj_buffer[i][j]->setEmpty();
+  if (Config::distributed_load) {
+    for (int i = 0; i < projections_schema_.size(); i++) {
+      for (int j = 0; j < part_func_list_[i].getNumberOfPartitions(); j++) {
+        if (!pj_buffer[i][j]->Empty()) {
+          pj_buffer[i][j]->serialize(*block_to_write);
+          EXEC_AND_LOG(ret, connector_pointer_->AtomicFlush(
+                                i, j, block_to_write->getBlock(),
+                                block_to_write->getsize()),
+                       "flushed the last block from buffer(" << i << "," << j
+                                                             << ") into file",
+                       "failed to flush the last block from buffer("
+                           << i << "," << j << "). ret:" << ret);
+          __sync_add_and_fetch(&blocks_per_partition_[i][j], 1);
+          pj_buffer[i][j]->setEmpty();
+        }
+      }
+    }
+  } else {
+    for (int i = 0; i < table_->getNumberOfProjection(); i++) {
+      for (int j = 0; j < table_->getProjectoin(i)
+                              ->getPartitioner()
+                              ->getNumberOfPartitions();
+           j++) {
+        if (!pj_buffer[i][j]->Empty()) {
+          pj_buffer[i][j]->serialize(*block_to_write);
+          EXEC_AND_LOG(ret,
+                       connector_.AtomicFlush(i, j, block_to_write->getBlock(),
+                                              block_to_write->getsize()),
+                       "flushed the last block from buffer(" << i << "," << j
+                                                             << ") into file",
+                       "failed to flush the last block from buffer("
+                           << i << "," << j << "). ret:" << ret);
+          __sync_add_and_fetch(&blocks_per_partition_[i][j], 1);
+          pj_buffer[i][j]->setEmpty();
+        }
       }
     }
   }
@@ -1148,11 +1320,11 @@ RetCode DataInjector::InsertTupleIntoProjection(
     int proj_index, void* tuple_buffer, Block* block_to_write,
     vector<vector<BlockStreamBase*>>& local_pj_buffer) {
   int ret = rSuccess;
-  if (proj_index >= table_->getNumberOfProjection()) {
-    LOG(ERROR) << "projection index is " << proj_index
-               << ", larger than projection number" << endl;
-    return rParamInvalid;
-  }
+  //  if (proj_index >= table_->getNumberOfProjection()) {
+  //    LOG(ERROR) << "projection index is " << proj_index
+  //               << ", larger than projection number" << endl;
+  //    return rParamInvalid;
+  //  }
 
   int i = proj_index;
   unsigned tuple_max_length = projections_schema_[i]->getTupleMaxSize();
@@ -1181,17 +1353,22 @@ RetCode DataInjector::InsertTupleIntoProjection(
                        << " tuples");
   void* block_tuple_addr =
       local_pj_buffer[i][part]->allocateTuple(tuple_max_length);
-  //  TableDescriptor* table = table_;
 
   if (NULL == block_tuple_addr) {
     // if buffer is full, write buffer(64K) to HDFS/disk
     local_pj_buffer[i][part]->serialize(*block_to_write);
-#ifdef DATA_DO_LOAD
-    EXEC_AND_ONLY_LOG_ERROR(
-        ret, connector_.AtomicFlush(i, part, block_to_write->getBlock(),
-                                    block_to_write->getsize()),
-        /* "written to data file", */ "failed to write to data file. ");
-#endif
+    if (Config::distributed_load) {
+      EXEC_AND_ONLY_LOG_ERROR(
+          ret,
+          connector_pointer_->AtomicFlush(i, part, block_to_write->getBlock(),
+                                          block_to_write->getsize()),
+          /* "written to data file", */ "failed to write to data file. ");
+    } else {
+      EXEC_AND_ONLY_LOG_ERROR(
+          ret, connector_.AtomicFlush(i, part, block_to_write->getBlock(),
+                                      block_to_write->getsize()),
+          /* "written to data file", */ "failed to write to data file. ");
+    }
     __sync_add_and_fetch(&blocks_per_partition_[i][part], 1);
     local_pj_buffer[i][part]->setEmpty();
     block_tuple_addr =
@@ -1216,10 +1393,18 @@ RetCode DataInjector::InsertSingleTuple(
     void* tuple_buffer, Block* block_to_write,
     vector<vector<BlockStreamBase*>>& local_pj_buffer) {
   int ret = rSuccess;
-  for (int i = 0; i < table_->getNumberOfProjection(); i++) {
-    ret = InsertTupleIntoProjection(i, tuple_buffer, block_to_write,
-                                    local_pj_buffer);
+  if (Config::distributed_load) {
+    for (int i = 0; i < projections_schema_.size(); i++) {
+      ret = InsertTupleIntoProjection(i, tuple_buffer, block_to_write,
+                                      local_pj_buffer);
+    }
+  } else {
+    for (int i = 0; i < table_->getNumberOfProjection(); i++) {
+      ret = InsertTupleIntoProjection(i, tuple_buffer, block_to_write,
+                                      local_pj_buffer);
+    }
   }
+
   return ret;
 }
 
@@ -1259,20 +1444,20 @@ istream& DataInjector::GetTupleTerminatedBy(ifstream& ifs, string& res,
   }
   return ifs;
 }
-
+// buffer means data load from HDFS
+// pos means start position
+// read_num means length
+// length means block size
 bool DataInjector::GetTupleTerminatedByFromHdfs(
     void*& buffer, HdfsLoader* hdfsloader_, string& file_name, string& res,
     const string& terminator, int& pos, int& read_num, const int& length) {
   res.clear();
   int c = 0;
-  int total_read_num = 0;
-  // cout<<"terminator is "<<terminator<<endl;
+  uint64_t total_read_num = 0;
   if (terminator.length() == 1) {
     while (true) {
       c = hdfsloader_->GetCharFromBuffer(buffer, pos, read_num, length,
                                          total_read_num);
-      // std::cout<<"get the char c:"<<c<<"\n And the total_read_num is
-      // "<<total_read_num<<std::endl;
       if (c == -1) break;
       res += c;
       if (c == '\n') {
@@ -1281,36 +1466,56 @@ bool DataInjector::GetTupleTerminatedByFromHdfs(
         return true;
       }
     }
-  }
-  while (true) {
-    c = hdfsloader_->GetCharFromBuffer(buffer, pos, read_num, length,
-                                       total_read_num);
-    std::cout << "get the char c:" << c << "\n And the total_read_num is "
-              << total_read_num << std::endl;
-    if (c == -1) break;
-    res += c;
-    if (c == terminator[0]) {
-      int coincide_length = 1;
-      while (true) {
-        c = hdfsloader_->GetCharFromBuffer(buffer, pos, read_num, length,
-                                           total_read_num);
-        if (c == -1) break;
-        res += c;
-        if (terminator[coincide_length] == c) {
-          if (++coincide_length == terminator.length()) {
-            // don't read terminator into string, same as getline()
-            return true;
-            res = res.substr(0, res.length() - terminator.length());
+  } else {
+    while (true) {
+      c = hdfsloader_->GetCharFromBuffer(buffer, pos, read_num, length,
+                                         total_read_num);
+      if (c == -1) break;
+      res += c;
+      if (c == terminator[0]) {
+        int coincide_length = 1;
+        while (true) {
+          c = hdfsloader_->GetCharFromBuffer(buffer, pos, read_num, length,
+                                             total_read_num);
+          if (c == -1) break;
+          res += c;
+          if (terminator[coincide_length] == c) {
+            if (++coincide_length == terminator.length()) {
+              // don't read terminator into string, same as getline()
+              return true;
+              res = res.substr(0, res.length() - terminator.length());
+            }
+          } else {
+            break;
           }
-        } else {
-          break;
         }
       }
     }
   }
   return false;
+}
 
-  // return true;
+bool DataInjector::GetTupleFromHdfs(void*& buffer, HdfsLoader* hdfsloader_,
+                                    string& res, const string& terminator,
+                                    int& pos, int& read_num,
+                                    uint64_t& total_read_num,
+                                    const int& length) {
+  res.clear();
+  int c = 0;
+  if (terminator.length() == 1) {
+    while (true) {
+      c = hdfsloader_->GetCharFromBuffer(buffer, pos, read_num, length,
+                                         total_read_num);
+      if (c == -1) break;
+      res += c;
+      if (c == terminator[0]) {
+        int coincide_length = 1;
+        res = res.substr(0, res.length() - terminator.length());
+        return true;
+      }
+    }
+  }
+  return false;
 }
 
 void DataInjector::AnnounceIAmLoading() {

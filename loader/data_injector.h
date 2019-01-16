@@ -41,6 +41,7 @@
 #include "./validity.h"
 #include "../common/file_handle/file_handle_imp.h"
 #include "hdfs_loader.h"
+#include "../common/data_type.h"
 
 using claims::common::FileOpenFlag;
 using claims::catalog::TableDescriptor;
@@ -78,7 +79,26 @@ class DataInjector {
    */
   DataInjector(TableDescriptor* table, const string col_separator = "|",
                const string row_separator = "\n");
-
+  /**
+     * @brief Method description: get necessary info from table and init
+     * connector_
+     * @param col_separator: column separator
+     * @param row_separator: row separator
+     * @param tuple_start: row id start number
+     * @param columns : column type info construct schema info
+     * @param proj_columns:  proj_columns construct schema info
+     * @param write_path : inital table connector
+     * @param part_key_idx : partition column index
+     * @param part_func_v : partition function vector
+     * @param prj_index_vec : construct SubTuple class
+     * @param tbl_name : table name
+     */
+  DataInjector(const string col_separator, const string row_separator,
+               uint64_t tuple_start, vector<column_type> columns,
+               vector<vector<column_type>> proj_columns,
+               vector<vector<string>> write_path, vector<int> part_key_idx,
+               vector<GeneralModuloFunction> part_func_v,
+               vector<vector<unsigned>> prj_index_vec, string tbl_name);
   virtual ~DataInjector();
 
   /**
@@ -103,12 +123,31 @@ class DataInjector {
   RetCode InsertFromString(const string tuples, ExecutedResult* result);
   /**
    * @brief Method description: insert tuples into table by multithread
-   * @param tuples: the the vectordata to insert into tables, which may be a line or
+   * @param tuples: the the vectordata to insert into tables, which may be a
+   * line or
    * multiple lines
    * @return rSuccess if success or other on error
    */
-  RetCode InsertFromStringMultithread(const vector<string>&tuples,
-                              ExecutedResult* result);
+  RetCode InsertFromStringMultithread(const vector<string>& tuples,
+                                      ExecutedResult* result);
+  /**
+   * @brief Method description: load/append data from multiple files into table
+   * @param input_file_names: the names of files to be read
+   * @param open_flag: specify the way to write to data file:
+   *        kCreateFile(meaning create or overwrite i.e., implies O_TRUNC) /
+   *        kAppendFile(implies O_APPEND)
+   * @param start: start offset of every file
+   * @param end: end offset of every file
+   * @param total_nodes: for decide row_id
+   * @param ldmsg: load finish info, include block_num of partition, logical
+   * length
+   * @return rSuccess if success or other on error
+   */
+  RetCode DistributedLoadMultiThread(vector<string> input_file_names,
+                                     int open_flag, vector<uint64_t> start,
+                                     vector<uint64_t> end, int total_nodes,
+                                     LoadMsg& ldmsg);
+
  private:
   RetCode LoadFromFileSingleThread(vector<string> input_file_names,
                                    FileOpenFlag open_flag,
@@ -176,6 +215,8 @@ class DataInjector {
                                       FileOpenFlag open_flag,
                                       ExecutedResult* result,
                                       HdfsLoader* hdfsloader_);
+  RetCode PrepareEverythingForDistributed(vector<string> input_file_names,
+                                          FileOpenFlag open_flag);
 
   RetCode FinishJobAfterLoading(FileOpenFlag open_flag);
   RetCode PrepareLocalPJBuffer(vector<vector<BlockStreamBase*>>& pj_buffer);
@@ -196,17 +237,25 @@ class DataInjector {
                                            string& file_name, string& res,
                                            const string& terminator, int& pos,
                                            int& read_num, const int& length);
+  static bool GetTupleFromHdfs(void*& buffer, HdfsLoader* hdfsloader_,
+                               string& res, const string& terminator, int& pos,
+                               int& read_num, uint64_t& total_read_num,
+                               const int& length);
+  static vector<size_t> getPart(char* fileName, int part);
+  static size_t getOffset(FILE* fd, size_t start, size_t end);
 
  private:
   TableDescriptor* table_;
+  string tbl_name_;
   TableFileConnector& connector_;
-
+  TableFileConnector* connector_pointer_;
   Schema* table_schema_;
   vector<Schema*> projections_schema_;
   std::vector<std::string> file_list_;
   vector<vector<string>> write_path_;
 
   vector<PartitionFunction*> partition_functin_list_;
+  vector<GeneralModuloFunction> part_func_list_;
   vector<int> partition_key_index_;
   vector<SubTuple*> sub_tuple_generator_;
   Block* sblock_;
@@ -217,7 +266,7 @@ class DataInjector {
 
   string col_separator_;
   string row_separator_;
-  uint64_t& row_id_in_table_;
+  uint64_t row_id_in_table_;
 
   // support multi-thread
   std::list<LoadTask>* task_lists_ = NULL;

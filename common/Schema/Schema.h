@@ -46,6 +46,7 @@ class Schema {
       __attribute__((always_inline)) = 0;
   inline virtual unsigned copyTuple(void* src, void* desc) const = 0;
   unsigned getncolumns() const;
+  std::vector<col_type> getColumnVec();
   virtual Schema* getSubSchema(std::vector<unsigned>) const = 0;
   virtual Schema* duplicateSchema() const = 0;
   inline const column_type& getcolumn(const unsigned index) const {

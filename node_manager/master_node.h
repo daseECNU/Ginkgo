@@ -65,7 +65,9 @@ class MasterNode : public BaseNode {
                          const uint16_t& node_port);
   MasterNode();
   MasterNode(string node_ip, uint16_t node_port);
-
+  void AddLoadJob();
+  void DrecreaseLoadJob();
+  int GetLoadJob();
  private:
   void CreateActor();
 
@@ -73,9 +75,9 @@ class MasterNode : public BaseNode {
   static MasterNode* instance_;
   atomic_uint node_id_gen_;
   std::unordered_map<unsigned int, int> node_id_to_heartbeat_;
+  int load_jobs_;
 };
 
 }  // namespace claims
-
 
 #endif  //  NODE_MANAGER_MASTER_NODE_H_

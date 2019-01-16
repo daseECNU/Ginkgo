@@ -29,9 +29,9 @@
 
 #ifndef STMT_HANDLER_LOAD_EXEC_H_
 #define STMT_HANDLER_LOAD_EXEC_H_
-
+#include <hdfs.h>
 #include "../stmt_handler/stmt_exec.h"
-
+using namespace claims::common;
 namespace claims {
 namespace stmt_handler {
 /**
@@ -47,6 +47,11 @@ class LoadExec : public StmtExec {
    */
   RetCode Execute(ExecutedResult* exec_result);
 
+  RetCode DistributeLoad(std::vector<string> path_names, int num,
+                         string col_sep, string row_sep, TableDescriptor* table,
+                         int open_flag);
+  RetCode getOffset(int64_t start, int64_t end, int64_t& result, char sep);
+  RetCode getPart(string path, int part, char sep, vector<int64_t>& offset);
   RetCode GetWriteAndReadTables(
       ExecutedResult& result,
       vector<vector<pair<int, string>>>& stmt_to_table_list);
@@ -59,6 +64,9 @@ class LoadExec : public StmtExec {
    * object.
    */
   AstLoadTable* load_ast_;
+
+  hdfsFS fs_;
+  hdfsFile file_;
 };
 
 }  // namespace stmt_handler
