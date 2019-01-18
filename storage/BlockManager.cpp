@@ -34,6 +34,7 @@ BlockManager* BlockManager::getInstance() {
 BlockManager::BlockManager() {
   logging_ = new StorageManagerLogging();
   memstore_ = MemoryChunkStore::GetInstance();
+  last_partition_ = "";
 }
 BlockManager::~BlockManager() {
   blockmanager_ = 0;
@@ -259,7 +260,22 @@ int BlockManager::LoadFromHdfs(const ChunkID& chunk_id, void* const& desc,
   lock.acquire();
   int ret;
   uint64_t totoal_read = 0;
-  uint64_t offset = chunk_id.chunk_off;
+  uint64_t offset;
+  if (Config::distributed_load) {
+    // one partition from multi files;
+    if (last_partition_ == "") {
+      offset = 0;
+      last_partition_ = chunk_id.partition_id.getPathAndName();
+    } else if (last_partition_ != chunk_id.partition_id.getPathAndName()) {
+      offset = 0;
+      last_partition_ = chunk_id.partition_id.getPathAndName();
+    } else {
+      uint64_t offset = chunk_id.chunk_off;
+    }
+  } else {
+    uint64_t offset = chunk_id.chunk_off;
+  }
+  //  uint64_t offset = chunk_id.chunk_off;
   ChunkID next_chunk(chunk_id.partition_id, chunk_id.chunk_off + 1);
 
   uint64_t offset_clen = 0;
@@ -309,19 +325,19 @@ int BlockManager::LoadFromHdfs(const ChunkID& chunk_id, void* const& desc,
     if (start_pos < hdfsfile->mSize) {
       memset((void*)tmp, '\0', 64 * 1024);
       head[100] = {0};
-  //    LOG(INFO) << "which is start_pos: " << start_pos << endl;
+      //    LOG(INFO) << "which is start_pos: " << start_pos << endl;
       ret = hdfsPread(fs, readFile, start_pos, static_cast<void*>(head), 100);
       compress_length = atoi(reinterpret_cast<const char*>(head));
-    //  std::cout << "Compress length: " << compress_length << endl;
+      //  std::cout << "Compress length: " << compress_length << endl;
       start_pos += 100;
       ret = hdfsPread(fs, readFile, start_pos, static_cast<void*>(tmp),
                       compress_length);
       snappy::Uncompress(tmp, compress_length, result);
       str << *result;
-  //    LOG(INFO) << "HOW LONG THE RESULT: " << (*result).length() << endl;
+      //    LOG(INFO) << "HOW LONG THE RESULT: " << (*result).length() << endl;
       totoal_read += BLOCK_SIZE;
       start_pos += compress_length;
-  //    LOG(INFO) << "Finish the one size of block" << totoal_read << endl;
+      //    LOG(INFO) << "Finish the one size of block" << totoal_read << endl;
     } else {
       ret = -1;
       break;
@@ -383,10 +399,12 @@ int BlockManager::LoadFromDisk(const ChunkID& chunk_id, void* const& desc,
       snappy::Uncompress(tmp, compress_length, result);
       //      cout << *result << endl;
       str << *result;
-//      LOG(INFO) << "HOW LONG THE RESULT: " << (*result).length() << endl;
+      //      LOG(INFO) << "HOW LONG THE RESULT: " << (*result).length() <<
+      //      endl;
       totoal_read += BLOCK_SIZE;
       start_pos += compress_length;
-//      LOG(INFO) << "Finish the one size of block" << totoal_read << endl;
+      //      LOG(INFO) << "Finish the one size of block" << totoal_read <<
+      //      endl;
     }
 
     else {
@@ -399,7 +417,7 @@ int BlockManager::LoadFromDisk(const ChunkID& chunk_id, void* const& desc,
   final.copy((char*)desc, length, 0);
   chunkid_off_in_file_[next_chunk] = start_pos;
   free(tmp);
-  tmp=NULL;
+  tmp = NULL;
   delete result;
   FileClose(fd);
   return totoal_read;

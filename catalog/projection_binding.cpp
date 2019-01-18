@@ -150,6 +150,10 @@ bool ProjectionBinding::BindingEntireProjection(
           //          BlockManagerMaster::getInstance()->SendBindingMessage(
           //              partition_id, number_of_chunks,
           //              desriable_storage_level, node_id);
+          std::cout << "projection : " << part->getProejctionID().projection_off
+                    << " partition offset : " << partition_off
+                    << " load node id : " << load_node_id << "last chunk "
+                    << last_num_chunks << endl;
           BlockManagerMaster::getInstance()->SendBindingMessage(
               partition_id, last_num_chunks, desriable_storage_level, node_id);
         }

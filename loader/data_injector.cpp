@@ -806,7 +806,11 @@ RetCode DataInjector::DistributedLoadMultiThread(
       if (ret != rSuccess) {
         cout << "open hdfs file error" << endl;
       }
-      ret = hdfsloader_->SeekHdfsFile(start[0]);
+      if (start[0] == 0) {
+        ret = hdfsloader_->SeekHdfsFile(start[0]);
+      } else {
+        ret = hdfsloader_->SeekHdfsFile(start[0] + 1);
+      }
       if (ret != rSuccess) {
         cout << "seek hdfs file error" << endl;
       }

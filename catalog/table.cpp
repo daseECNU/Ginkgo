@@ -301,6 +301,15 @@ RetCode TableDescriptor::SetLogicalFilesLength(unsigned projection_offset,
   logical_files_length_[projection_offset][partition_offset] = file_length;
   return rSuccess;
 }
+RetCode TableDescriptor::SetLogicalFilesLengthDist(int node_id,
+                                                   unsigned projection_offset,
+                                                   unsigned partition_offset,
+                                                   unsigned file_length) {
+  logical_files_length_dist_[node_id][projection_offset][partition_offset] =
+      file_length;
+  return rSuccess;
+}
+
 RetCode TableDescriptor::TruncateFilesFromTable() {
   RetCode ret = rSuccess;
   if (Config::enable_parquet) {
@@ -373,8 +382,7 @@ RetCode TableDescriptor::TruncateFilesFromTable() {
               if (rTruncateReset == ret) {
                 InitTableData();
               }
-              //(todo save file_length)
-              // write_connector_->SaveUpdatedFileLengthToCatalog();
+              write_connector_->SaveUpdatedFileLengthToCatalog();
             }
           }
         }

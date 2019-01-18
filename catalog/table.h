@@ -160,7 +160,9 @@ class TableDescriptor {
   RetCode SetLogicalFilesLength(unsigned projection_offset,
                                 unsigned partition_offset,
                                 unsigned file_length);
-
+  RetCode SetLogicalFilesLengthDist(int node_id, unsigned projection_offset,
+                                    unsigned partition_offset,
+                                    unsigned file_length);
   void InitTableData();
   map<int, map<int, vector<uint32_t>>>& getMetalength() { return meta_len_; }
   map<int, map<int, vector<uint64_t>>>& getMetaStartPos() {

@@ -158,12 +158,23 @@ class MasterNodeActor : public event_based_actor {
           TableDescriptor* tbl =
               Environment::getInstance()->getCatalog()->getTable(
                   ldmsg.tbl_name_);
-          //          map<int, vector<vector<uint64_t> > >& file_length =
-          //              tbl->GetLogicalFilesLengthDist();
-          //          file_length[ldmsg.node_id_] = ldmsg.logical_lengths_;
-          //          map<int, vector<vector<string> > >& dist_path =
-          //              tbl->GetDistWritePath();
-          //          dist_path[ldmsg.node_id_] = ldmsg.write_path_name_;
+          map<int, vector<vector<uint64_t> > >& file_length =
+              tbl->GetLogicalFilesLengthDist();
+          if (file_length.find(ldmsg.node_id_) == file_length.end()) {
+            // first time
+            file_length[ldmsg.node_id_] = ldmsg.logical_lengths_;
+          } else {
+            // <node, projection, partition> need accumulate
+            for (int i = 0; i < ldmsg.logical_lengths_.size(); ++i) {
+              for (int j = 0; j < ldmsg.logical_lengths_[i].size(); ++j) {
+                file_length[ldmsg.node_id_][i][j] +=
+                    ldmsg.logical_lengths_[i][j];
+              }
+            }
+          }
+          map<int, vector<vector<string> > >& dist_path =
+              tbl->GetDistWritePath();
+          dist_path[ldmsg.node_id_] = ldmsg.write_path_name_;
           // blk num info
           for (int i = 0; i < tbl->getNumberOfProjection(); i++) {
             for (int j = 0; j < tbl->getProjectoin(i)

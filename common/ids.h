@@ -182,7 +182,7 @@ struct PartitionID {
   friend class boost::serialization::access;
   template <class Archive>
   void serialize(Archive& ar, const unsigned int version) {
-    ar& partition_off& projection_id;
+    ar& partition_off& projection_id& node_id;
   }
 };
 /* for boost::unordered_map*/

@@ -104,7 +104,8 @@ class TableFileConnector {
   vector<vector<string>> GetWritePathName();
   // added by zyhe
   void SaveUpdatedFileLengthToCatalog();
-
+  // added by zzh
+  void SaveUpdatedFileLengthToCatalogDist();
   void InitMemFileLength(unsigned projection_offset, unsigned partition_offset);
 
  private:

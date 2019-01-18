@@ -111,6 +111,7 @@ class BlockManager {
   boost::unordered_map<PartitionID, PartitionStorage *>
       partition_id_to_storage_;
   boost::unordered_map<ChunkID, uint64_t> chunkid_off_in_file_;
+  string last_partition_;
   Logging *logging_;
   Lock lock;
 };

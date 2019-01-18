@@ -123,14 +123,14 @@ TableFileConnector::TableFileConnector(FilePlatform platform,
            iter != dist_write_path.end(); iter++) {
         vector<vector<FileHandleImp*>> projection_files;
         vector<vector<Lock>> projection_locks;
-        for (int j = 0; j < dist_write_path[i].size(); ++j) {
+        for (int i = 0; i < iter->second.size(); ++i) {
           vector<FileHandleImp*> part_files;
           vector<Lock> part_locks;
-          for (int k = 0; k < dist_write_path[i][j].size(); ++k) {
+          for (int j = 0; j < iter->second[i].size(); ++j) {
             FileHandleImp* file =
                 FileHandleImpFactory::Instance().CreateFileHandleImp(
-                    platform_, dist_write_path[i][j][k]);
-            file->set_logical_file_length(dist_file_length[i][j][k]);
+                    platform_, dist_write_path[iter->first][i][j]);
+            file->set_logical_file_length(dist_file_length[iter->first][i][j]);
             part_files.push_back(file);
             part_locks.push_back(Lock());
           }
@@ -229,7 +229,7 @@ TableFileConnector::~TableFileConnector() {
           }
         }
       }
-      // (slave clean write info after load)
+      // (slave clean write info after dist load)
       for (auto proj_iter : file_handles_) {
         for (auto part_iter : proj_iter) {
           DELETE_PTR(part_iter);
@@ -584,17 +584,19 @@ RetCode TableFileConnector::DeleteOneProjectionFiles(string proj_id) {
       }
     } else {
       if (Config::distributed_load) {
-        for (int i = 0; i < dist_file_handles_.size(); ++i) {
-          for (int j = 0; j < dist_file_handles_[i].size(); ++i) {
-            for (int k = 0; k < dist_file_handles_[i][j].size(); ++k) {
+        for (map<int, vector<vector<common::FileHandleImp*>>>::iterator iter =
+                 dist_file_handles_.begin();
+             iter != dist_file_handles_.end(); iter++) {
+          for (int i = 0; i < iter->second.size(); ++i) {
+            for (int j = 0; j < iter->second[i].size(); ++j) {
               RetCode subret = rSuccess;
-              string file_name = dist_file_handles_[i][j][k]->get_file_name();
+              string file_name = iter->second[i][j]->get_file_name();
               auto pos = file_name.rfind("G");
               if (proj_id == file_name.substr(++pos, 1)) {
                 EXEC_AND_ONLY_LOG_ERROR(
-                    subret, dist_file_handles_[i][j][k]->DeleteFile(),
+                    subret, iter->second[i][j]->DeleteFile(),
                     "failed to delete file "
-                        << dist_file_handles_[i][j][k]->get_file_name());
+                        << iter->second[i][j]->get_file_name());
               }
               if (rSuccess != subret) ret = subret;  // one failed, all failed
             }
@@ -788,6 +790,7 @@ vector<vector<size_t>> TableFileConnector::GetFileHandleLength() {
 vector<vector<string>> TableFileConnector::GetWritePathName() {
   return write_path_name_;
 }
+
 void TableFileConnector::SaveUpdatedFileLengthToCatalog() {
   for (int i = 0; i < table_->getNumberOfProjection(); i++) {
     for (
@@ -799,7 +802,19 @@ void TableFileConnector::SaveUpdatedFileLengthToCatalog() {
     }
   }
 }
-
+void TableFileConnector::SaveUpdatedFileLengthToCatalogDist() {
+  for (map<int, vector<vector<common::FileHandleImp*>>>::iterator iter =
+           dist_file_handles_.begin();
+       iter != dist_file_handles_.end(); iter++) {
+    for (int i = 0; i < iter->second.size(); ++i) {
+      for (int j = 0; j < iter->second[i].size(); ++j) {
+        table_->SetLogicalFilesLengthDist(
+            iter->first, i, j,
+            dist_file_handles_[iter->first][i][j]->get_logical_file_length());
+      }
+    }
+  }
+}
 void TableFileConnector::InitMemFileLength(unsigned projection_offset,
                                            unsigned partition_offset) {
   file_handles_[projection_offset][partition_offset]->set_logical_file_length(

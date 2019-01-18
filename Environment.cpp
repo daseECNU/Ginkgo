@@ -201,7 +201,7 @@ Environment::Environment(bool ismaster) : ismaster_(ismaster) {
      * JDBC system table confilict with distributed loading ,because system use
      *insert
      * */
-    /*if (catalog_->getTable("variables") == NULL) {
+    if (catalog_->getTable("variables") == NULL) {
       string query1 =
           "create table if not exists variables(Variable_name "
           "varchar(64),Valve "
@@ -216,26 +216,28 @@ Environment::Environment(bool ismaster) : ismaster_(ismaster) {
       TransHandler* trans_handler1 = new TransHandler(query2, -1);
       trans_handler1->Execute();
       delete trans_handler1;
-
-      string query3 =
-          "insert into variables "
-          "values(\"character_set_client\",\"utf8\"),(\"character_set_"
-          "connection\",\"utf8\"),(\"character_set_results\",\"utf8\"),("
-          "\"character_set_server\",\"latin1\"),(\"init_connect\",\" "
-          "\"),(\"interactive_timeout\",\"28800\"),(\"lower_case_table_"
-          "names\","
-          "\"2\"),(\"max_allowed_packet\",\"4194304\"),(\"net_buffer_"
-          "length\","
-          "\"16384\"),(\"net_write_timeout\",\"60\"),(\"query_cache_size\","
-          "\"1048576\"),(\"query_cache_type\",\"OFF\"),(\"sql_mode\",\"NO_"
-          "ENGINE_"
-          "SUBSTITUTION\"),(\"system_time_zone\",\"CST\"),(\"time_zone\","
-          "\"SYSTEM\"),(\"tx_isolation\",\"REPEATABLE-READ\"),(\"wait_"
-          "timeout\","
-          "\"28800\");";
-      TransHandler* trans_handler2 = new TransHandler(query3, -1);
-      trans_handler2->Execute();
-      delete trans_handler2;
+      // distribute load conflict with insert
+      if (Config::distributed_load == false) {
+        string query3 =
+            "insert into variables "
+            "values(\"character_set_client\",\"utf8\"),(\"character_set_"
+            "connection\",\"utf8\"),(\"character_set_results\",\"utf8\"),("
+            "\"character_set_server\",\"latin1\"),(\"init_connect\",\" "
+            "\"),(\"interactive_timeout\",\"28800\"),(\"lower_case_table_"
+            "names\","
+            "\"2\"),(\"max_allowed_packet\",\"4194304\"),(\"net_buffer_"
+            "length\","
+            "\"16384\"),(\"net_write_timeout\",\"60\"),(\"query_cache_size\","
+            "\"1048576\"),(\"query_cache_type\",\"OFF\"),(\"sql_mode\",\"NO_"
+            "ENGINE_"
+            "SUBSTITUTION\"),(\"system_time_zone\",\"CST\"),(\"time_zone\","
+            "\"SYSTEM\"),(\"tx_isolation\",\"REPEATABLE-READ\"),(\"wait_"
+            "timeout\","
+            "\"28800\");";
+        TransHandler* trans_handler2 = new TransHandler(query3, -1);
+        trans_handler2->Execute();
+        delete trans_handler2;
+      }
     }
     if (catalog_->getTable("session") == NULL) {
       string query1 = "create table if not exists session(increment int);";
@@ -249,10 +251,12 @@ Environment::Environment(bool ismaster) : ismaster_(ismaster) {
       TransHandler* trans_handler1 = new TransHandler(query2, -1);
       trans_handler1->Execute();
       delete trans_handler1;
-      string query3 = "insert into session values(1);";
-      TransHandler* trans_handler2 = new TransHandler(query3, -1);
-      trans_handler2->Execute();
-      delete trans_handler2;
+      if (Config::distributed_load == false) {
+        string query3 = "insert into session values(1);";
+        TransHandler* trans_handler2 = new TransHandler(query3, -1);
+        trans_handler2->Execute();
+        delete trans_handler2;
+      }
     }
     if (catalog_->getTable("COLLATIONS") == NULL) {
       string query1 =
@@ -275,14 +279,15 @@ Environment::Environment(bool ismaster) : ismaster_(ismaster) {
       TransHandler* trans_handler1 = new TransHandler(query2, -1);
       trans_handler1->Execute();
       delete trans_handler1;
-
-      string query3 =
-          "insert into COLLATIONS "
-          "values(\"big5_chinese_ci\",\"big5\",1,\"Yes\",\"Yes\",1);";
-      TransHandler* trans_handler2 = new TransHandler(query3, -1);
-      trans_handler2->Execute();
-      delete trans_handler2;
-    }*/
+      if (Config::distributed_load == false) {
+        string query3 =
+            "insert into COLLATIONS "
+            "values(\"big5_chinese_ci\",\"big5\",1,\"Yes\",\"Yes\",1);";
+        TransHandler* trans_handler2 = new TransHandler(query3, -1);
+        trans_handler2->Execute();
+        delete trans_handler2;
+      }
+    }
   }
 }
 
@@ -330,7 +335,7 @@ void Environment::AnnounceCafMessage() {
   announce<ProjectionID>("ProjectionID", &ProjectionID::table_id,
                          &ProjectionID::projection_off);
   announce<PartitionID>("PartitionID", &PartitionID::projection_id,
-                        &PartitionID::partition_off);
+                        &PartitionID::partition_off, &PartitionID::node_id);
   announce<ExchangeID>("ExchangeID", &ExchangeID::exchange_id,
                        &ExchangeID::partition_offset);
   announce<LoadInfo>("LoadInfo", &LoadInfo::cols_, &LoadInfo::proj_cols_,

@@ -93,7 +93,6 @@ class SlaveNodeActor : public event_based_actor {
         [=](LoadPlanAtom, string filename, int open_flag, string col_sep,
             string row_sep, uint64_t start, uint64_t end, uint64_t tuple_id,
             int total_nodes, LoadInfo l) {
-          std::cout << "start : " << start << " end : " << end << endl;
           vector<column_type> columns;
           vector<vector<column_type> > proj_columns;
           vector<GeneralModuloFunction> part_func_v;
