@@ -139,6 +139,7 @@ bool ProjectionBinding::BindingEntireProjection(
       const NodeID node_id = partition_id_to_nodeid_list[i].second;
       if (Config::distributed_load) {
         // in distributed loading,Bind message are many to one
+        // add by zzh
         int last_num_chunks = 0;
         for (int load_node_id = 0; load_node_id < Config::load_node_num;
              ++load_node_id) {
@@ -147,13 +148,12 @@ bool ProjectionBinding::BindingEntireProjection(
           const unsigned number_of_chunks =
               part->getPartitionChunksByMap(partition_off, 0);
           last_num_chunks += number_of_chunks;
-          //          BlockManagerMaster::getInstance()->SendBindingMessage(
-          //              partition_id, number_of_chunks,
-          //              desriable_storage_level, node_id);
-          std::cout << "projection : " << part->getProejctionID().projection_off
-                    << " partition offset : " << partition_off
-                    << " load node id : " << load_node_id << "last chunk "
-                    << last_num_chunks << endl;
+          //          std::cout << "projection : " <<
+          //          part->getProejctionID().projection_off
+          //                    << " partition offset : " << partition_off
+          //                    << " load node id : " << load_node_id << "last
+          //                    chunk "
+          //                    << last_num_chunks << std::endl;
           BlockManagerMaster::getInstance()->SendBindingMessage(
               partition_id, last_num_chunks, desriable_storage_level, node_id);
         }

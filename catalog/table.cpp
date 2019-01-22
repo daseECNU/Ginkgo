@@ -382,7 +382,7 @@ RetCode TableDescriptor::TruncateFilesFromTable() {
               if (rTruncateReset == ret) {
                 InitTableData();
               }
-              write_connector_->SaveUpdatedFileLengthToCatalog();
+              write_connector_->SaveUpdatedFileLengthToCatalogDist();
             }
           }
         }

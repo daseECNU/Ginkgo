@@ -270,10 +270,10 @@ int BlockManager::LoadFromHdfs(const ChunkID& chunk_id, void* const& desc,
       offset = 0;
       last_partition_ = chunk_id.partition_id.getPathAndName();
     } else {
-      uint64_t offset = chunk_id.chunk_off;
+      offset = chunk_id.chunk_off;
     }
   } else {
-    uint64_t offset = chunk_id.chunk_off;
+    offset = chunk_id.chunk_off;
   }
   //  uint64_t offset = chunk_id.chunk_off;
   ChunkID next_chunk(chunk_id.partition_id, chunk_id.chunk_off + 1);

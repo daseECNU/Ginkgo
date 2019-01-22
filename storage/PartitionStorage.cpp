@@ -53,6 +53,7 @@ PartitionStorage::PartitionStorage(const PartitionID& partition_id,
   else
     MemoryChunkStore::GetInstance()->SetFreeAlgorithm(1);
   for (unsigned i = 0; i < number_of_chunks_; i++) {
+    std::cout << i << partition_id_.getPathAndName() << endl;
     chunk_list_.push_back(new ChunkStorage(
         ChunkID(partition_id_, i), BLOCK_SIZE, desirable_storage_level_));
   }
@@ -84,6 +85,11 @@ void PartitionStorage::UpdateChunksWithInsertOrAppend(
     chunk_list_.push_back(
         new ChunkStorage(ChunkID(partition_id, i), BLOCK_SIZE, storage_level));
   number_of_chunks_ = number_of_chunks;
+
+  for (int i = 0; i < chunk_list_.size(); ++i) {
+    std::cout << chunk_list_[i]->GetChunkID().partition_id.getPathAndName()
+              << endl;
+  }
 }
 
 /**
