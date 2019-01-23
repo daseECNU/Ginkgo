@@ -268,7 +268,6 @@ RetCode LoadExec::getOffset(int64_t start, int64_t end, int64_t &result,
   vector<char> dataSeg;
   dataSeg.resize(step);
   size_t readByte = hdfsRead(fs_, file_, &dataSeg[0], step);
-  //  std::cout << "read Byte is " << readByte << endl;
   if (readByte == -1) {
     return -1;
   }

@@ -261,20 +261,16 @@ int BlockManager::LoadFromHdfs(const ChunkID& chunk_id, void* const& desc,
   int ret;
   uint64_t totoal_read = 0;
   uint64_t offset;
+  string load_part_name = chunk_id.partition_id.getPathAndName();
   if (Config::distributed_load) {
-    // one partition from multi files;
-    if (last_partition_ == "") {
-      offset = 0;
-      last_partition_ = chunk_id.partition_id.getPathAndName();
-    } else if (last_partition_ != chunk_id.partition_id.getPathAndName()) {
-      offset = 0;
-      last_partition_ = chunk_id.partition_id.getPathAndName();
-    } else {
-      offset = chunk_id.chunk_off;
+    if (chunkid_off_in_file_dist_.find(load_part_name) ==
+        chunkid_off_in_file_dist_.end()) {
+      chunkid_off_in_file_dist_[load_part_name] = 0;
     }
   } else {
     offset = chunk_id.chunk_off;
   }
+
   //  uint64_t offset = chunk_id.chunk_off;
   ChunkID next_chunk(chunk_id.partition_id, chunk_id.chunk_off + 1);
 
@@ -311,7 +307,13 @@ int BlockManager::LoadFromHdfs(const ChunkID& chunk_id, void* const& desc,
   if (offset == 0) {
     chunkid_off_in_file_[chunk_id] = 0;
   }
-  uint64_t start_pos = chunkid_off_in_file_[chunk_id];
+  uint64_t start_pos;
+  if (Config::distributed_load) {
+    start_pos = chunkid_off_in_file_dist_[load_part_name];
+  } else {
+    start_pos = chunkid_off_in_file_[chunk_id];
+  }
+  //  uint64_t start_pos = chunkid_off_in_file_[chunk_id];
   char* tmp = (char*)malloc(64 * 1024);
   string* result = new string;
   char head[100];
@@ -343,7 +345,12 @@ int BlockManager::LoadFromHdfs(const ChunkID& chunk_id, void* const& desc,
       break;
     }
   }
-  chunkid_off_in_file_[next_chunk] = start_pos;
+  if (Config::distributed_load) {
+    chunkid_off_in_file_dist_[load_part_name] = start_pos;
+  } else {
+    chunkid_off_in_file_[next_chunk] = start_pos;
+  }
+  //  chunkid_off_in_file_[next_chunk] = start_pos;
   string final = str.str();
   final.copy((char*)desc, length, 0);
   // snappy decompress

@@ -117,13 +117,15 @@ void Partitioner::RegisterPartitionWithNumberOfBlocksDist(
   if (mode == 2) {
     // append
     num_of_block_[blk_info] += number_of_blocks;
-    std::cout << "blk_info : " << blk_info.first << " , " << blk_info.second
-              << "blk num : " << num_of_block_[blk_info] << endl;
+    //    std::cout << "blk_info : " << blk_info.first << " , " <<
+    //    blk_info.second
+    //              << "blk num : " << num_of_block_[blk_info] << endl;
   } else if (mode == 1) {
     // load
     num_of_block_[blk_info] = number_of_blocks;
-    std::cout << "blk_info : " << blk_info.first << " , " << blk_info.second
-              << "blk num : " << num_of_block_[blk_info] << endl;
+    //    std::cout << "blk_info : " << blk_info.first << " , " <<
+    //    blk_info.second
+    //              << "blk num : " << num_of_block_[blk_info] << endl;
   }
   // don't initial file name, cause name is not used
   partition_info_list[partition_offset]->number_of_blocks += number_of_blocks;
@@ -158,7 +160,8 @@ void Partitioner::UpdatePartitionWithNumberOfChunksToBlockManagerDist(
     unsigned partition_offset, unsigned long number_of_blocks,
     int load_node_id) {
   assert(partition_offset < partition_function_->getNumberOfPartitions());
-  unsigned number_of_chunks = ceil((number_of_blocks) / (float)1024);
+  unsigned number_of_chunks =
+      getPartitionChunksByMap(partition_offset, load_node_id);
   if (mode_ == OneToOne) {
     if (partition_info_list[partition_offset]->is_all_blocks_bound()) {
       NodeID node_id = partition_info_list[partition_offset]->get_location();

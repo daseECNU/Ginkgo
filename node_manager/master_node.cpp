@@ -187,8 +187,6 @@ class MasterNodeActor : public event_based_actor {
                       j, ldmsg.blks_per_partition_[i][j], ldmsg.node_id_,
                       ldmsg.load_mode_);
               //              if (ldmsg.load_mode_ == 2) {
-              //                //                // if append, we need bind new
-              //                block info
               //                tbl->getProjectoin(i)
               //                    ->getPartitioner()
               //                    ->UpdatePartitionWithNumberOfChunksToBlockManagerDist(

@@ -146,14 +146,8 @@ bool ProjectionBinding::BindingEntireProjection(
           PartitionID partition_id(part->getProejctionID(), partition_off,
                                    load_node_id);
           const unsigned number_of_chunks =
-              part->getPartitionChunksByMap(partition_off, 0);
+              part->getPartitionChunksByMap(partition_off, load_node_id);
           last_num_chunks += number_of_chunks;
-          //          std::cout << "projection : " <<
-          //          part->getProejctionID().projection_off
-          //                    << " partition offset : " << partition_off
-          //                    << " load node id : " << load_node_id << "last
-          //                    chunk "
-          //                    << last_num_chunks << std::endl;
           BlockManagerMaster::getInstance()->SendBindingMessage(
               partition_id, last_num_chunks, desriable_storage_level, node_id);
         }
