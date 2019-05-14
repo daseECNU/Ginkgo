@@ -118,11 +118,11 @@ void submit_command_repeated(Client &client, std::string &command,
   }
 }
 void PrintUsage() {
-  cout << "Welcome to use CLAIMS. " << endl;
+  cout << "Welcome to use Ginkgo. " << endl;
   cout << "Type: " << endl;
-  cout << "\t help; for usage of CLAIMS." << endl;
+  cout << "\t help; for usage of Ginkgo." << endl;
   cout << "\t copyright; for distribution terms." << endl;
-  cout << "\t exit; or shutdown; for exiting CLAIMS." << endl;
+  cout << "\t exit; or shutdown; for exiting Ginkgo." << endl;
 }
 
 void PrintCopyright() {
