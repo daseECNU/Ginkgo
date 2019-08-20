@@ -6,7 +6,7 @@ cd 2-claims-conf/
 source ./load-config.sh
 source ./generate-config.sh
 cd ../../
-# now in CLAIMS_HOME
+# now in GINKGO_HOME
 
 ./sbin/stop-all.sh>/dev/null 2>&1
 

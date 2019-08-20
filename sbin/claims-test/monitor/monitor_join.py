@@ -89,19 +89,19 @@ join_num_size_case=(
 			(1048576, 512, ((1, 1, "hash_join_s_sb"), (1, 1, "hash_join_s_bs"), )),
 		)
 
-claimshome=os.getenv("CLAIMS_HOME")
+claimshome=os.getenv("GINKGO_HOME")
 cf = ConfigParser.ConfigParser()
 cf.read("%s/sbin/2-claims-conf/cluster.config"%(claimshome))
 hostname = cf.get("cluster", "master") 
 user = cf.get("cluster", "user")
 
-config_join_num="ssh -f -n -l %s %s \"cd $CLAIMS_HOME/sbin/2-claims-conf; sed -i 's:^hash_join_bucket_num = .*$:hash_join_bucket_num = %s:g' ./cluster.config; exit;\";sleep 1;"
-config_join_size="ssh -f -n -l %s %s \"cd $CLAIMS_HOME/sbin/2-claims-conf; sed -i 's:^hash_join_bucket_size = .*$:hash_join_bucket_size = %s:g' ./cluster.config; exit;\";sleep 1;"
+config_join_num="ssh -f -n -l %s %s \"cd $GINKGO_HOME/sbin/2-claims-conf; sed -i 's:^hash_join_bucket_num = .*$:hash_join_bucket_num = %s:g' ./cluster.config; exit;\";sleep 1;"
+config_join_size="ssh -f -n -l %s %s \"cd $GINKGO_HOME/sbin/2-claims-conf; sed -i 's:^hash_join_bucket_size = .*$:hash_join_bucket_size = %s:g' ./cluster.config; exit;\";sleep 1;"
 
-config_disk_mode="ssh -f -n -l %s %s \"cd $CLAIMS_HOME/sbin/2-claims-conf; sed -i 's:^local_disk_mode = .*$:local_disk_mode = %s:g' ./cluster.config; exit;\";sleep 1;"
-config_data="ssh -f -n -l %s %s \"cd $CLAIMS_HOME/sbin/2-claims-conf; sed -i 's:^data = .*$:data = %s:g' ./cluster.config; exit;\";sleep 1;"
+config_disk_mode="ssh -f -n -l %s %s \"cd $GINKGO_HOME/sbin/2-claims-conf; sed -i 's:^local_disk_mode = .*$:local_disk_mode = %s:g' ./cluster.config; exit;\";sleep 1;"
+config_data="ssh -f -n -l %s %s \"cd $GINKGO_HOME/sbin/2-claims-conf; sed -i 's:^data = .*$:data = %s:g' ./cluster.config; exit;\";sleep 1;"
 
-deploy="ssh -f -n -l %s %s \"$CLAIMS_HOME/sbin/3-deploy.sh config; exit;\";"
+deploy="ssh -f -n -l %s %s \"$GINKGO_HOME/sbin/3-deploy.sh config; exit;\";"
 startall="%s/sbin/start-all.sh;"
 stopall="%s/sbin/stop-all.sh;"
 runtest="cd %s/sbin/claims-test; ./claimstest.sh %d %d %s;"

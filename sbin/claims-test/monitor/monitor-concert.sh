@@ -5,7 +5,7 @@ cd $CURRDIR
 cd ../../2-claims-conf
 source ./load-config.sh
 cd ../../
-# now in CLAIMS_HOME
+# now in GINKGO_HOME
 
 while [ 1 ]
 do
@@ -37,6 +37,6 @@ do
   #./claimstest.sh 1 100 concert
    ./claimstest.sh 100 1 cancel
   cd ../../
-  # now in CLAIMS_HOME
+  # now in GINKGO_HOME
  fi
 done

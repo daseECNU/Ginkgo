@@ -6,7 +6,7 @@ cd $CURRDIR
 cd ../2-claims-conf/
 source ./load-config.sh
 cd ../../
-# now in CLAIMS_HOME
+# now in GINKGO_HOME
 
 # for debug begin #####
 cd install

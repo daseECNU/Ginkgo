@@ -6,7 +6,7 @@ cd ../2-claims-conf/
 source ./load-config.sh
 source ./generate-config.sh
 cd ../../
-# now in CLAIMS_HOME
+# now in GINKGO_HOME
 
 #allcluster="90s190 90s191 90s192 90s193 90s194 90s195 90s196 90s197 90s198 90s199"
 

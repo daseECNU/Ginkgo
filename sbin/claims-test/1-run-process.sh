@@ -28,18 +28,18 @@ do
 done
 
 set -e
-cd $CLAIMS_HOME/sbin/2-claims-conf/
+cd $GINKGO_HOME/sbin/2-claims-conf/
 source ./load-config.sh
 ##################
 # start test     #
 ##################
-  cd $CLAIMS_HOME
+  cd $GINKGO_HOME
   cd install
   ulimit -c unlimited
 
 echo "concurrency_count=[$concurrency_count]"
 
-cd $CLAIMS_HOME/sbin/claims-test
+cd $GINKGO_HOME/sbin/claims-test
 
 filename=${resultpath}_`date '+%Y-%m-%d-%H%M%S'`
 mkdir ./testresult/$filename
@@ -55,7 +55,7 @@ do
    datestr=`date '+%Y-%m-%d %H:%M:%S'`
    thisstartstr="========run test:[$result]-[$cur] time: $datestr========"
    echo -e "\033[33m$thisstartstr\033[0m"
-   $CLAIMS_HOME/install/client $master $client_listener_port < $test  > ./testresult/${filename}/${result}_${cur}.result
+   $GINKGO_HOME/install/client $master $client_listener_port < $test  > ./testresult/${filename}/${result}_${cur}.result
    sleep 1
   }&
   done

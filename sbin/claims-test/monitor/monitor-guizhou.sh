@@ -5,7 +5,7 @@ cd $CURRDIR
 cd ../../2-claims-conf
 source ./load-config.sh
 cd ../../
-# now in CLAIMS_HOME
+# now in GINKGO_HOME
 while [ 1 ]
 do
  procid=`ps x | grep -w ./install/claimsserver | grep -v grep | awk '{print $1}'`
@@ -21,6 +21,6 @@ do
 #  echo $tempuseless
    ./claimstest.sh 1 1 huishuiQ2
   cd ../../
-  # now in CLAIMS_HOME
+  # now in GINKGO_HOME
  fi
 done
