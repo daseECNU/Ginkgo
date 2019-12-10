@@ -23,7 +23,7 @@ first modify the config file of claims:
  sbin/2-claims-conf/cluster.config
 then deploy it, call script:
  sbin/3-deploy.sh
-then restart claimsserver:
+then restart  ginkgoserver:
  sbin/start-all.sh
 then start client and load the data, this step will call script:
  sbin/claims-test/claimstest.sh 1 1 <testcase>

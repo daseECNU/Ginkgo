@@ -28,7 +28,7 @@ echo "-----------------------------------"
 echo -e "\033[31m`pwd`\033[0m"
 
 thisip=${1#*config-}
-thislog=$logpath/claimsserver-$thisip-$timestr.log
+thislog=$logpath/ ginkgoserver-$thisip-$timestr.log
 
 ./sbin/stop-node.sh
 
@@ -38,11 +38,11 @@ ulimit -c unlimited
 cd ../
 # for debug end ########
 
-echo "========run claimsserver on:[$thisip] time:[$(date '+%Y-%m-%d %H:%M:%S')]========" >> $thislog
-./install/claimsserver -c $1 >> $thislog &
-claimsserverpid=$!
-echo "claimsserver=$claimsserverpid" > $runclaimsprocid
-echo -e "$thisip start claimsserver pid:[$claimsserverpid][\033[32mOK\033[0m]"
+echo "========run  ginkgoserver on:[$thisip] time:[$(date '+%Y-%m-%d %H:%M:%S')]========" >> $thislog
+./install/ ginkgoserver -c $1 >> $thislog &
+ ginkgoserverpid=$!
+echo " ginkgoserver=$ ginkgoserverpid" > $runclaimsprocid
+echo -e "$thisip start  ginkgoserver pid:[$ ginkgoserverpid][\033[32mOK\033[0m]"
 
 echo "start tracker for debug..."
 #./sbin/claims-test/statustracker.sh &

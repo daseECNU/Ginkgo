@@ -20,7 +20,7 @@ do
   if [ "$1" = "" ] || [ "$1" = "exec" ]; then
       ssh -f -n -l $user $node "if [ ! -d '$claimshome/sbin' ]; then mkdir -p '$claimshome/sbin'; fi; exit"
       ssh -f -n -l $user $node "if [ ! -d '$claimshome/install' ]; then mkdir -p '$claimshome/install'; fi; exit"
-      scp install/claimsserver $user@$node:$claimshome/install
+      scp install/ ginkgoserver $user@$node:$claimshome/install
       scp install/client $user@$node:$claimshome/install
       scp install/test $user@$node:$claimshome/install
       scp sbin/*.sh $user@$node:$claimshome/sbin

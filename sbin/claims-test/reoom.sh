@@ -13,7 +13,7 @@ cd ../../
 for node in $master $slaves #$allcluster
 do
 {
-  ssh -f -n -l $user $node "pgrep -f ./install/claimsserver | while read PID;do sudo echo -17 > /proc/\$PID/oom_adj;done"
-  echo -e "$node claimsserver echo -17 to oom_adj [\033[32mOK\033[0m]"
+  ssh -f -n -l $user $node "pgrep -f ./install/ ginkgoserver | while read PID;do sudo echo -17 > /proc/\$PID/oom_adj;done"
+  echo -e "$node  ginkgoserver echo -17 to oom_adj [\033[32mOK\033[0m]"
 }
 done

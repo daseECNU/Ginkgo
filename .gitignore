@@ -30,7 +30,7 @@ bin/
 build
 claims.log
 claims_log/
-claimsserver
+ ginkgoserver
 client
 compile
 conf

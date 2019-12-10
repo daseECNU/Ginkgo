@@ -9,25 +9,25 @@ cd ../../
 # now in GINKGO_HOME
 
 timestr=$(date +%Y-%m-%d)
-thisstatus=claimsserver.$timestr.status
+thisstatus= ginkgoserver.$timestr.status
 
 while [ 1 ]
 do
 
  if [ -f "$runclaimsprocid" ]; then
-  claimspids=`sed '/^claimsserver=/!d;s/.*=//' $runclaimsprocid`
+  claimspids=`sed '/^ ginkgoserver=/!d;s/.*=//' $runclaimsprocid`
   if [ "$claimspids" != "" ]; then
-   echo "track claimsserver pid : [$claimspids]"
+   echo "track  ginkgoserver pid : [$claimspids]"
    echo "========time:[$(date '+%Y-%m-%d %H:%M:%S')]========" >> $thisstatus
    cat /proc/$claimspids/status >> $thisstatus
    if [ $? -ne 0 ] ; then
-     echo "claimsserver is aborted abnormally."
+     echo " ginkgoserver is aborted abnormally."
      break
    fi
   fi
   sleep 60
  else
-  echo "claimsserver pid file does not exist."
+  echo " ginkgoserver pid file does not exist."
   break
  fi
 

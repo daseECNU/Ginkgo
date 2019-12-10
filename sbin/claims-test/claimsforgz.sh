@@ -13,5 +13,5 @@ cd install
 ulimit -c unlimited
 cd ../
 # for debug end #######
-./install/claimsserver -c ./sbin/2-claims-conf/config-$master > /dev/null 2>&1 &
-echo "[$(date '+%Y-%m-%d %H:%M:%S')] claimsserver=$!" >> guizhoutest.log
+./install/ ginkgoserver -c ./sbin/2-claims-conf/config-$master > /dev/null 2>&1 &
+echo "[$(date '+%Y-%m-%d %H:%M:%S')]  ginkgoserver=$!" >> guizhoutest.log

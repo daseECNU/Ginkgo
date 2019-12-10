@@ -15,4 +15,4 @@ cd ../
 # for debug end #######
 serverpath=`pwd`
 echo $serverpath
-$serverpath/install/claimsserver -c $serverpath/sbin/2-claims-conf/config-$master
+$serverpath/install/ ginkgoserver -c $serverpath/sbin/2-claims-conf/config-$master

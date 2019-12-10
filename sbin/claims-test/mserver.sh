@@ -10,15 +10,15 @@ cd ../../
 
 while [ 1 ]
 do
- procid=`ps x | grep -w ./install/claimsserver | grep -v grep | awk '{print $1}'`
+ procid=`ps x | grep -w ./install/ ginkgoserver | grep -v grep | awk '{print $1}'`
  if [ "$procid" = "" ]; then
-  echo "claimsserver is aborted. Try to restart..."
+  echo " ginkgoserver is aborted. Try to restart..."
   ./sbin/stop-all.sh
 #  if [ "$local_disk_mode" = "1" ]; then
 #  rm $data*
 #  fi
   if [ -d "install" ]; then
-    if [ ! -f "install/claimsserver" ]; then
+    if [ ! -f "install/ ginkgoserver" ]; then
      ./sbin/1-compile.sh
     fi
   else
@@ -28,7 +28,7 @@ do
   ./sbin/start-all.sh
   sleep 3 
  else
-  echo "claimsserver is running..."
+  echo " ginkgoserver is running..."
   sleep 180
  fi
 done

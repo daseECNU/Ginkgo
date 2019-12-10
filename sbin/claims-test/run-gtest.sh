@@ -10,7 +10,7 @@ cd ../../
 starttime=$(date '+%Y-%m-%d %H:%M:%S')
 while [ 1 ]
 do
-  echo "claimsserver is running..."
+  echo " ginkgoserver is running..."
   ((loop++))
   echo -e "\033[33m=======[$loop]=time:[`date '+%Y-%m-%d %H:%M:%S'`]========\033[0m"
   ./install/test --ip $master --port $client_listener_port

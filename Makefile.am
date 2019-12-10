@@ -93,7 +93,7 @@ include_HEADERS = Config.h \
 				IDsGenerator.h \
 				configure.h
 				
-bin_PROGRAMS =  claimsserver \
+bin_PROGRAMS =   ginkgoserver \
 				client \
 				test
 				
@@ -102,7 +102,7 @@ client_SOURCES = Client.cpp \
 					Config.cpp \
 					IDsGenerator.cpp 
 
-claimsserver_SOURCES = Config.cpp	\
+ ginkgoserver_SOURCES = Config.cpp	\
 				Environment.cpp \
 				IDsGenerator.cpp \
 				Server.cpp
