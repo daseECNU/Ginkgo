@@ -1930,8 +1930,8 @@ set(SOURCE_FILES
     Client/Test/Makefile.am
     Client/Test/Makefile.in
     Client/Test/TestSeverClient.cpp
-    Client/ClaimsServer.cpp
-    Client/ClaimsServer.h
+    Client/GinkgoServer.cpp
+    Client/GinkgoServer.h
     Client/Client.cpp
     Client/Client.h
     Client/ClientResponse.cpp

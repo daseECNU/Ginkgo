@@ -11,7 +11,7 @@
 #include <glog/logging.h>
 
 #include "./Executing.h"
-#include "../Client/ClaimsServer.h"
+#include "../Client/GinkgoServer.h"
 #include "../stmt_handler/stmt_handler.h"
 #include "../stmt_handler/trans_handler.h"
 

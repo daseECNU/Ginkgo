@@ -17,7 +17,7 @@
 #include "Executor/PortManager.h"
 #include "common/Logging.h"
 #include "utility/thread_pool.h"
-#include "Client/ClaimsServer.h"
+#include "Client/GinkgoServer.h"
 #include "exec_tracker/stmt_exec_tracker.h"
 #include "exec_tracker/segment_exec_tracker.h"
 #include "Executor/exchange_tracker.h"

@@ -1,5 +1,5 @@
 /*
- * ClaimsServer.h
+ * GinkgoServer.h
  *
  *  Created on: Feb 20, 2014
  *      Author: volt

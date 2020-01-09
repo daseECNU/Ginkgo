@@ -1,7 +1,7 @@
 #include <iostream>
 #include <string>
 
-#include "../ClaimsServer.h"
+#include "../GinkgoServer.h"
 #include "../Client.h"
 #include "../ClientResponse.h"
 

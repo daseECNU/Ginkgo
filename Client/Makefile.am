@@ -22,7 +22,7 @@ LDADD = 	../catalog/libcatalog.a \
 
 noinst_LIBRARIES=libclient.a
 libclient_a_SOURCES = \
-	ClaimsServer.cpp			ClaimsServer.h \
+	GinkgoServer.cpp			GinkgoServer.h \
 	Client.cpp 				Client.h \
 	ClientResponse.cpp 		ClientResponse.h \
 	jsoncpp.cpp

@@ -1,11 +1,11 @@
 /*
- * ClaimsServer.cpp
+ * GinkgoServer.cpp
  *
  *  Created on: Feb 20, 2014
  *      Author: volt
  */
 
-#include "ClaimsServer.h"
+#include "GinkgoServer.h"
 
 #include <malloc.h>
 #include <arpa/inet.h>
