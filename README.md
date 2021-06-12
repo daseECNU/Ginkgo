@@ -7,7 +7,8 @@
 
 ##### 1. Fast massively parallel execution engine.
 
-Ginkgo relies on highly parallel query processing engine to dramatically accelerate data analysis speed. Query evaluations are not only distributed across the cluster to leverage the computation power of the cluster, but are also executed in a multi-threaded fashion to unleash the power of modern many-core hardware. In order to maximize the resource utilization on the cluster, it employs elastic execution on the pipelines of query DAG, which fills resource bubbles by resizing the pipelining width on the fly.
+Ginkgo relies on highly parallel query processing engine to dramatically accelerate data analysis speed. Query evaluations are not only distributed across the cluster to leverage the computation power of the cluster, but are also executed in a multi-threaded fashion to unleash the power of modern many-core hardware. Due to unpredictable data distributions, the static schduling ploicy could idle computing resouces of cluster.
+To maximize the resource utilization on the cluster, it employs elastic execution on the pipelines of query DAG, which fills the resource bubbles by resizing the pipelining width on the fly.
 
 ##### 2. Real-time and transactional data ingestion.
 
