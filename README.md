@@ -40,7 +40,7 @@ Xiaopeng Fan, Ph.D. Student.
 <br /> 
 Zewen Sun, Ph.D. Student.
 <br /> 
-Yintong Xiong, Postgraduate Student.
+Yingtong Xiong, Postgraduate Student.
 <br /> 
 Zeyu He, Postgraduate Student.
 <br /> 
